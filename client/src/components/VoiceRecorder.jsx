@@ -1,48 +1,29 @@
+import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import React, { useState, useRef, useEffect } from 'react';
+import { MicrophoneIcon } from '@heroicons/react/24/outline';
 
-function VoiceRecorder() {
-  const [isRecording, setIsRecording] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [audioURL, setAudioURL] = useState(null);
-  const [freqData, setFreqData] = useState(new Uint8Array(32));
-
+export default function VoiceRecorder({ onNoteSaved }) {
+  const [status, setStatus] = useState('idle');
+  const [audioUrl, setAudioUrl] = useState(null);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const recordingTimerRef = useRef(null);
+  const [recordingStartTime, setRecordingStartTime] = useState(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
-  const audioContextRef = useRef(null);
-  const analyserRef = useRef(null);
-  const dataArrayRef = useRef(null);
-  const sourceRef = useRef(null);
-  const animationFrameRef = useRef(null);
-  const streamRef = useRef(null);
+  const [progress, setProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
 
-  const animateFrequency = () => {
-    if (!analyserRef.current || !isRecording) {
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-      return;
-    }
-    analyserRef.current.getByteFrequencyData(dataArrayRef.current);
-    setFreqData(new Uint8Array(dataArrayRef.current));
-    animationFrameRef.current = requestAnimationFrame(animateFrequency);
-  };
+  useEffect(() => {
+    return () => clearInterval(recordingTimerRef.current);
+  }, []);
 
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-
-      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      analyserRef.current.fftSize = 64;
-      dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
-      sourceRef.current = audioContextRef.current.createMediaStreamSource(stream);
-      sourceRef.current.connect(analyserRef.current);
-
-      animateFrequency();
-
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
+      setRecordingStartTime(Date.now());
 
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
@@ -50,128 +31,174 @@ function VoiceRecorder() {
         }
       };
 
+      setProgress(0);
+      setIsUploading(true);
+
       mediaRecorder.onstop = async () => {
-        setIsLoading(true);
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
         const url = URL.createObjectURL(blob);
-        setAudioURL(url);
+        setAudioUrl(url);
 
+        const fileName = `voice-note-${Date.now()}.webm`;
+        const { data, error } = await supabase.storage.from('voice-notes').upload(fileName, blob, {
+          contentType: 'audio/webm',
+        });
+        if (error) {
+          console.error('Upload error:', error);
+          setStatus('error');
+          return;
+        }
+
+        const { data: publicUrlData } = supabase.storage.from('voice-notes').getPublicUrl(fileName);
+        const publicUrl = publicUrlData.publicUrl;
+
+        let transcriptText = '';
         try {
           const formData = new FormData();
-          formData.append('file', blob, 'recording.webm');
-
+          formData.append('file', blob, fileName);
           const response = await fetch('http://localhost:5678/webhook/a37165d8-dcbd-4c54-8712-4400bec5f17b', {
             method: 'POST',
             body: formData,
           });
-
-          const data = await response.json();
-          console.log('Webhook response:', data);
-
-          if (Array.isArray(data) && data.length > 0) {
-            const item = data[0];
-            console.dir(item, { depth: null });
-
-            let transcript = item.data || item.text || '';
-            let audio_url = item.file_url || item.url || '';
-
-            // Fix double slash in URL
-            audio_url = audio_url.replace('voice-notes//', 'voice-notes/');
-
-            console.log('Saving to Supabase:', { audio_url, transcript });
-
-            if (audio_url && audio_url.trim() !== '') {
-              const { error } = await supabase
-                .from('voice_notes')
-                .insert([{ audio_url, transcript }]);
-              if (error) {
-                console.error('Supabase insert error:', error);
+          const responseText = await response.text();
+          let transcriptArray = [];
+          try {
+            transcriptArray = JSON.parse(responseText);
+          } catch {
+            transcriptArray = [];
+          }
+          if (Array.isArray(transcriptArray)) {
+            transcriptText = transcriptArray.map(item => {
+              if (typeof item === 'object' && item !== null) {
+                if (item.text) return item.text;
+                if (item.data) return item.data;
+                return JSON.stringify(item);
               } else {
-                console.log('Saved voice note to Supabase');
+                return String(item);
               }
-            } else {
-              console.warn('Webhook did not return a valid audio URL, skipping save');
-            }
-          } else {
-            console.warn('Webhook did not return expected array data');
+            }).join(' ');
           }
         } catch (err) {
-          console.error('Error sending audio to webhook or saving transcript:', err);
+          console.error('Transcription webhook error:', err);
         }
 
-        setIsLoading(false);
+        const audio = new Audio(publicUrl);
+        audio.addEventListener('loadedmetadata', async () => {
+          if (isFinite(audio.duration) && audio.duration > 0) {
+            saveNote(audio.duration);
+          } else {
+            audio.currentTime = 1e101;
+            audio.addEventListener('timeupdate', function onTimeUpdate() {
+              if (isFinite(audio.duration) && audio.duration > 0) {
+                audio.removeEventListener('timeupdate', onTimeUpdate);
+                saveNote(audio.duration);
+              }
+            });
+          }
+        });
 
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach(track => track.stop());
-          streamRef.current = null;
+        async function saveNote(duration) {
+          const { data: userData } = await supabase.auth.getUser();
+          const { data: insertData, error: insertError } = await supabase.from('voice_notes').insert([
+            {
+              user_id: userData?.user?.id,
+              audio_url: publicUrl,
+              transcript: transcriptText,
+              duration: duration,
+              archived: false,
+            },
+          ]).select();
+          if (insertError) {
+            console.error('Insert note error:', insertError);
+            setStatus('error');
+          } else {
+            if (onNoteSaved && insertData && insertData.length > 0) {
+              onNoteSaved(insertData[0]);
+            }
+          }
+          setStatus('done');
+          setTimeout(() => {
+            setStatus('idle');
+            setAudioUrl(null);
+            setRecordingTime(0);
+          }, 2000);
         }
-        if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-          audioContextRef.current.close();
-          audioContextRef.current = null;
-        }
-        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-        setFreqData(new Uint8Array(32));
       };
 
       mediaRecorder.start();
-      setIsRecording(true);
+      setStatus('recording');
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(Math.floor((Date.now() - recordingStartTime) / 1000));
+      }, 1000);
     } catch (err) {
-      console.error('Error starting recording:', err);
+      console.error('Mic access denied or error:', err);
+      setStatus('error');
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
+    clearInterval(recordingTimerRef.current);
+    mediaRecorderRef.current.stop();
+    setStatus('saving');
   };
 
   return (
-    <div className="w-full max-w-md rounded-3xl shadow-xl p-8 flex flex-col items-center gap-6 transition-all duration-500 bg-gradient-to-br from-blue-50 to-white border border-blue-100">
-      <h2 className={`text-2xl font-bold transition-all duration-300 ${isRecording ? 'text-blue-600' : 'text-gray-800'}`}>
-        {isRecording ? 'Recording...' : 'Tap to Record'}
-      </h2>
-
+    <>
       <button
-        onClick={isRecording ? stopRecording : startRecording}
-        className={`relative rounded-full flex items-center justify-center text-white shadow-2xl transition-all duration-300
-        ${isRecording ? 'bg-red-500 hover:bg-red-600 ring-4 ring-red-300' : 'bg-gradient-to-br from-blue-500 to-blue-400 hover:from-blue-600 hover:to-blue-500 ring-4 ring-blue-300 pulse-twice'}`}
-        style={{ width: '100px', height: '100px' }}
+        onClick={(status === 'recording' || status === 'saving') ? stopRecording : startRecording}
+        className={`
+          flex items-center justify-center rounded-full transition-all duration-300 ease-in-out
+          w-28 h-28 text-white text-3xl mx-auto
+          ${status === 'idle' ? 'bg-red-500 hover:bg-red-600 animate-pulse' : ''}
+          ${status === 'recording' ? 'bg-blue-500 hover:bg-blue-600 animate-ping-fast' : ''}
+          ${status === 'saving' ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
+          ${status === 'done' ? 'bg-green-500 hover:bg-green-600' : ''}
+          ${status === 'error' ? 'bg-red-700 hover:bg-red-800' : ''}
+        `}
+        style={{
+          boxShadow:
+            status === 'idle'
+              ? '0 8px 20px rgba(239, 68, 68, 0.4)'
+            : status === 'recording'
+              ? '0 0 30px 10px rgba(59, 130, 246, 0.6)'
+            : status === 'saving'
+              ? '0 0 20px 5px rgba(234, 179, 8, 0.5)'
+            : status === 'done'
+              ? '0 0 20px 5px rgba(34,197,94,0.5)'
+            : status === 'error'
+              ? '0 0 20px 5px rgba(239,68,68,0.7)'
+            : '0 8px 20px rgba(0,0,0,0.2)',
+        }}
       >
-        <span className="relative z-10 flex items-center justify-center">
-          {isRecording ? (
-            <span className="text-3xl">■</span>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-8 h-8 md:w-10 md:h-10">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18v4m0 0H8m4 0h4m-4-4a4 4 0 004-4V8a4 4 0 10-8 0v6a4 4 0 004 4z" />
-            </svg>
-          )}
-        </span>
+        <MicrophoneIcon className="h-12 w-12 text-white" />
       </button>
 
-      {isLoading && (
-        <div className="text-blue-500 font-semibold animate-pulse">Saving your note...</div>
-      )}
+      <h3 className="text-lg font-semibold text-gray-800 text-center mt-4">
+        {status === 'idle' && 'Tap to Record'}
+        {status === 'recording' && `Recording... ${Math.floor(recordingTime / 60)}:${('0' + (recordingTime % 60)).slice(-2)}`}
+        {status === 'saving' && 'Saving...'}
+        {status === 'done' && 'Recording Saved!'}
+        {status === 'error' && 'Mic access denied'}
+      </h3>
 
-      <div className="flex items-end gap-1 h-16 mt-2">
-        {Array.from(freqData).map((val, i) => (
+      <div className="flex space-x-1 mt-4 justify-center">
+        {Array.from({ length: 40 }).map((_, idx) => (
           <div
-            key={i}
-            className="w-1 rounded bg-blue-400 transition-all duration-100"
+            key={idx}
+            className="w-1 h-4 rounded-full"
             style={{
-              height: `${Math.max(10, val * 2)}px`,
-              opacity: isRecording ? 1 : 0.4,
+              backgroundColor: '#60a5fa',
             }}
           ></div>
         ))}
       </div>
 
-      {audioURL && audioURL !== '' && (
-        <audio controls src={audioURL} className="mt-4 rounded-lg shadow w-full outline-none border-0 shadow-none" />
+      {audioUrl && (
+        <div className="w-full mt-6">
+          <audio src={audioUrl} controls className="w-full rounded-xl shadow" />
+        </div>
       )}
-    </div>
+    </>
   );
 }
-
-export default VoiceRecorder;

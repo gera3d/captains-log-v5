@@ -4,9 +4,7 @@ module.exports = {
   theme: {
     extend: {},
   },
-  // Removed DaisyUI themes to avoid conflicts, use Tailwind default light mode
   plugins: [
     require('@tailwindcss/typography'),
-    require('daisyui'),
   ],
 }

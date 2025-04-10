@@ -1,49 +1,88 @@
+.markdown-container {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Custom audio player progress bar styling */
-audio::-webkit-media-controls-timeline {
-  background-color: #e5e7eb; /* Tailwind gray-200 */
-  border-radius: 9999px;
-  height: 6px;
-  margin: 0 8px;
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-audio::-webkit-media-controls-current-time-display,
-audio::-webkit-media-controls-time-remaining-display {
-  color: #374151; /* Tailwind gray-700 */
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #535bf2;
 }
 
-audio::-webkit-media-controls-play-button,
-audio::-webkit-media-controls-mute-button,
-audio::-webkit-media-controls-volume-slider {
-  color: #3b82f6; /* Tailwind blue-500 */
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
 }
 
-audio::-webkit-media-controls-timeline::-webkit-media-slider-thumb {
-  background-color: #3b82f6; /* blue thumb */
-  border-radius: 50%;
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
 }
 
-audio::-webkit-media-controls-timeline::-webkit-media-slider-container {
-  background-color: #3b82f6; /* blue progress fill */
-  border-radius: 9999px;
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+button:hover {
+  border-color: #646cff;
+}
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
 }
 
-/* Firefox */
-audio::-moz-range-track {
-  background-color: #e5e7eb;
-  border-radius: 9999px;
-  height: 6px;
-}
-audio::-moz-range-progress {
-  background-color: #3b82f6;
-  border-radius: 9999px;
-  height: 6px;
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #f9f9f9;
+  }
 }
 
-/* Remove focus outline */
-audio:focus {
-  outline: none;
+/* Disable hover/focus shadow on react-h5-audio-player */
+.rhap_container:hover,
+.rhap_container:focus {
+  box-shadow: none !important;
+  outline: none !important;
+  border: none !important;
+  transform: none !important;
 }
+
