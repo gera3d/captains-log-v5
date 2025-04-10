@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom audio player progress bar styling */
+audio::-webkit-media-controls-timeline {
+  background-color: #e5e7eb; /* Tailwind gray-200 */
+  border-radius: 9999px;
+  height: 6px;
+  margin: 0 8px;
+}
+
+audio::-webkit-media-controls-current-time-display,
+audio::-webkit-media-controls-time-remaining-display {
+  color: #374151; /* Tailwind gray-700 */
+}
+
+audio::-webkit-media-controls-play-button,
+audio::-webkit-media-controls-mute-button,
+audio::-webkit-media-controls-volume-slider {
+  color: #3b82f6; /* Tailwind blue-500 */
+}
+
+audio::-webkit-media-controls-timeline::-webkit-media-slider-thumb {
+  background-color: #3b82f6; /* blue thumb */
+  border-radius: 50%;
+}
+
+audio::-webkit-media-controls-timeline::-webkit-media-slider-container {
+  background-color: #3b82f6; /* blue progress fill */
+  border-radius: 9999px;
+}
+
+/* Firefox */
+audio::-moz-range-track {
+  background-color: #e5e7eb;
+  border-radius: 9999px;
+  height: 6px;
+}
+audio::-moz-range-progress {
+  background-color: #3b82f6;
+  border-radius: 9999px;
+  height: 6px;
+}
+
+/* Remove focus outline */
+audio:focus {
+  outline: none;
+}
