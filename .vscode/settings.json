@@ -1,0 +1,66 @@
+{
+  // 🌳 Todo Tree Customization for Captain's Log
+  "todo-tree.general.tags": [
+    "ROOT-TODO",
+    "TODO",
+    "FIXME",
+    "ANALYZE",
+    "REVIEW",
+    "DATA-FIXME"
+  ],
+  "todo-tree.general.tagGroups": {
+    "FEATURE": ["TODO", "ROOT-TODO"],
+    "BUG": ["FIXME", "DATA-FIXME"],
+    "REVIEW": ["REVIEW", "ANALYZE"]
+  },
+  "todo-tree.highlights.customHighlight": {
+    "ROOT-TODO": {
+      "icon": "alert",
+      "type": "tag",
+      "foreground": "#fff",
+      "background": "#1e40af",
+      "iconColour": "#facc15"
+    },
+    "TODO": {
+      "icon": "checklist",
+      "type": "tag",
+      "foreground": "#fff",
+      "background": "#2563eb",
+      "iconColour": "#38bdf8"
+    },
+    "FIXME": {
+      "icon": "bug",
+      "type": "tag",
+      "foreground": "#fff",
+      "background": "#dc2626",
+      "iconColour": "#f87171"
+    },
+    "ANALYZE": {
+      "icon": "search",
+      "type": "tag",
+      "foreground": "#fff",
+      "background": "#f59e42",
+      "iconColour": "#fbbf24"
+    },
+    "REVIEW": {
+      "icon": "eye",
+      "type": "tag",
+      "foreground": "#fff",
+      "background": "#6366f1",
+      "iconColour": "#a5b4fc"
+    },
+    "DATA-FIXME": {
+      "icon": "database",
+      "type": "tag",
+      "foreground": "#fff",
+      "background": "#be185d",
+      "iconColour": "#f472b6"
+    }
+  },
+  "todo-tree.tree.groupBy": "tag",
+  "todo-tree.tree.showScanModeButton": false,
+  "todo-tree.tree.showTagsOnly": true,
+  "todo-tree.tree.showCountsInTree": true,
+  "todo-tree.tree.labelFormat": "${tag} [${line}] ${after}",
+  "todo-tree.general.statusBar": "total"
+}

@@ -1,3 +1,4 @@
+// TODO[progress-md][P1][NotesList] See progress.md for all open notes display, fetch, and sharing tasks
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { Link } from 'react-router-dom';

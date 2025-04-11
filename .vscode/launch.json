@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "pwa-msedge",
+      "request": "launch",
+      "name": "Open in Simple Browser (localhost:5173)",
+      "url": "http://localhost:5173",
+      "presentation": {
+        "hidden": false,
+        "group": "browser",
+        "order": 1
+      },
+      "webRoot": "${workspaceFolder}/client"
+    }
+  ]
+}

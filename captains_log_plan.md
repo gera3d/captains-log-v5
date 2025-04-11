@@ -172,87 +172,87 @@ Design a user-friendly interface using React and TailwindCSS.
 ## Step-by-Step Implementation Plan with Difficulty Ratings
 
 ### 1. Initialize Project & Supabase Setup *(Easy)*
-- Create project folder structure.
-- Initialize Vite + React + TailwindCSS frontend.
-- Initialize Git repository.
-- Create Supabase project via dashboard.
-- Configure environment variables (`.env`).
-- Set up Supabase client in frontend (`supabaseClient.ts`).
+- [ ] TODO: Create project folder structure.
+- [ ] TODO: Initialize Vite + React + TailwindCSS frontend.
+- [ ] TODO: Initialize Git repository.
+- [ ] TODO: Create Supabase project via dashboard.
+- [ ] TODO: Configure environment variables (`.env`).
+- [ ] TODO: Set up Supabase client in frontend (`supabaseClient.ts`).
 
 ### 2. Authentication with Supabase (Google OAuth) *(Medium)*
-- Enable Google OAuth in Supabase dashboard.
-- Configure redirect URIs.
-- Implement login/logout UI.
-- Handle user session state in React.
-- Protect routes/pages requiring authentication.
+- [ ] TODO: Enable Google OAuth in Supabase dashboard.
+- [ ] TODO: Configure redirect URIs.
+- [ ] TODO: Implement login/logout UI.
+- [ ] TODO: Handle user session state in React.
+- [ ] TODO: Protect routes/pages requiring authentication.
 
 ### 3. Database Schema Design & Migration *(Medium)*
-- Design `voice_notes` table with fields:
+- [ ] TODO: Design `voice_notes` table with fields:
   - `id` (UUID, PK)
   - `user_id` (UUID, FK to auth.users)
   - `audio_url` (text)
   - `transcript` (text)
   - `created_at` (timestamp)
-- Write SQL migration file.
-- Apply migration via Supabase CLI.
-- Set up RLS policies:
+- [ ] TODO: Write SQL migration file.
+- [ ] TODO: Apply migration via Supabase CLI.
+- [ ] TODO: Set up RLS policies:
   - Users can only access their own notes.
   - Public read access for shared notes (optional).
 
 ### 4. File Storage Setup *(Easy)*
-- Create Supabase Storage bucket `voice-notes`.
-- Set bucket policies:
+- [ ] TODO: Create Supabase Storage bucket `voice-notes`.
+- [ ] TODO: Set bucket policies:
   - Private by default.
   - Public read for shared notes (optional).
 
 ### 5. Voice Recording UI & Functionality *(Medium)*
-- Implement UI to start/stop recording.
-- Use Web Audio API or MediaRecorder API.
-- Save audio blob locally in browser state.
-- Allow playback before upload.
-- Handle errors and permissions.
+- [ ] TODO: Implement UI to start/stop recording.
+- [ ] TODO: Use Web Audio API or MediaRecorder API.
+- [ ] TODO: Save audio blob locally in browser state.
+- [ ] TODO: Allow playback before upload.
+- [ ] TODO: Handle errors and permissions.
 
 ### 6. Upload Audio to Supabase Storage *(Medium)*
-- Convert audio blob to file.
-- Upload to Supabase Storage bucket.
-- Save returned file URL.
+- [ ] TODO: Convert audio blob to file.
+- [ ] TODO: Upload to Supabase Storage bucket.
+- [ ] TODO: Save returned file URL.
 
 ### 7. Transcription Service Integration *(Hard)*
-- Send audio file to transcription webhook (`http://localhost:5678/webhook/a37165d8-dcbd-4c54-8712-4400bec5f17b`).
-- Poll or listen for transcription result.
-- Handle webhook response and errors.
-- Save transcript text to Supabase database.
+- [ ] TODO: Send audio file to transcription webhook (`http://localhost:5678/webhook/a37165d8-dcbd-4c54-8712-4400bec5f17b`).
+- [ ] TODO: Poll or listen for transcription result.
+- [ ] TODO: Handle webhook response and errors.
+- [ ] TODO: Save transcript text to Supabase database.
 
 ### 8. Save Note Metadata in Database *(Easy)*
-- After transcription, insert record into `voice_notes` table:
+- [ ] TODO: After transcription, insert record into `voice_notes` table:
   - User ID
   - Audio URL
   - Transcript
   - Timestamp
 
 ### 9. Display User's Notes *(Easy)*
-- Fetch notes for logged-in user.
-- Display list with:
+- [ ] TODO: Fetch notes for logged-in user.
+- [ ] TODO: Display list with:
   - Transcript preview
   - Playback button for audio
   - Date/time
 
 ### 10. Sharing Functionality *(Medium)*
-- Generate shareable link (e.g., `/note/:id`).
-- Implement public note view page.
-- Set RLS/storage policies to allow public read if shared.
-- Add "Share" button in UI.
+- [ ] TODO: Generate shareable link (e.g., `/note/:id`).
+- [ ] TODO: Implement public note view page.
+- [ ] TODO: Set RLS/storage policies to allow public read if shared.
+- [ ] TODO: Add "Share" button in UI.
 
 ### 11. UI Polish & Styling *(Easy)*
-- Style components with TailwindCSS.
-- Responsive design.
-- Loading states and error handling.
-
+- [ ] TODO: Style components with TailwindCSS.
+- [ ] TODO: Responsive design.
+- [ ] TODO: Loading states and error handling.
 ### 12. Testing & Deployment *(Medium)*
-- Test all flows end-to-end.
-- Fix bugs.
-- Deploy Supabase project.
-- Deploy frontend (e.g., Vercel, Netlify).
+- [ ] TODO: Test all flows end-to-end.
+- [ ] TODO: Fix bugs.
+- [ ] TODO: Deploy Supabase project.
+- [ ] TODO: Deploy frontend (e.g., Vercel, Netlify).
+- [ ] TODO: Finalize environment variables.
 - Finalize environment variables.
 
 ### Summary Table

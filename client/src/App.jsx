@@ -1,9 +1,24 @@
+/*
+  ROOT-TODO[HIGH]: App Structure & Release
+  - Main entry point for Captain's Log app.
+  - Keep this file organized and maintain top-level app logic only.
+  - REVIEW: Review all feature integrations before major releases.
+  - FEATURE: Ensure all new features are registered here.
+*/
+// TODO[progress-md][P1][App] See progress.md for all open UI polish, loading, error, and browser test tasks
+
 import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { Routes, Route } from 'react-router-dom';
 import NotesList from './components/NotesList';
 import VoiceRecorder from './components/VoiceRecorder';
 import { CheckIcon, MicrophoneIcon, DocumentTextIcon, ShareIcon } from '@heroicons/react/24/outline';
+
+  /*
+    TODO[MEDIUM]: Dashboard Onboarding
+    - FEATURE: Add user onboarding tips for first-time users.
+    - UI: Consider a dismissible banner or modal for onboarding.
+  */
 
 function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
   const onNoteSaved = (newNote) => {
@@ -46,6 +61,12 @@ function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
             </div>
           </div>
           <div className="w-full max-w-3xl">
+            /*
+              REVIEW: VoiceRecorder Integration
+              - Ensure onNoteSaved is always called after successful recording.
+              - ANALYZE: Check for edge cases where recording might fail silently.
+            */
+
             <VoiceRecorder onNoteSaved={onNoteSaved} />
           </div>
         </div>
@@ -88,6 +109,12 @@ function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
             <div className="rounded-lg shadow p-8 border border-gray-200">
               <h2 className="text-2xl font-bold mb-4">Your Voice Notes</h2>
+              /*
+                TODO[LOW]: NotesList Enhancements
+                - FEATURE: Add filtering by tag and search functionality.
+                - PRIORITY: Low, but improves UX for power users.
+              */
+
               <NotesList notes={notes} setNotes={setNotes} />
             </div>
           </div>
@@ -147,6 +174,12 @@ function FullIdeaPage({ user, session }) {
 
   useEffect(() => {
     const fetchNote = async () => {
+        /*
+          DATA-FIXME: Error Handling
+          - BUG: If fetching note fails, show a user-friendly error message instead of just logging to console.
+          - CONTEXT: FullIdeaPage > fetchNote
+        */
+
       const { data, error } = await supabase
         .from('voice_notes')
         .select('*')
@@ -204,6 +237,12 @@ function FullIdeaPage({ user, session }) {
     setCopied('link');
     setTimeout(() => setCopied(''), 1500);
   };
+
+    /*
+      ANALYZE: Export to Google Docs
+      - FEATURE: Check if we should support exporting multiple notes at once.
+      - CONTEXT: FullIdeaPage > exportToGoogleDocs
+    */
 
   const exportToGoogleDocs = async () => {
     if (!session?.provider_token) {
@@ -322,6 +361,12 @@ function App() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
+    /*
+      TODO[HIGH]: Auth Refactor
+      - FEATURE: Refactor to support additional OAuth providers (e.g., GitHub, Microsoft).
+      - CONTEXT: App > useEffect (auth)
+    */
+
     supabase.auth.getSession().then(({ data }) => {
       console.log('Supabase session:', data?.session);
       setSession(data?.session ?? null);
@@ -337,6 +382,12 @@ function App() {
 
 
   useEffect(() => {
+    /*
+      TODO[MEDIUM]: Notes Pagination
+      - FEATURE: Add pagination or infinite scroll for large note sets.
+      - CONTEXT: App > useEffect (notes)
+    */
+
     const fetchNotes = async () => {
       const { data, error } = await supabase
         .from('voice_notes')
@@ -367,6 +418,12 @@ function App() {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  /*
+    FIXME: Sign-in Edge Case
+    - BUG: Handle edge case where user closes OAuth popup before authenticating.
+    - CONTEXT: App > signInWithGoogle
+  */
 
   const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({ provider: 'google' });
