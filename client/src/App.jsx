@@ -6,6 +6,10 @@ import VoiceRecorder from './components/VoiceRecorder';
 import { CheckIcon, MicrophoneIcon, DocumentTextIcon, ShareIcon } from '@heroicons/react/24/outline';
 
 function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
+  const onNoteSaved = (newNote) => {
+    setNotes(prevNotes => [newNote, ...prevNotes]);
+  };
+
   return (
     <div className="bg-white">
       {/* Tailwind UI Hero with SVG background */}
@@ -42,7 +46,7 @@ function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
             </div>
           </div>
           <div className="w-full max-w-3xl">
-            <VoiceRecorder />
+            <VoiceRecorder onNoteSaved={onNoteSaved} />
           </div>
         </div>
       )}
