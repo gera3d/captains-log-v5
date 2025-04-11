@@ -30,7 +30,7 @@ function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
         </header>
       )}
       {user && (
-        <div className="w-full min-h-[500px] flex flex-col justify-start items-center px-6 py-10 bg-gradient-to-b from-sky-100 to-white">
+        <div className="w-full flex flex-col justify-start items-center px-6 py-10 bg-gradient-to-b from-sky-100 to-white">
           <div className="w-full max-w-6xl flex justify-between items-center mb-10">
             <div className="flex items-center space-x-3 text-3xl font-bold text-sky-700">
               <span>🧭</span>
