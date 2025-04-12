@@ -218,7 +218,7 @@ Design a user-friendly interface using React and TailwindCSS.
 - [ ] TODO: Save returned file URL.
 
 ### 7. Transcription Service Integration *(Hard)*
-- [ ] TODO: Send audio file to transcription webhook (`http://localhost:5678/webhook/a37165d8-dcbd-4c54-8712-4400bec5f17b`).
+- [ ] TODO: Send audio file to transcription webhook (`https://n8n.why57.com/webhook/a37165d8-dcbd-4c54-8712-4400bec5f17b`).
 - [ ] TODO: Poll or listen for transcription result.
 - [ ] TODO: Handle webhook response and errors.
 - [ ] TODO: Save transcript text to Supabase database.

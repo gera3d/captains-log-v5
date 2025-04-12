@@ -21,14 +21,83 @@ import { CheckIcon, MicrophoneIcon, DocumentTextIcon, ShareIcon } from '@heroico
   */
 
 function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
-  const onNoteSaved = (newNote) => {
-    setNotes(prevNotes => [newNote, ...prevNotes]);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // DEV MODE: If ?dev_user=1 is present, always show onboarding modal and mock user
+  const isDevUser = typeof window !== "undefined" && window.location.search.includes("dev_user=1");
+  const devMockUser = {
+    id: "dev-user-1",
+    email: "devuser@example.com",
+    user_metadata: { full_name: "Dev User" }
   };
+  const effectiveUser = isDevUser ? devMockUser : user;
+
+  useEffect(() => {
+    if (isDevUser) {
+      setShowOnboarding(true);
+      return;
+    }
+    if (effectiveUser) {
+      const seen = localStorage.getItem('dashboardOnboardingSeen');
+      if (!seen) {
+        setShowOnboarding(true);
+      }
+    }
+  }, [effectiveUser, isDevUser]);
+
+  const handleDismissOnboarding = () => {
+    localStorage.setItem('dashboardOnboardingSeen', 'true');
+    setShowOnboarding(false);
+  };
+
+  // FIX: Provide a no-op onNoteSaved handler to unblock dashboard and onboarding modal
+  const onNoteSaved = () => {};
+
+  const onboardingModal = (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-8 relative">
+        <button
+          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl font-bold"
+          onClick={handleDismissOnboarding}
+          aria-label="Dismiss onboarding"
+        >
+          &times;
+        </button>
+        <div className="flex flex-col items-center">
+          <span className="text-4xl mb-2">👋</span>
+          <h2 className="text-2xl font-bold mb-2 text-sky-700">Welcome to Captain's Log!</h2>
+          <p className="text-gray-700 mb-4 text-center">
+            Here’s a quick guide to get you started:
+          </p>
+          <ul className="text-left text-gray-600 space-y-2 mb-4">
+            <li className="flex items-center">
+              <MicrophoneIcon className="h-5 w-5 text-indigo-600 mr-2" />
+              <span><b>Record:</b> Tap the mic to capture voice notes instantly.</span>
+            </li>
+            <li className="flex items-center">
+              <DocumentTextIcon className="h-5 w-5 text-indigo-600 mr-2" />
+              <span><b>View:</b> See and organize all your notes below.</span>
+            </li>
+            <li className="flex items-center">
+              <ShareIcon className="h-5 w-5 text-indigo-600 mr-2" />
+              <span><b>Share/Export:</b> Easily share or export your notes anytime.</span>
+            </li>
+          </ul>
+          <button
+            className="mt-2 px-6 py-2 bg-sky-600 text-white rounded-md font-semibold hover:bg-sky-700 transition"
+            onClick={handleDismissOnboarding}
+          >
+            Got it!
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="bg-white">
       {/* Tailwind UI Hero with SVG background */}
-      {!user && (
+      {!effectiveUser && (
         <header className="relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-700">
           <div className="max-w-7xl mx-auto py-24 px-4 sm:px-6 lg:px-8 text-center relative z-10">
             <h1 className="text-4xl font-extrabold text-white sm:text-5xl md:text-6xl">Capture & Transcribe Voice Notes</h1>
@@ -48,32 +117,35 @@ function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
           </svg>
         </header>
       )}
-      {user && (
-        <div className="w-full flex flex-col justify-start items-center px-6 py-10 bg-gradient-to-b from-sky-100 to-white">
-          <div className="w-full max-w-6xl flex justify-between items-center mb-10">
-            <div className="flex items-center space-x-3 text-3xl font-bold text-sky-700">
-              <span>🧭</span>
-              <span>Captain's Log</span>
+      {effectiveUser && (
+        <>
+          {showOnboarding && onboardingModal}
+          <div className="w-full flex flex-col justify-start items-center px-6 py-10 bg-gradient-to-b from-sky-100 to-white">
+            <div className="w-full max-w-6xl flex justify-between items-center mb-10">
+              <div className="flex items-center space-x-3 text-3xl font-bold text-sky-700">
+                <span>🧭</span>
+                <span>Captain's Log</span>
+              </div>
+              <div className="flex items-center space-x-4">
+                <span className="font-medium text-gray-600">{effectiveUser.email}</span>
+                <button onClick={signOut} className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">Sign Out</button>
+              </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="font-medium text-gray-600">{user.email}</span>
-              <button onClick={signOut} className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">Sign Out</button>
-            </div>
-          </div>
-          <div className="w-full max-w-3xl">
-            /*
-              REVIEW: VoiceRecorder Integration
-              - Ensure onNoteSaved is always called after successful recording.
-              - ANALYZE: Check for edge cases where recording might fail silently.
-            */
+            <div className="w-full max-w-3xl">
+              /*
+                REVIEW: VoiceRecorder Integration
+                - Ensure onNoteSaved is always called after successful recording.
+                - ANALYZE: Check for edge cases where recording might fail silently.
+              */
 
-            <VoiceRecorder onNoteSaved={onNoteSaved} />
+              <VoiceRecorder onNoteSaved={onNoteSaved} />
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Tailwind UI Features with icons */}
-      {!user && (
+      {!effectiveUser && (
       <section className="bg-gray-50 py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
@@ -104,7 +176,7 @@ function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
       )}
 
       {/* Tailwind UI Content Section */}
-      {user && (
+      {effectiveUser && (
         <section className="bg-white py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
             <div className="rounded-lg shadow p-8 border border-gray-200">
@@ -122,7 +194,7 @@ function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
       )}
 
       {/* Tailwind UI CTA Section */}
-      {!user && (
+      {!effectiveUser && (
         <section className="relative bg-indigo-700 py-20 overflow-hidden">
           <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
             <h2 className="text-3xl font-extrabold text-white">Please Sign In</h2>
@@ -360,7 +432,22 @@ function App() {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
 
+  // --- BYPASS AUTH FOR DEVELOPMENT ---
   useEffect(() => {
+    if (import.meta.env.VITE_BYPASS_AUTH === "true") {
+      // Set a mock user and session for development/testing
+      const mockUser = {
+        id: "dev-user-1",
+        email: "devuser@example.com",
+        user_metadata: {
+          full_name: "Dev User"
+        }
+      };
+      setUser(mockUser);
+      setSession({ user: mockUser });
+      return; // Skip Supabase auth
+    }
+
     /*
       TODO[HIGH]: Auth Refactor
       - FEATURE: Refactor to support additional OAuth providers (e.g., GitHub, Microsoft).
@@ -379,7 +466,6 @@ function App() {
       setUser(sessionData?.user ?? null);
     });
   }, []);
-
 
   useEffect(() => {
     /*
@@ -405,11 +491,29 @@ function App() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'voice_notes' },
         (payload) => {
-          console.log('New note received:', payload.new);
+          console.log('🔥🔥🔥 REALTIME INSERT EVENT:', payload);
           setNotes((prev) => {
             const filtered = prev.filter(note => !(note.id && note.id.toString().startsWith('temp-')));
             return [payload.new, ...filtered];
           });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'voice_notes' },
+        (payload) => {
+          console.log('Note updated:', payload.new);
+          setNotes((prev) =>
+            prev.map((note) => (note.id === payload.new.id ? payload.new : note))
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'voice_notes' },
+        (payload) => {
+          console.log('Note deleted:', payload.old);
+          setNotes((prev) => prev.filter((note) => note.id !== payload.old.id));
         }
       )
       .subscribe();
@@ -440,5 +544,4 @@ function App() {
     </Routes>
   );
 }
-
 export default App;

@@ -2,10 +2,11 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "type": "pwa-msedge",
+      "type": "pwa-chrome",
       "request": "launch",
-      "name": "Open in Simple Browser (localhost:5173)",
+      "name": "Debug with Chrome Dev (localhost:5173)",
       "url": "http://localhost:5173",
+      "runtimeExecutable": "C:\\Program Files\\Google\\Chrome Dev\\Application\\chrome.exe",
       "presentation": {
         "hidden": false,
         "group": "browser",

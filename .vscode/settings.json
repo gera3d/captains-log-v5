@@ -62,5 +62,15 @@
   "todo-tree.tree.showTagsOnly": true,
   "todo-tree.tree.showCountsInTree": true,
   "todo-tree.tree.labelFormat": "${tag} [${line}] ${after}",
-  "todo-tree.general.statusBar": "total"
+  "todo-tree.general.statusBar": "total",
+  // Exclude dependencies and build folders from todo-tree to keep the tree organized and focused on project code
+  "todo-tree.filtering.excludeGlobs": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/.git/**",
+    "**/.next/**",
+    "**/out/**",
+    "**/coverage/**"
+  ]
 }
