@@ -8,6 +8,7 @@
 // TODO[progress-md][P1][App] See progress.md for all open UI polish, loading, error, and browser test tasks
 
 import { useState, useEffect } from 'react';
+import LoadingSpinner from './components/LoadingSpinner';
 import { supabase } from './supabaseClient';
 import { Routes, Route } from 'react-router-dom';
 import NotesList from './components/NotesList';
@@ -22,7 +23,9 @@ import { CheckIcon, MicrophoneIcon, DocumentTextIcon, ShareIcon } from '@heroico
 
 function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
   const [showOnboarding, setShowOnboarding] = useState(false);
-
+  const [signingIn, setSigningIn] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+ 
   // DEV MODE: If ?dev_user=1 is present, always show onboarding modal and mock user
   const isDevUser = typeof window !== "undefined" && window.location.search.includes("dev_user=1");
   const devMockUser = {
@@ -31,7 +34,7 @@ function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
     user_metadata: { full_name: "Dev User" }
   };
   const effectiveUser = isDevUser ? devMockUser : user;
-
+ 
   useEffect(() => {
     if (isDevUser) {
       setShowOnboarding(true);
@@ -54,59 +57,97 @@ function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
   const onNoteSaved = () => {};
 
   const onboardingModal = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-8 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
+      <div className="bg-white/60 backdrop-blur-2xl rounded-3xl shadow-2xl max-w-md w-full p-8 sm:p-10 relative border border-sky-100 animate-fade-in-up">
         <button
-          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl font-bold"
+          className="absolute top-3 right-3 text-sky-400 hover:text-sky-600 text-2xl font-bold transition"
           onClick={handleDismissOnboarding}
           aria-label="Dismiss onboarding"
         >
           &times;
         </button>
         <div className="flex flex-col items-center">
-          <span className="text-4xl mb-2">👋</span>
-          <h2 className="text-2xl font-bold mb-2 text-sky-700">Welcome to Captain's Log!</h2>
-          <p className="text-gray-700 mb-4 text-center">
+          <span className="text-6xl mb-4 animate-bounce">🪄</span>
+          <h2 className="text-3xl font-extrabold mb-2 text-sky-600 drop-shadow">Welcome to Captain's Log!</h2>
+          <p className="text-gray-700 mb-4 text-center text-lg">
             Here’s a quick guide to get you started:
           </p>
-          <ul className="text-left text-gray-600 space-y-2 mb-4">
+          <ul className="text-left text-gray-600 space-y-3 mb-6 w-full max-w-xs">
             <li className="flex items-center">
-              <MicrophoneIcon className="h-5 w-5 text-indigo-600 mr-2" />
+              <MicrophoneIcon className="h-6 w-6 text-sky-500 mr-3" />
               <span><b>Record:</b> Tap the mic to capture voice notes instantly.</span>
             </li>
             <li className="flex items-center">
-              <DocumentTextIcon className="h-5 w-5 text-indigo-600 mr-2" />
+              <DocumentTextIcon className="h-6 w-6 text-sky-500 mr-3" />
               <span><b>View:</b> See and organize all your notes below.</span>
             </li>
             <li className="flex items-center">
-              <ShareIcon className="h-5 w-5 text-indigo-600 mr-2" />
+              <ShareIcon className="h-6 w-6 text-sky-500 mr-3" />
               <span><b>Share/Export:</b> Easily share or export your notes anytime.</span>
             </li>
           </ul>
           <button
-            className="mt-2 px-6 py-2 bg-sky-600 text-white rounded-md font-semibold hover:bg-sky-700 transition"
+            className="mt-2 px-10 py-3 bg-gradient-to-r from-sky-500 to-sky-400 text-white rounded-xl font-bold shadow-lg hover:from-sky-600 hover:to-sky-500 transition transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-sky-300"
             onClick={handleDismissOnboarding}
           >
             Got it!
           </button>
         </div>
       </div>
+      <style>
+        {`
+          @keyframes fade-in-up {
+            0% { opacity: 0; transform: translateY(40px);}
+            100% { opacity: 1; transform: translateY(0);}
+          }
+          .animate-fade-in-up {
+            animation: fade-in-up 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+          }
+        `}
+      </style>
     </div>
   );
 
   return (
-    <div className="bg-white">
+    <div className="bg-white w-full max-w-full overflow-x-hidden">
       {/* Tailwind UI Hero with SVG background */}
       {!effectiveUser && (
-        <header className="relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-700">
-          <div className="max-w-7xl mx-auto py-24 px-4 sm:px-6 lg:px-8 text-center relative z-10">
-            <h1 className="text-4xl font-extrabold text-white sm:text-5xl md:text-6xl">Capture & Transcribe Voice Notes</h1>
-            <p className="mt-6 text-lg text-indigo-100">Record your thoughts, save them securely, and share effortlessly.</p>
-            <div className="mt-8 flex justify-center gap-4">
-              <button onClick={signInWithGoogle} className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-indigo-600 bg-white hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white">Sign In</button>
+        <header className="relative overflow-hidden bg-gradient-to-br from-sky-500 via-sky-400 to-sky-700">
+          <div className="max-w-3xl mx-auto py-28 px-4 sm:px-8 text-center relative z-10 flex flex-col items-center">
+            <div className="mb-6 flex items-center justify-center gap-3">
+              <span className="text-5xl">🧭</span>
+              <span className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white drop-shadow-lg tracking-tight">Captain's Log</span>
             </div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4 drop-shadow">Capture & Transcribe Voice Notes</h1>
+            <p className="mb-8 text-lg sm:text-xl text-sky-100 font-medium drop-shadow">Record your thoughts, save them securely, and share effortlessly.</p>
+            <button
+              onClick={async () => {
+                setSigningIn(true);
+                try {
+                  await signInWithGoogle();
+                } finally {
+                  setSigningIn(false);
+                }
+              }}
+              className="inline-flex items-center px-8 py-3 rounded-xl bg-gradient-to-r from-sky-200 via-white to-sky-100 text-sky-700 font-bold shadow-lg hover:from-sky-100 hover:to-sky-200 hover:text-sky-900 transition focus:outline-none focus:ring-4 focus:ring-sky-300 disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={signingIn}
+              aria-busy={signingIn}
+              aria-disabled={signingIn}
+            >
+              {signingIn ? (
+                <span className="flex items-center gap-2">
+                  <LoadingSpinner size={20} className="mr-2" />
+                  Signing In...
+                </span>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M21.35 11.1H12v2.8h5.35c-.23 1.2-1.4 3.5-5.35 3.5-3.22 0-5.85-2.67-5.85-5.9s2.63-5.9 5.85-5.9c1.83 0 3.06.78 3.76 1.45l2.57-2.5C17.09 3.9 14.77 2.7 12 2.7 6.48 2.7 2 7.18 2 12.7s4.48 10 10 10c5.75 0 9.54-4.03 9.54-9.7 0-.65-.07-1.13-.19-1.6z"/></svg>
+                  Sign In with Google
+                </>
+              )}
+            </button>
           </div>
-          <svg className="absolute left-0 top-0 transform -translate-x-1/2 -translate-y-1/2 blur-3xl opacity-30" width="1000" height="1000" fill="none" viewBox="0 0 1000 1000">
+          <svg className="absolute left-1/2 top-0 transform -translate-x-1/2 -translate-y-1/2 blur-3xl opacity-40" width="1000" height="1000" fill="none" viewBox="0 0 1000 1000">
             <circle cx="500" cy="500" r="400" fill="url(#grad1)" />
             <defs>
               <radialGradient id="grad1" cx="50%" cy="50%" r="50%">
@@ -120,25 +161,49 @@ function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
       {effectiveUser && (
         <>
           {showOnboarding && onboardingModal}
-          <div className="w-full flex flex-col justify-start items-center px-6 py-10 bg-gradient-to-b from-sky-100 to-white">
-            <div className="w-full max-w-6xl flex justify-between items-center mb-10">
-              <div className="flex items-center space-x-3 text-3xl font-bold text-sky-700">
-                <span>🧭</span>
-                <span>Captain's Log</span>
+          <div className="w-full flex flex-col justify-start items-center px-0 sm:px-8 py-8 bg-gradient-to-br from-sky-50 via-white to-indigo-50 min-h-[50vh] box-border">
+            <nav className="w-full max-w-full sm:max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-0 px-4 sm:px-8 py-6 bg-white/80 rounded-2xl shadow-lg border border-sky-100 backdrop-blur mb-8 box-border"
+              style={{ maxWidth: '100vw' }}>
+              <div className="flex items-center gap-x-4 text-2xl sm:text-3xl md:text-4xl font-extrabold text-sky-700 tracking-tight drop-shadow">
+                <span className="text-3xl md:text-4xl">🧭</span>
+                <span className="whitespace-nowrap">Captain's Log</span>
               </div>
-              <div className="flex items-center space-x-4">
-                <span className="font-medium text-gray-600">{effectiveUser.email}</span>
-                <button onClick={signOut} className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">Sign Out</button>
+              <div className="flex items-center gap-x-4">
+                <span className="text-sm font-light text-gray-400">{effectiveUser.email}</span>
+                <button
+                  onClick={async () => {
+                    setSigningOut(true);
+                    try {
+                      await signOut();
+                    } finally {
+                      setSigningOut(false);
+                    }
+                  }}
+                  className="inline-flex items-center px-5 py-2.5 rounded-lg bg-gradient-to-r from-sky-500 to-sky-400 text-white font-semibold shadow-md transition
+                  hover:from-sky-600 hover:to-sky-500 hover:shadow-lg hover:scale-102
+                  active:scale-98
+                  focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-1
+                  border-0 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={signingOut}
+                  aria-busy={signingOut}
+                  aria-disabled={signingOut}
+                >
+                  {signingOut ? (
+                    <span className="flex items-center gap-2">
+                      <LoadingSpinner size={18} className="mr-2" />
+                      Signing Out...
+                    </span>
+                  ) : (
+                    "Sign Out"
+                  )}
+                </button>
               </div>
-            </div>
-            <div className="w-full max-w-3xl">
-              /*
-                REVIEW: VoiceRecorder Integration
-                - Ensure onNoteSaved is always called after successful recording.
-                - ANALYZE: Check for edge cases where recording might fail silently.
-              */
-
-              <VoiceRecorder onNoteSaved={onNoteSaved} />
+            </nav>
+            <div className="w-full max-w-full sm:max-w-2xl mx-auto mt-8 box-border" style={{ maxWidth: '100vw' }}>
+              <div className="bg-gradient-to-br from-white via-sky-50 to-indigo-50 rounded-[2.5rem] shadow-[0_8px_32px_0_rgba(16,42,67,0.10)] border border-sky-100/70 p-6 sm:p-12 flex flex-col items-center box-border">
+                {/* VoiceRecorder Card */}
+                <VoiceRecorder onNoteSaved={onNoteSaved} />
+              </div>
             </div>
           </div>
         </>
@@ -146,29 +211,29 @@ function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
 
       {/* Tailwind UI Features with icons */}
       {!effectiveUser && (
-      <section className="bg-gray-50 py-20">
+      <section className="bg-gradient-to-b from-sky-50 to-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-            <div className="text-center">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+            <div className="flex flex-col items-center bg-white rounded-2xl shadow-lg border border-sky-100 p-8 transition hover:shadow-2xl hover:-translate-y-1">
               <div className="flex justify-center mb-4">
-                <MicrophoneIcon className="h-10 w-10 text-indigo-600" />
+                <MicrophoneIcon className="h-12 w-12 text-sky-500" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900">Fast Recording</h3>
-              <p className="mt-2 text-base text-gray-500">Quickly capture your thoughts with one tap.</p>
+              <h3 className="text-xl font-bold text-sky-700 mb-2">Fast Recording</h3>
+              <p className="text-base text-gray-600 text-center">Quickly capture your thoughts with one tap.</p>
             </div>
-            <div className="text-center">
+            <div className="flex flex-col items-center bg-white rounded-2xl shadow-lg border border-sky-100 p-8 transition hover:shadow-2xl hover:-translate-y-1">
               <div className="flex justify-center mb-4">
-                <DocumentTextIcon className="h-10 w-10 text-indigo-600" />
+                <DocumentTextIcon className="h-12 w-12 text-sky-500" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900">Accurate Transcripts</h3>
-              <p className="mt-2 text-base text-gray-500">Get high-quality transcriptions of your voice notes.</p>
+              <h3 className="text-xl font-bold text-sky-700 mb-2">Accurate Transcripts</h3>
+              <p className="text-base text-gray-600 text-center">Get high-quality transcriptions of your voice notes.</p>
             </div>
-            <div className="text-center">
+            <div className="flex flex-col items-center bg-white rounded-2xl shadow-lg border border-sky-100 p-8 transition hover:shadow-2xl hover:-translate-y-1">
               <div className="flex justify-center mb-4">
-                <ShareIcon className="h-10 w-10 text-indigo-600" />
+                <ShareIcon className="h-12 w-12 text-sky-500" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900">Easy Sharing</h3>
-              <p className="mt-2 text-base text-gray-500">Share your notes with friends or colleagues instantly.</p>
+              <h3 className="text-xl font-bold text-sky-700 mb-2">Easy Sharing</h3>
+              <p className="text-base text-gray-600 text-center">Share your notes with friends or colleagues instantly.</p>
             </div>
           </div>
         </div>
@@ -177,31 +242,29 @@ function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
 
       {/* Tailwind UI Content Section */}
       {effectiveUser && (
-        <section className="bg-white py-20">
+        <section className="bg-white py-8">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
-            <div className="rounded-lg shadow p-8 border border-gray-200">
-              <h2 className="text-2xl font-bold mb-4">Your Voice Notes</h2>
-              /*
-                TODO[LOW]: NotesList Enhancements
-                - FEATURE: Add filtering by tag and search functionality.
-                - PRIORITY: Low, but improves UX for power users.
-              */
-
-              <NotesList notes={notes} setNotes={setNotes} />
-            </div>
+            {/* NotesList now sits directly on the background for a more open, mobile-friendly feel */}
+            <NotesList notes={notes} setNotes={setNotes} />
           </div>
         </section>
       )}
 
       {/* Tailwind UI CTA Section */}
       {!effectiveUser && (
-        <section className="relative bg-indigo-700 py-20 overflow-hidden">
+        <section className="relative bg-gradient-to-br from-indigo-700 via-sky-600 to-indigo-900 py-20 overflow-hidden">
           <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-            <h2 className="text-3xl font-extrabold text-white">Please Sign In</h2>
-            <p className="mt-4 text-lg text-indigo-100">Sign in to record and view your voice notes.</p>
-            <button onClick={signInWithGoogle} className="mt-6 inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-indigo-600 bg-white hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white">Sign In with Google</button>
+            <h2 className="text-4xl font-extrabold text-white mb-4 drop-shadow-lg">Ready to get started?</h2>
+            <p className="mb-8 text-lg text-indigo-100 font-medium drop-shadow">Sign in to record and view your voice notes.</p>
+            <button
+              onClick={signInWithGoogle}
+              className="inline-flex items-center px-8 py-3 rounded-xl bg-gradient-to-r from-sky-200 via-white to-indigo-200 text-indigo-700 font-bold shadow-lg hover:from-sky-100 hover:to-indigo-100 hover:text-indigo-900 transition focus:outline-none focus:ring-4 focus:ring-sky-300"
+            >
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M21.35 11.1H12v2.8h5.35c-.23 1.2-1.4 3.5-5.35 3.5-3.22 0-5.85-2.67-5.85-5.9s2.63-5.9 5.85-5.9c1.83 0 3.06.78 3.76 1.45l2.57-2.5C17.09 3.9 14.77 2.7 12 2.7 6.48 2.7 2 7.18 2 12.7s4.48 10 10 10c5.75 0 9.54-4.03 9.54-9.7 0-.65-.07-1.13-.19-1.6z"/></svg>
+              Sign In with Google
+            </button>
           </div>
-          <svg className="absolute left-1/2 top-0 transform -translate-x-1/2 -translate-y-1/2 blur-3xl opacity-30" width="1000" height="1000" fill="none" viewBox="0 0 1000 1000">
+          <svg className="absolute left-1/2 top-0 transform -translate-x-1/2 -translate-y-1/2 blur-3xl opacity-40" width="1000" height="1000" fill="none" viewBox="0 0 1000 1000">
             <circle cx="500" cy="500" r="400" fill="url(#grad2)" />
             <defs>
               <radialGradient id="grad2" cx="50%" cy="50%" r="50%">
@@ -535,6 +598,10 @@ function App() {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    setSession(null);
+    setUser(null);
+    // Optionally, force a reload to fully reset state/UI:
+    // window.location.reload();
   };
 
   return (

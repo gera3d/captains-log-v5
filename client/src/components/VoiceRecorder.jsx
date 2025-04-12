@@ -228,17 +228,18 @@ export default function VoiceRecorder({ onNoteSaved }) {
   };
 
   return (
-    <>
+    <div className="flex flex-col items-center w-full gap-y-4">
       <button
         onClick={(status === 'recording' || status === 'saving') ? stopRecording : startRecording}
         className={`
           flex items-center justify-center rounded-full transition-all duration-300 ease-in-out
-          w-28 h-28 text-white text-3xl mx-auto
+          w-28 h-28 text-white text-3xl
           ${status === 'idle' ? 'bg-red-500 hover:bg-red-600 animate-pulse' : ''}
           ${status === 'recording' ? 'bg-blue-500 hover:bg-blue-600 animate-ping-fast' : ''}
           ${status === 'saving' ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
           ${status === 'done' ? 'bg-green-500 hover:bg-green-600' : ''}
           ${status === 'error' ? 'bg-red-700 hover:bg-red-800' : ''}
+          disabled:opacity-60 disabled:cursor-not-allowed
         `}
         style={{
           boxShadow:
@@ -254,22 +255,44 @@ export default function VoiceRecorder({ onNoteSaved }) {
               ? '0 0 20px 5px rgba(239,68,68,0.7)'
             : '0 8px 20px rgba(0,0,0,0.2)',
         }}
+        disabled={status === 'saving'}
+        aria-busy={status === 'saving'}
+        aria-disabled={status === 'saving'}
+        aria-label={
+          status === 'idle' ? 'Start recording' :
+          status === 'recording' ? 'Stop recording' :
+          status === 'saving' ? 'Saving recording' :
+          status === 'done' ? 'Recording saved' :
+          status === 'error' ? 'Error' : 'Voice recorder'
+        }
       >
         <MicrophoneIcon className="h-12 w-12 text-white" />
       </button>
 
       {status === 'saving' ? (
-        <LoadingSpinner className="mt-6" />
+        <span aria-live="polite" aria-busy="true">
+          <LoadingSpinner />
+        </span>
       ) : (
         <>
-          <h3 className="text-lg font-semibold text-gray-800 text-center mt-4">
+          <h3 className={`
+            ${status === 'idle' ? 'text-2xl sm:text-3xl font-extrabold text-sky-700 drop-shadow text-center' : ''}
+            ${status === 'recording' ? 'text-lg font-bold text-blue-600 text-center' : ''}
+            ${status === 'done' ? 'text-lg font-bold text-green-600 text-center' : ''}
+            ${status === 'error' ? 'text-lg font-bold text-red-600 text-center' : ''}
+          `}>
             {status === 'idle' && 'Tap to Record'}
-            {status === 'recording' && `Recording... ${Math.floor(recordingTime / 60)}:${('0' + (recordingTime % 60)).slice(-2)}`}
+            {status === 'recording' && (
+              <>
+                <span className="text-base font-medium text-gray-500 block mb-1">Recording...</span>
+                <span className="text-2xl font-extrabold text-blue-700">{`${Math.floor(recordingTime / 60)}:${('0' + (recordingTime % 60)).slice(-2)}`}</span>
+              </>
+            )}
             {status === 'done' && 'Recording Saved!'}
-            {status === 'error' && 'Mic access denied'}
+            {status === 'error' && <span className="text-base font-light text-red-400">Mic access denied</span>}
           </h3>
 
-          <div className="flex space-x-1 mt-4 justify-center">
+          <div className="flex space-x-1 justify-center">
             {Array.from({ length: 40 }).map((_, idx) => (
               <div
                 key={idx}
@@ -282,13 +305,13 @@ export default function VoiceRecorder({ onNoteSaved }) {
           </div>
 
           {audioUrl && (
-            <div className="w-full mt-6">
+            <div className="w-full">
               <AudioDiagnosticsPlayer src={audioUrl} />
             </div>
           )}
         </>
       )}
-    </>
+    </div>
   );
 }
 
