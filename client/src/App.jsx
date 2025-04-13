@@ -372,7 +372,10 @@ function FullIdeaPage({ user, session }) {
         .select('*')
         .eq('id', id)
         .single();
-      if (error) console.error('Fetch note error:', error);
+      if (error) {
+        console.error('Fetch note error:', error);
+        console.error('Full error object:', error); // Log the full error object
+      }
       else {
         // Clean up business idea if it's JSON string
         if (data?.business_idea) {
@@ -401,31 +404,47 @@ function FullIdeaPage({ user, session }) {
     fetchNote();
   }, [id]);
 
-  const copyIdea = () => {
+  const copyIdea = async () => {
     if (note) {
       // Generate markdown: title, content, and any relevant metadata
-      const title = note.title || note.business_idea?.split('\n')[0] || 'Untitled Idea';
+      const title = note.title || (note.business_idea?.split('\n')[0]) || 'Untitled Idea';
+      const description = note.description ? `\n\n${note.description}` : '';
       const content = note.business_idea || '';
-      const created = note.created_at ? `*Created: ${new Date(note.created_at).toLocaleString()}*` : '';
-      const markdown = `# ${title}\n\n${content}\n\n${created}`.trim();
-      navigator.clipboard.writeText(markdown);
+      const created = note.created_at ? `\n\n*Created: ${new Date(note.created_at).toLocaleString()}*` : '';
+      const markdown = `# ${title}${description}\n\n${content}${created}`.trim();
+      try {
+        await navigator.clipboard.writeText(markdown);
+        console.log("Markdown copied to clipboard:", markdown);
+      } catch (err) {
+        console.error("Failed to copy markdown:", err);
+        alert("Failed to copy markdown. Please check your browser permissions.");
+      }
+    } else {
+      console.warn("No note data to copy as markdown.");
+      alert("No idea loaded to copy.");
     }
   };
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      console.log("Link copied to clipboard:", window.location.href);
+    } catch (err) {
+      console.error("Failed to copy link:", err);
+      alert("Failed to copy link. Please check your browser permissions.");
+    }
   };
 
   const [copied, setCopied] = useState('');
 
-  const handleCopyIdea = () => {
-    copyIdea();
+  const handleCopyIdea = async () => {
+    await copyIdea();
     setCopied('idea');
     setTimeout(() => setCopied(''), 1500);
   };
 
-  const handleCopyLink = () => {
-    copyLink();
+  const handleCopyLink = async () => {
+    await copyLink();
     setCopied('link');
     setTimeout(() => setCopied(''), 1500);
   };
@@ -496,42 +515,118 @@ function FullIdeaPage({ user, session }) {
       <div className="max-w-4xl w-full space-y-8">
         <div className="bg-white shadow-xl rounded-3xl p-10 border border-gray-200">
           <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-            <h1 className="text-3xl font-extrabold text-gray-900 text-center sm:text-left">
-              {(() => {
-                if (!user) return "Your Gameplan";
-                const meta = user.user_metadata || {};
-                if (meta.full_name) {
-                  const firstName = meta.full_name.split(' ')[0];
-                  return `${firstName}'s Gameplan`;
-                }
-                if (user.email) return `${user.email.split('@')[0]}'s Gameplan`;
-                return "Your Gameplan";
-              })()}
-            </h1>
-            <div className="flex gap-3">
-              <Button
-                onClick={handleCopyIdea}
-                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-                label="Copy Idea"
-                leftIcon="📋"
-              />
-              <Button
-                onClick={handleCopyLink}
-                className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
-                label="Copy Link"
-                leftIcon="🔗"
-              />
-              <Button
-                onClick={exportToGoogleDocs}
-                className="rounded-md bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
-                label="Export to Google Docs"
-                leftIcon="📄"
-              />
+            {/* Title removed as requested */}
+            <div
+              className="flex items-center gap-4 bg-sky-50/80 border border-sky-100 rounded-xl px-4 py-3 shadow-inner relative"
+              role="group"
+              aria-label="Idea actions"
+            >
+              {user ? (
+                <>
+                  <Button
+                    onClick={handleCopyIdea}
+                    className="!rounded-lg !bg-indigo-600 !px-5 !py-3 !text-base !font-bold !text-white hover:!bg-indigo-700 focus-visible:!ring-2 focus-visible:!ring-indigo-400"
+                    label="Copy Markdown"
+                    leftIcon={<DocumentTextIcon className="h-6 w-6" aria-hidden="true" />}
+                    ariaLabel="Copy idea as Markdown"
+                    title="Copy a Markdown version of this idea"
+                  />
+                  <Button
+                    onClick={handleCopyLink}
+                    className="!rounded-lg !bg-green-600 !px-5 !py-3 !text-base !font-bold !text-white hover:!bg-green-700 focus-visible:!ring-2 focus-visible:!ring-green-400"
+                    label="Share Idea"
+                    leftIcon={<ShareIcon className="h-6 w-6" aria-hidden="true" />}
+                    ariaLabel="Share public link to this idea"
+                    title="Copy a public link to this idea"
+                  />
+                  <div className="h-8 w-px bg-sky-200 mx-2 hidden sm:block" aria-hidden="true"></div>
+                  <div className="relative group">
+                    <Button
+                      disabled
+                      className="!rounded-lg !bg-gray-200 !text-gray-400 !px-5 !py-3 !text-base !font-bold cursor-not-allowed"
+                      label="More Actions"
+                      leftIcon={
+                        <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                          <circle cx="5" cy="12" r="2" />
+                          <circle cx="12" cy="12" r="2" />
+                          <circle cx="19" cy="12" r="2" />
+                        </svg>
+                      }
+                      ariaLabel="More actions coming soon"
+                      title="More actions coming soon"
+                    />
+                    <div className="absolute left-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-10 hidden group-hover:block pointer-events-none">
+                      <button
+                        className="w-full flex items-center gap-2 px-4 py-2 text-gray-400 bg-gray-50 cursor-not-allowed text-left rounded-lg"
+                        disabled
+                        tabIndex={-1}
+                        aria-label="Export to Google Docs (coming soon)"
+                      >
+                        <span>
+                          <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8.828A2 2 0 0 0 19.414 7L15 2.586A2 2 0 0 0 13.586 2H6zm7 1.414L18.586 9H15a2 2 0 0 1-2-2V3.414z" />
+                          </svg>
+                        </span>
+                        <span>Export to Google Docs</span>
+                        <span className="ml-auto text-xs italic">(coming soon)</span>
+                      </button>
+                      {/* Future actions go here */}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Button
+                    disabled
+                    className="!rounded-lg !bg-indigo-100 !px-5 !py-3 !text-base !font-bold !text-gray-400 cursor-not-allowed"
+                    label="Copy Markdown"
+                    leftIcon={<DocumentTextIcon className="h-6 w-6" aria-hidden="true" />}
+                    ariaLabel="Copy idea as Markdown (login required)"
+                    title="Sign in to copy this idea"
+                  />
+                  <Button
+                    disabled
+                    className="!rounded-lg !bg-green-100 !px-5 !py-3 !text-base !font-bold !text-gray-400 cursor-not-allowed"
+                    label="Share Idea"
+                    leftIcon={<ShareIcon className="h-6 w-6" aria-hidden="true" />}
+                    ariaLabel="Share public link to this idea (login required)"
+                    title="Sign in to share this idea"
+                  />
+                  <div className="h-8 w-px bg-sky-200 mx-2 hidden sm:block" aria-hidden="true"></div>
+                  <div className="relative group">
+                    <Button
+                      disabled
+                      className="!rounded-lg !bg-gray-200 !text-gray-400 !px-5 !py-3 !text-base !font-bold cursor-not-allowed"
+                      label="More Actions"
+                      leftIcon={
+                        <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                          <circle cx="5" cy="12" r="2" />
+                          <circle cx="12" cy="12" r="2" />
+                          <circle cx="19" cy="12" r="2" />
+                        </svg>
+                      }
+                      ariaLabel="More actions coming soon"
+                      title="More actions coming soon"
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
-          {copied && (
-            <div className="mb-4 text-center text-green-600 font-semibold">
-              {copied === 'idea' ? 'Idea copied to clipboard!' : 'Link copied to clipboard!'}
+          {/* Show login required message for unauthenticated users */}
+          {!user && (
+            <div className="mb-6 text-center text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 font-semibold">
+              Sign in to copy, share, or export this idea.
+            </div>
+          )}
+          {/* Toast overlay for copy feedback */}
+          {copied && user && (
+            <div
+              className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-green-600 text-white font-bold px-6 py-3 rounded-full shadow-lg animate-fade-in-up"
+              role="status"
+              aria-live="polite"
+            >
+              {copied === 'idea' ? 'Markdown copied!' : 'Link copied!'}
             </div>
           )}
           {note ? (
@@ -563,9 +658,14 @@ function App() {
         .from('voice_notes')
         .select('*')
         .order('created_at', { ascending: false });
-      if (error) console.error('Fetch notes error:', error);
-      else setNotes(data);
+      if (error) {
+        console.error('Fetch notes error:', error);
+        console.error('Full error object:', error); // Log the full error object
+      } else {
+        setNotes(data);
+      }
     };
+    console.warn('No notes loaded.');
 
     fetchNotes();
 

@@ -43,6 +43,7 @@ const Button = ({
       aria-label={ariaLabelValue}
       disabled={disabled}
       tabIndex={0}
+      onClick={onClick}
       {...props}
     >
       {leftIcon && (

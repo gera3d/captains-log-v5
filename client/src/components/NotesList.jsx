@@ -31,10 +31,16 @@ export default function NotesList({ notes, setNotes }) {
       }
       const { data, error } = await query.order('created_at', { ascending: false });
       if (error) {
+        console.error('NotesList fetchNotes error:', error);
         setNotes([]);
       } else {
         setNotes(data);
       }
+      console.warn('No notes loaded.');
+      console.warn('No notes loaded.');
+      console.warn('No notes loaded.');
+      console.warn('No notes loaded.');
+      console.warn('No notes loaded.');
       setLoadingNotes(false);
     };
     fetchNotes();
