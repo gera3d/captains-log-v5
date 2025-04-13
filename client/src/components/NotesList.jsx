@@ -11,6 +11,7 @@ export default function NotesList({ notes, setNotes }) {
   const [loadingIdea, setLoadingIdea] = useState({});
   const [showFull, setShowFull] = useState({});
   const [showArchived, setShowArchived] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(null);
   const [loadingNotes, setLoadingNotes] = useState(true);
 
   // Persist showArchived state
@@ -268,6 +269,20 @@ export default function NotesList({ notes, setNotes }) {
                     >
                       Share
                     </Link>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(window.location.origin + '/idea/' + note.id);
+                        setCopiedLink(note.id);
+                        setTimeout(() => setCopiedLink(null), 1500);
+                      }}
+                      className="inline-flex items-center px-4 py-1.5 rounded-full border border-green-300 bg-green-50 text-xs font-medium text-green-700 hover:bg-green-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 shadow"
+                      aria-label="Copy public link"
+                    >
+                      Copy Link
+                    </button>
+                    {copiedLink === note.id && (
+                      <span className="ml-2 text-green-600 font-semibold">Link copied!</span>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2 items-center text-xs text-gray-500">
                     <span>{new Date(note.created_at).toLocaleString()}</span>

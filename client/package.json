@@ -7,9 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "jest"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.2.5",
+    "@headlessui/react": "^2.2.1",
     "@heroicons/react": "^2.2.0",
     "@supabase/supabase-js": "^2.49.4",
     "@tailwindcss/typography": "^0.5.16",
@@ -22,14 +25,21 @@
   "devDependencies": {
     "@eslint/js": "^9.21.0",
     "@playwright/test": "^1.51.1",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@types/jest": "^29.5.14",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react-swc": "^3.8.0",
     "autoprefixer": "^10.4.21",
+    "babel-jest": "^29.7.0",
+    "chai": "^5.2.0",
     "eslint": "^9.21.0",
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^15.15.0",
+    "jest": "^29.7.0",
+    "mocha": "^11.1.0",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.2.7",
     "vite": "^6.2.0"

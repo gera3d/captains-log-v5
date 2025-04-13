@@ -10,22 +10,24 @@
 import { useState, useEffect } from 'react';
 import LoadingSpinner from './components/LoadingSpinner';
 import { supabase } from './supabaseClient';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import NotesList from './components/NotesList';
 import VoiceRecorder from './components/VoiceRecorder';
+import VoiceRecorderCard from './components/VoiceRecorderCard';
+import IdeaValidationFeedback from './components/IdeaValidationFeedback';
 import { CheckIcon, MicrophoneIcon, DocumentTextIcon, ShareIcon } from '@heroicons/react/24/outline';
-
+import Button from './components/Button';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import AuthButton from './components/AuthButton';
   /*
     TODO[MEDIUM]: Dashboard Onboarding
     - FEATURE: Add user onboarding tips for first-time users.
     - UI: Consider a dismissible banner or modal for onboarding.
   */
 
-function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
+function Dashboard({ notes, setNotes, user }) {
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [signingIn, setSigningIn] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
- 
+
   // DEV MODE: If ?dev_user=1 is present, always show onboarding modal and mock user
   const isDevUser = typeof window !== "undefined" && window.location.search.includes("dev_user=1");
   const devMockUser = {
@@ -34,7 +36,7 @@ function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
     user_metadata: { full_name: "Dev User" }
   };
   const effectiveUser = isDevUser ? devMockUser : user;
- 
+
   useEffect(() => {
     if (isDevUser) {
       setShowOnboarding(true);
@@ -57,51 +59,101 @@ function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
   const onNoteSaved = () => {};
 
   const onboardingModal = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
-      <div className="bg-white/60 backdrop-blur-2xl rounded-3xl shadow-2xl max-w-md w-full p-8 sm:p-10 relative border border-sky-100 animate-fade-in-up">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#1d3263] bg-gradient-to-br from-[#1d3263] via-[#223a6d] to-[#1d3263] animate-fade-in-up"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="onboarding-title"
+      aria-describedby="onboarding-desc"
+      tabIndex={-1}
+      onKeyDown={e => { if (e.key === "Escape") handleDismissOnboarding(); }}
+    >
+      <div className="relative bg-white/5 rounded-3xl shadow-2xl max-w-md w-full px-8 py-10 sm:px-12 sm:py-12 border border-white/10 ring-1 ring-white/10 glass-gradient focus:outline-none outline-none"
+        style={{ outline: "none" }}
+      >
         <button
-          className="absolute top-3 right-3 text-sky-400 hover:text-sky-600 text-2xl font-bold transition"
+          className="absolute top-4 right-4 text-white hover:text-[#FCD24F] text-2xl font-bold transition focus:outline-none focus:ring-2 focus:ring-[#FCD24F] rounded-full bg-white/10 hover:bg-white/20 shadow"
           onClick={handleDismissOnboarding}
           aria-label="Dismiss onboarding"
+          tabIndex={0}
         >
-          &times;
+          ×
         </button>
         <div className="flex flex-col items-center">
-          <span className="text-6xl mb-4 animate-bounce">🪄</span>
-          <h2 className="text-3xl font-extrabold mb-2 text-sky-600 drop-shadow">Welcome to Captain's Log!</h2>
-          <p className="text-gray-700 mb-4 text-center text-lg">
-            Here’s a quick guide to get you started:
+          {/* Flask logo icon */}
+          <div className="mb-4" aria-hidden="true">
+            <svg width="56" height="56" viewBox="0 0 56 56" className="mx-auto drop-shadow-lg">
+              <g>
+                <rect width="56" height="56" rx="16" fill="#fff" fillOpacity="0.08"/>
+                <path d="M28 12v13.5c0 1.1.9 2 2 2h1.5a2 2 0 012 2V36a7.5 7.5 0 11-15 0V29.5a2 2 0 012-2H26a2 2 0 002-2V12" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                <ellipse cx="28" cy="40" rx="7.5" ry="3.5" fill="#FCD24F" fillOpacity="0.85"/>
+              </g>
+            </svg>
+          </div>
+          {/* GoodIdea logo text */}
+          <div className="font-extrabold text-2xl mb-1 text-[#d9d9d9] tracking-wide logo-text" style={{letterSpacing: "0.04em"}}>
+            GoodIdea
+          </div>
+          <h2 id="onboarding-title" className="text-2xl sm:text-3xl font-bold mb-2 text-[#f2f2f2] text-center drop-shadow-lg">
+            Welcome aboard!
+          </h2>
+          <p id="onboarding-desc" className="text-[#d9d9d9] mb-5 text-center text-lg font-medium">
+            Here’s how to get started:
           </p>
-          <ul className="text-left text-gray-600 space-y-3 mb-6 w-full max-w-xs">
-            <li className="flex items-center">
-              <MicrophoneIcon className="h-6 w-6 text-sky-500 mr-3" />
-              <span><b>Record:</b> Tap the mic to capture voice notes instantly.</span>
+          <ul className="text-left space-y-4 mb-8 w-full max-w-xs">
+            <li className="flex items-center gap-3">
+              <span className="inline-flex items-center justify-center h-9 w-9 rounded-full bg-[#FCD24F]/20 shadow">
+                <MicrophoneIcon className="h-6 w-6 text-[#FCD24F]" aria-hidden="true" />
+              </span>
+              <span className="font-semibold text-[#FCD24F]">Record</span>
+              <span className="text-[#d9d9d9] ml-2">Tap the mic to capture voice notes.</span>
             </li>
-            <li className="flex items-center">
-              <DocumentTextIcon className="h-6 w-6 text-sky-500 mr-3" />
-              <span><b>View:</b> See and organize all your notes below.</span>
+            <li className="flex items-center gap-3">
+              <span className="inline-flex items-center justify-center h-9 w-9 rounded-full bg-white/10 shadow">
+                <DocumentTextIcon className="h-6 w-6 text-white" aria-hidden="true" />
+              </span>
+              <span className="font-semibold text-white">View</span>
+              <span className="text-[#d9d9d9] ml-2">See and organize your notes.</span>
             </li>
-            <li className="flex items-center">
-              <ShareIcon className="h-6 w-6 text-sky-500 mr-3" />
-              <span><b>Share/Export:</b> Easily share or export your notes anytime.</span>
+            <li className="flex items-center gap-3">
+              <span className="inline-flex items-center justify-center h-9 w-9 rounded-full bg-white/10 shadow">
+                <ShareIcon className="h-6 w-6 text-white" aria-hidden="true" />
+              </span>
+              <span className="font-semibold text-white">Share</span>
+              <span className="text-[#d9d9d9] ml-2">Export or share your notes anytime.</span>
             </li>
           </ul>
           <button
-            className="mt-2 px-10 py-3 bg-gradient-to-r from-sky-500 to-sky-400 text-white rounded-xl font-bold shadow-lg hover:from-sky-600 hover:to-sky-500 transition transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-sky-300"
+            className="mt-2 px-10 py-3 rounded-full bg-[#FCD24F] text-[#1d3263] text-lg font-bold shadow-lg transition-all duration-200 transform hover:scale-105 hover:bg-[#ffe27a] focus:outline-none focus:ring-4 focus:ring-[#FCD24F]/60 active:scale-98"
             onClick={handleDismissOnboarding}
+            autoFocus
+            tabIndex={0}
+            aria-label="Close onboarding and start using GoodIdea"
           >
-            Got it!
+            GOT IT!
           </button>
+          <div className="mt-6 text-center">
+            <span className="text-[#f2f2f2] underline underline-offset-4 decoration-2 decoration-[#f2f2f2] cursor-pointer transition hover:text-[#FCD24F]" tabIndex={0} role="button" aria-label="Learn more about GoodIdea">
+              Learn more
+            </span>
+          </div>
         </div>
       </div>
       <style>
         {`
+          .glass-gradient {
+            background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%);
+            backdrop-filter: blur(12px);
+          }
           @keyframes fade-in-up {
             0% { opacity: 0; transform: translateY(40px);}
             100% { opacity: 1; transform: translateY(0);}
           }
           .animate-fade-in-up {
-            animation: fade-in-up 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+            animation: fade-in-up 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+          }
+          .logo-text {
+            font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
           }
         `}
       </style>
@@ -112,52 +164,53 @@ function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
     <div className="bg-white w-full max-w-full overflow-x-hidden">
       {/* Tailwind UI Hero with SVG background */}
       {!effectiveUser && (
-        <header className="relative overflow-hidden bg-gradient-to-br from-sky-500 via-sky-400 to-sky-700">
-          <div className="max-w-3xl mx-auto py-28 px-4 sm:px-8 text-center relative z-10 flex flex-col items-center">
-            <div className="mb-6 flex items-center justify-center gap-3">
-              <span className="text-5xl">🧭</span>
-              <span className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white drop-shadow-lg tracking-tight">Captain's Log</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4 drop-shadow">Capture & Transcribe Voice Notes</h1>
-            <p className="mb-8 text-lg sm:text-xl text-sky-100 font-medium drop-shadow">Record your thoughts, save them securely, and share effortlessly.</p>
-            <button
-              onClick={async () => {
-                setSigningIn(true);
-                try {
-                  await signInWithGoogle();
-                } finally {
-                  setSigningIn(false);
-                }
-              }}
-              className="inline-flex items-center px-8 py-3 rounded-xl bg-gradient-to-r from-sky-200 via-white to-sky-100 text-sky-700 font-bold shadow-lg hover:from-sky-100 hover:to-sky-200 hover:text-sky-900 transition focus:outline-none focus:ring-4 focus:ring-sky-300 disabled:opacity-60 disabled:cursor-not-allowed"
-              disabled={signingIn}
-              aria-busy={signingIn}
-              aria-disabled={signingIn}
-            >
-              {signingIn ? (
-                <span className="flex items-center gap-2">
-                  <LoadingSpinner size={20} className="mr-2" />
-                  Signing In...
-                </span>
-              ) : (
-                <>
-                  <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M21.35 11.1H12v2.8h5.35c-.23 1.2-1.4 3.5-5.35 3.5-3.22 0-5.85-2.67-5.85-5.9s2.63-5.9 5.85-5.9c1.83 0 3.06.78 3.76 1.45l2.57-2.5C17.09 3.9 14.77 2.7 12 2.7 6.48 2.7 2 7.18 2 12.7s4.48 10 10 10c5.75 0 9.54-4.03 9.54-9.7 0-.65-.07-1.13-.19-1.6z"/></svg>
-                  Sign In with Google
-                </>
-              )}
-            </button>
-          </div>
-          <svg className="absolute left-1/2 top-0 transform -translate-x-1/2 -translate-y-1/2 blur-3xl opacity-40" width="1000" height="1000" fill="none" viewBox="0 0 1000 1000">
-            <circle cx="500" cy="500" r="400" fill="url(#grad1)" />
-            <defs>
-              <radialGradient id="grad1" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.4" />
-                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-              </radialGradient>
-            </defs>
-          </svg>
-        </header>
-      )}
+        <>
+          <header className="relative overflow-hidden" style={{ background: "linear-gradient(90deg, #311B92 0%, #0D47A1 100%)" }}>
+            <div className="max-w-3xl mx-auto py-4 px-2 sm:px-4 text-center relative z-10 flex flex-col items-center">
+              <div className="mb-10 flex items-center justify-center">
+                <img
+                  src="/goodideas.png"
+                  alt="Good Idea Logo"
+                  className="h-[12rem] w-[12rem] sm:h-[16rem] sm:w-[16rem] object-contain"
+                  style={{ display: 'inline-block' }}
+                />
+              </div>
+              <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white mb-6 drop-shadow-2xl font-display tracking-tight leading-tight">
+                Turn Your Thoughts Into Startups — In Days, Not Months.
+              </h1>
+              <p className="mb-10 text-xl sm:text-2xl text-white/90 font-semibold drop-shadow font-sans max-w-2xl mx-auto leading-relaxed">
+                Speak your ideas out loud.<br className="hidden sm:inline" /> We’ll transcribe, organize, and tell you if it’s a winner — backed by research.
+              </p>
+              <Button
+                label="SPEAK YOUR IDEA"
+                className="px-12 py-5 rounded-3xl text-xl font-extrabold shadow-2xl bg-[#FFD600] text-[#1A237E] tracking-widest transition-all duration-200 hover:bg-[#FFC400] hover:shadow-yellow-400/60 focus-visible:ring-4 focus-visible:ring-[#FFD600] focus-visible:ring-offset-2"
+                style={{ boxShadow: '0 6px 32px 0 rgba(255, 214, 0, 0.25)' }}
+                onClick={() => {}}
+              />
+<>
+  <AuthButton className="mt-8" />
+</>
+              <p className="mt-10 text-lg sm:text-xl text-white/80 font-normal max-w-2xl mx-auto drop-shadow font-sans leading-relaxed">
+                We turn your spoken thoughts into startup blueprints — and tell you if they’ll fly or flop, based on real market data.
+              </p>
+              </div>
+            <svg className="absolute left-1/2 top-0 transform -translate-x-1/2 -translate-y-1/2 blur-3xl opacity-40" width="1000" height="1000" fill="none" viewBox="0 0 1000 1000">
+              <circle cx="500" cy="500" r="400" fill="url(#grad1)" />
+              <defs>
+                <radialGradient id="grad1" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor="#ffffff" stopOpacity="0.4" />
+                  <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+                </radialGradient>
+              </defs>
+            </svg>
+          </header>
+                    {/* VoiceRecorderCard below Hero */}
+                    <div className="w-full flex flex-col items-center">
+                      <VoiceRecorderCard />
+                      <IdeaValidationFeedback />
+                    </div>
+                            </>
+                          )}
       {effectiveUser && (
         <>
           {showOnboarding && onboardingModal}
@@ -165,38 +218,17 @@ function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
             <nav className="w-full max-w-full sm:max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-0 px-4 sm:px-8 py-6 bg-white/80 rounded-2xl shadow-lg border border-sky-100 backdrop-blur mb-8 box-border"
               style={{ maxWidth: '100vw' }}>
               <div className="flex items-center gap-x-4 text-2xl sm:text-3xl md:text-4xl font-extrabold text-sky-700 tracking-tight drop-shadow">
-                <span className="text-3xl md:text-4xl">🧭</span>
-                <span className="whitespace-nowrap">Captain's Log</span>
+                <img
+                  src="/goodideas.png"
+                  alt="Good Idea Logo"
+                  className="h-8 w-8 md:h-10 md:w-10 object-contain"
+                  style={{ display: 'inline-block' }}
+                />
+                <span className="whitespace-nowrap">GoodIdea</span>
               </div>
               <div className="flex items-center gap-x-4">
                 <span className="text-sm font-light text-gray-400">{effectiveUser.email}</span>
-                <button
-                  onClick={async () => {
-                    setSigningOut(true);
-                    try {
-                      await signOut();
-                    } finally {
-                      setSigningOut(false);
-                    }
-                  }}
-                  className="inline-flex items-center px-5 py-2.5 rounded-lg bg-gradient-to-r from-sky-500 to-sky-400 text-white font-semibold shadow-md transition
-                  hover:from-sky-600 hover:to-sky-500 hover:shadow-lg hover:scale-102
-                  active:scale-98
-                  focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-1
-                  border-0 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                  disabled={signingOut}
-                  aria-busy={signingOut}
-                  aria-disabled={signingOut}
-                >
-                  {signingOut ? (
-                    <span className="flex items-center gap-2">
-                      <LoadingSpinner size={18} className="mr-2" />
-                      Signing Out...
-                    </span>
-                  ) : (
-                    "Sign Out"
-                  )}
-                </button>
+                <AuthButton className="ml-2" />
               </div>
             </nav>
             <div className="w-full max-w-full sm:max-w-2xl mx-auto mt-8 box-border" style={{ maxWidth: '100vw' }}>
@@ -211,29 +243,53 @@ function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
 
       {/* Tailwind UI Features with icons */}
       {!effectiveUser && (
-      <section className="bg-gradient-to-b from-sky-50 to-white py-20">
+      <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-            <div className="flex flex-col items-center bg-white rounded-2xl shadow-lg border border-sky-100 p-8 transition hover:shadow-2xl hover:-translate-y-1">
-              <div className="flex justify-center mb-4">
-                <MicrophoneIcon className="h-12 w-12 text-sky-500" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Modern Feature Card: Speak Your Ideas */}
+            <div className="relative flex flex-col items-center bg-gradient-to-br from-yellow-50 via-white to-sky-50 rounded-3xl shadow-xl border border-yellow-100 p-10 sm:p-12 transition hover:shadow-2xl hover:-translate-y-2 group overflow-hidden">
+              <div className="absolute -top-8 -right-8 opacity-20 group-hover:opacity-30 transition">
+                <MicrophoneIcon className="h-28 w-28 text-yellow-300" />
               </div>
-              <h3 className="text-xl font-bold text-sky-700 mb-2">Fast Recording</h3>
-              <p className="text-base text-gray-600 text-center">Quickly capture your thoughts with one tap.</p>
+              <div className="flex justify-center mb-4 z-10">
+                <span className="inline-flex items-center justify-center rounded-full bg-yellow-100 p-4 shadow-lg">
+                  <MicrophoneIcon className="h-10 w-10 text-yellow-500" />
+                </span>
+              </div>
+              <h3 className="text-2xl font-extrabold text-yellow-900 mb-2 text-center leading-tight drop-shadow">Speak Your Ideas</h3>
+              <p className="text-lg text-yellow-800 text-center max-w-xs mx-auto leading-snug font-medium z-10">
+                Instantly record voice notes and brainstorm out loud with a tap.
+              </p>
             </div>
-            <div className="flex flex-col items-center bg-white rounded-2xl shadow-lg border border-sky-100 p-8 transition hover:shadow-2xl hover:-translate-y-1">
-              <div className="flex justify-center mb-4">
-                <DocumentTextIcon className="h-12 w-12 text-sky-500" />
+            {/* Modern Feature Card: AI-Powered Validation */}
+            <div className="relative flex flex-col items-center bg-gradient-to-br from-indigo-50 via-white to-yellow-50 rounded-3xl shadow-xl border border-indigo-100 p-10 sm:p-12 transition hover:shadow-2xl hover:-translate-y-2 group overflow-hidden">
+              <div className="absolute -top-8 -left-8 opacity-20 group-hover:opacity-30 transition">
+                <DocumentTextIcon className="h-28 w-28 text-indigo-300" />
               </div>
-              <h3 className="text-xl font-bold text-sky-700 mb-2">Accurate Transcripts</h3>
-              <p className="text-base text-gray-600 text-center">Get high-quality transcriptions of your voice notes.</p>
+              <div className="flex justify-center mb-4 z-10">
+                <span className="inline-flex items-center justify-center rounded-full bg-indigo-100 p-4 shadow-lg">
+                  <DocumentTextIcon className="h-10 w-10 text-indigo-500" />
+                </span>
+              </div>
+              <h3 className="text-2xl font-extrabold text-indigo-900 mb-2 text-center leading-tight drop-shadow">AI-Powered Validation</h3>
+              <p className="text-lg text-indigo-800 text-center max-w-xs mx-auto leading-snug font-medium z-10">
+                Get instant feedback and research on your startup ideas, powered by AI.
+              </p>
             </div>
-            <div className="flex flex-col items-center bg-white rounded-2xl shadow-lg border border-sky-100 p-8 transition hover:shadow-2xl hover:-translate-y-1">
-              <div className="flex justify-center mb-4">
-                <ShareIcon className="h-12 w-12 text-sky-500" />
+            {/* Modern Feature Card: Organize & Export */}
+            <div className="relative flex flex-col items-center bg-gradient-to-br from-sky-50 via-white to-indigo-50 rounded-3xl shadow-xl border border-sky-100 p-10 sm:p-12 transition hover:shadow-2xl hover:-translate-y-2 group overflow-hidden">
+              <div className="absolute -bottom-8 -left-8 opacity-20 group-hover:opacity-30 transition">
+                <ShareIcon className="h-28 w-28 text-sky-300" />
               </div>
-              <h3 className="text-xl font-bold text-sky-700 mb-2">Easy Sharing</h3>
-              <p className="text-base text-gray-600 text-center">Share your notes with friends or colleagues instantly.</p>
+              <div className="flex justify-center mb-4 z-10">
+                <span className="inline-flex items-center justify-center rounded-full bg-sky-100 p-4 shadow-lg">
+                  <ShareIcon className="h-10 w-10 text-sky-500" />
+                </span>
+              </div>
+              <h3 className="text-2xl font-extrabold text-sky-900 mb-2 text-center leading-tight drop-shadow">Organize & Export</h3>
+              <p className="text-lg text-sky-800 text-center max-w-xs mx-auto leading-snug font-medium z-10">
+                Save, review, and export your best ideas anytime with one click.
+              </p>
             </div>
           </div>
         </div>
@@ -250,46 +306,42 @@ function Dashboard({ notes, setNotes, user, signInWithGoogle, signOut }) {
         </section>
       )}
 
-      {/* Tailwind UI CTA Section */}
+      {/* GoodIdea CTA Section */}
       {!effectiveUser && (
-        <section className="relative bg-gradient-to-br from-indigo-700 via-sky-600 to-indigo-900 py-20 overflow-hidden">
+        <section
+          className="py-20"
+          style={{
+            background: "linear-gradient(90deg, #311B92 0%, #0D47A1 100%)"
+          }}
+        >
           <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
             <h2 className="text-4xl font-extrabold text-white mb-4 drop-shadow-lg">Ready to get started?</h2>
-            <p className="mb-8 text-lg text-indigo-100 font-medium drop-shadow">Sign in to record and view your voice notes.</p>
-            <button
-              onClick={signInWithGoogle}
-              className="inline-flex items-center px-8 py-3 rounded-xl bg-gradient-to-r from-sky-200 via-white to-indigo-200 text-indigo-700 font-bold shadow-lg hover:from-sky-100 hover:to-indigo-100 hover:text-indigo-900 transition focus:outline-none focus:ring-4 focus:ring-sky-300"
-            >
-              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M21.35 11.1H12v2.8h5.35c-.23 1.2-1.4 3.5-5.35 3.5-3.22 0-5.85-2.67-5.85-5.9s2.63-5.9 5.85-5.9c1.83 0 3.06.78 3.76 1.45l2.57-2.5C17.09 3.9 14.77 2.7 12 2.7 6.48 2.7 2 7.18 2 12.7s4.48 10 10 10c5.75 0 9.54-4.03 9.54-9.7 0-.65-.07-1.13-.19-1.6z"/></svg>
-              Sign In with Google
-            </button>
+            <p className="mb-8 text-lg text-white font-medium drop-shadow">Sign in to record and view your voice notes.</p>
+            <AuthButton />
           </div>
-          <svg className="absolute left-1/2 top-0 transform -translate-x-1/2 -translate-y-1/2 blur-3xl opacity-40" width="1000" height="1000" fill="none" viewBox="0 0 1000 1000">
-            <circle cx="500" cy="500" r="400" fill="url(#grad2)" />
-            <defs>
-              <radialGradient id="grad2" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.4" />
-                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-              </radialGradient>
-            </defs>
-          </svg>
         </section>
       )}
 
       {/* Tailwind UI Footer */}
-      <footer className="bg-gray-50 border-t border-gray-200">
+      <footer
+        className="border-t"
+        style={{
+          background: "linear-gradient(90deg, #311B92 0%, #0D47A1 100%)",
+          borderColor: "#FFD600"
+        }}
+      >
         <div className="max-w-7xl mx-auto py-8 px-4 overflow-hidden sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-base text-gray-400">&copy; 2025 Captains Log. All rights reserved.</p>
+          <p className="text-base text-white">&copy; 2025 GoodIdea. All rights reserved.</p>
           <div className="mt-4 md:mt-0 flex space-x-6">
-            <a href="#" className="text-gray-400 hover:text-gray-500">
+            <a href="#" className="text-[#81D4FA] hover:underline">
               <span className="sr-only">Facebook</span>
-              <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="h-6 w-6" fill="#FFD600" viewBox="0 0 24 24">
                 <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54v-2.89h2.54V9.845c0-2.507 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562v1.875h2.773l-.443 2.89h-2.33v6.987C18.343 21.128 22 16.991 22 12z" />
               </svg>
             </a>
-            <a href="#" className="text-gray-400 hover:text-gray-500">
+            <a href="#" className="text-[#81D4FA] hover:underline">
               <span className="sr-only">Twitter</span>
-              <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="h-6 w-6" fill="#FFD600" viewBox="0 0 24 24">
                 <path d="M8 19c7.732 0 11.946-6.41 11.946-11.946 0-.182 0-.364-.012-.545A8.548 8.548 0 0022 4.309a8.19 8.19 0 01-2.357.646A4.118 4.118 0 0021.448 3a8.224 8.224 0 01-2.605.996A4.107 4.107 0 0015.448 3c-2.266 0-4.104 1.838-4.104 4.104 0 .322.036.636.106.936A11.65 11.65 0 013 4.15a4.104 4.104 0 001.27 5.475 4.073 4.073 0 01-1.858-.513v.052c0 2.042 1.453 3.746 3.379 4.132a4.095 4.095 0 01-1.853.07c.522 1.63 2.037 2.816 3.833 2.85A8.233 8.233 0 012 19.54a11.616 11.616 0 006.29 1.84" />
               </svg>
             </a>
@@ -350,8 +402,13 @@ function FullIdeaPage({ user, session }) {
   }, [id]);
 
   const copyIdea = () => {
-    if (note?.business_idea) {
-      navigator.clipboard.writeText(note.business_idea);
+    if (note) {
+      // Generate markdown: title, content, and any relevant metadata
+      const title = note.title || note.business_idea?.split('\n')[0] || 'Untitled Idea';
+      const content = note.business_idea || '';
+      const created = note.created_at ? `*Created: ${new Date(note.created_at).toLocaleString()}*` : '';
+      const markdown = `# ${title}\n\n${content}\n\n${created}`.trim();
+      navigator.clipboard.writeText(markdown);
     }
   };
 
@@ -452,24 +509,24 @@ function FullIdeaPage({ user, session }) {
               })()}
             </h1>
             <div className="flex gap-3">
-              <button
+              <Button
                 onClick={handleCopyIdea}
-                className="inline-flex justify-center items-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition"
-              >
-                📋 Copy Idea
-              </button>
-              <button
+                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                label="Copy Idea"
+                leftIcon="📋"
+              />
+              <Button
                 onClick={handleCopyLink}
-                className="inline-flex justify-center items-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition"
-              >
-                🔗 Copy Link
-              </button>
-              <button
+                className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+                label="Copy Link"
+                leftIcon="🔗"
+              />
+              <Button
                 onClick={exportToGoogleDocs}
-                className="inline-flex justify-center items-center rounded-md border border-transparent bg-green-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition"
-              >
-                📄 Export to Google Docs
-              </button>
+                className="rounded-md bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
+                label="Export to Google Docs"
+                leftIcon="📄"
+              />
             </div>
           </div>
           {copied && (
@@ -492,43 +549,7 @@ function FullIdeaPage({ user, session }) {
 
 function App() {
   const [notes, setNotes] = useState([]);
-  const [session, setSession] = useState(null);
-  const [user, setUser] = useState(null);
-
-  // --- BYPASS AUTH FOR DEVELOPMENT ---
-  useEffect(() => {
-    if (import.meta.env.VITE_BYPASS_AUTH === "true") {
-      // Set a mock user and session for development/testing
-      const mockUser = {
-        id: "dev-user-1",
-        email: "devuser@example.com",
-        user_metadata: {
-          full_name: "Dev User"
-        }
-      };
-      setUser(mockUser);
-      setSession({ user: mockUser });
-      return; // Skip Supabase auth
-    }
-
-    /*
-      TODO[HIGH]: Auth Refactor
-      - FEATURE: Refactor to support additional OAuth providers (e.g., GitHub, Microsoft).
-      - CONTEXT: App > useEffect (auth)
-    */
-
-    supabase.auth.getSession().then(({ data }) => {
-      console.log('Supabase session:', data?.session);
-      setSession(data?.session ?? null);
-      setUser(data?.session?.user ?? null);
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, sessionData) => {
-      console.log('Auth state change session:', sessionData);
-      setSession(sessionData ?? null);
-      setUser(sessionData?.user ?? null);
-    });
-  }, []);
+  const { user, authError, loading } = useAuth();
 
   useEffect(() => {
     /*
@@ -586,29 +607,58 @@ function App() {
     };
   }, []);
 
-  /*
-    FIXME: Sign-in Edge Case
-    - BUG: Handle edge case where user closes OAuth popup before authenticating.
-    - CONTEXT: App > signInWithGoogle
-  */
-
-  const signInWithGoogle = async () => {
-    await supabase.auth.signInWithOAuth({ provider: 'google' });
-  };
-
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setSession(null);
-    setUser(null);
-    // Optionally, force a reload to fully reset state/UI:
-    // window.location.reload();
+    setSigningOut(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      await new Promise(resolve => {
+        setSession(null);
+        setUser(null);
+        resolve();
+      });
+      
+      window.location.href = '/';
+    } catch (err) {
+      console.error('SignOut failed:', err);
+      alert('Failed to sign out. Please try again.');
+    } finally {
+      setSigningOut(false);
+    }
   };
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
 
   return (
     <Routes>
-      <Route path="/" element={<Dashboard notes={notes} setNotes={setNotes} user={user} signInWithGoogle={signInWithGoogle} signOut={signOut} />} />
-      <Route path="/idea/:id" element={<FullIdeaPage user={user} session={session} />} />
+      <Route 
+        path="/" 
+        element={
+          <Dashboard 
+            notes={notes} 
+            setNotes={setNotes} 
+            user={user} 
+          />
+        } 
+      />
+      <Route 
+        path="/idea/:id" 
+        element={
+          <FullIdeaPage 
+            user={user} 
+          />
+        } 
+      />
     </Routes>
   );
 }
-export default App;
+export default function AppWithAuth() {
+  return (
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  );
+}
