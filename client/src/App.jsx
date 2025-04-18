@@ -19,134 +19,39 @@ import { CheckIcon, MicrophoneIcon, DocumentTextIcon, ShareIcon } from '@heroico
 import Button from './components/Button';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthButton from './components/AuthButton';
+import FeaturesSection from './components/FeaturesSection';
+import TestimonialsSection from './components/TestimonialsSection';
   /*
     TODO[MEDIUM]: Dashboard Onboarding
     - FEATURE: Add user onboarding tips for first-time users.
     - UI: Consider a dismissible banner or modal for onboarding.
   */
 
-// Simple LandingPage component that matches the screenshot
 function LandingPage() {
-  const navigate = useNavigate();
   return (
-    <div className="min-h-screen flex flex-col bg-[#5138CE] relative font-sans w-full">
-      {/* Subtle grid texture for background */}
-      <div className="absolute inset-0 z-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSA2MCAwIEwgMCAwIDAgNjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMC41IiBzdHJva2Utb3BhY2l0eT0iMC4wOCIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] bg-repeat opacity-10"></div>
-      {/* Animated background with SVG wave */}
-      <div className="absolute inset-0 z-0 w-full max-w-4xl mx-auto">
-        <svg viewBox="0 0 1440 320" className="w-full h-64 absolute top-0 left-0" aria-hidden="true">
-          <path fill="#6755F5" fillOpacity="0.5" d="M0,160L60,170.7C120,181,240,203,360,197.3C480,192,600,160,720,133.3C840,107,960,85,1080,101.3C1200,117,1320,171,1380,197.3L1440,224L1440,0L1380,0C1320,0,1200,0,1080,0C960,0,840,0,720,0C600,0,480,0,360,0C240,0,120,0,60,0L0,0Z"></path>
-        </svg>
-      </div>
-      {/* Header with logo and sign-in button */}
-      <header className="py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center relative z-10 w-full max-w-4xl mx-auto">
-        <div className="flex items-center flex-shrink-0">
-          <img src="/goodideas.png" alt="GoodIdea Logo" className="h-8 w-auto max-w-full" />
-        </div>
-        <div>
-          <AuthButton className="font-sans font-normal normal-case text-sm tracking-normal" />
-        </div>
+    <div className="bg-gradient-primary text-primary-text">
+      <header className="container flex justify-between items-center py-6">
+        <img src="/goodideas.png" alt="GoodIdea Logo" className="h-8" />
+        <AuthButton />
       </header>
-      {/* Main content area */}
-      <main className="flex-grow flex flex-col items-center justify-center text-center px-4 sm:px-6 lg:px-8 py-10 relative z-10 w-full max-w-4xl mx-auto">
-        <div className="w-full max-w-4xl mx-auto flex flex-col items-center">
-          {/* Tagline */}
-          <span className="uppercase tracking-widest text-[#FCD24F] text-sm font-semibold mb-4">AI Startup Co-Pilot</span>
-          {/* Headline with display font */}
-          <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold text-white mb-6 font-display tracking-tight leading-tight break-words" style={{fontFamily: 'Poppins, Inter, Segoe UI, Arial, sans-serif'}}>
-            Turn Your Thoughts Into Startups — In Days, Not Months.
-          </h1>
-          <p className="mb-10 text-2xl text-white font-normal max-w-2xl mx-auto leading-relaxed">
-            Speak your ideas out loud.<br/>
-            We'll transcribe, organize, and tell you if it's a winner —<br/>
-            backed by research.
-          </p>
-          {/* Animated CTA */}
-          <Button
-            variant="voice"
-            size="xl"
-            label="SPEAK YOUR IDEA"
-            onClick={() => navigate('/record')}
-            className="mb-8 animate-bounce shadow-xl !bg-[#FCD24F] !text-[#1d3263] !font-bold !rounded-full !px-10 !py-5 text-2xl"
-            ariaLabel="Start recording your idea"
-          />
-          {/* Showcase the premium VoiceRecorderCard for new users */}
-          <div className="w-full flex flex-wrap justify-center mt-2 mb-8 gap-4">
-            <div className="w-full max-w-2xl">
-              <VoiceRecorderCard />
-            </div>
-          </div>
-          {/* Market data text */}
-          <p className="mt-12 text-lg text-white/80 max-w-2xl mx-auto">
-            We turn your spoken thoughts into startup blueprints — and tell you if they'll fly or flop, based on real market data.
-          </p>
-        </div>
-        {/* Featured in bar */}
-        <div className="mt-16 mb-8 w-full flex flex-col items-center">
-          <span className="uppercase text-xs text-white/60 tracking-widest mb-2">Featured in</span>
-          <div className="flex gap-8 opacity-80 flex-wrap justify-center w-full max-w-2xl overflow-x-auto">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/0/08/TechCrunch_Logo.svg" alt="TechCrunch" className="h-6 max-w-full" />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Forbes_logo.svg" alt="Forbes" className="h-6 max-w-full" />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/Product_Hunt_Logo.svg" alt="Product Hunt" className="h-6 max-w-full" />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/Fast_Company_logo.svg" alt="Fast Company" className="h-6 max-w-full" />
+
+      <main className="container mx-auto px-4 lg:px-8 py-16 flex flex-col-reverse lg:flex-row items-center gap-12">
+        <div className="lg:w-1/2">
+          <h1 className="font-display text-h1 mb-4">Turn Your Thoughts Into Startups — In Days, Not Months.</h1>
+          <p className="text-lg mb-6">Speak your ideas out loud. We'll transcribe, organize, and tell you if it's a winner — backed by research.</p>
+          <div className="flex space-x-4">
+            <AuthButton />
+            <button className="bg-secondary text-primary-text rounded-lg px-6 py-3 hover:bg-opacity-90">Learn More</button>
           </div>
         </div>
-        {/* How it works section */}
-        <section className="mt-8 w-full max-w-3xl mx-auto bg-white/10 backdrop-blur-lg rounded-3xl shadow-lg p-6 sm:p-10 text-white flex flex-col gap-8">
-          <h2 className="text-2xl font-bold mb-2">How it works</h2>
-          <ul className="space-y-6 text-left">
-            <li className="flex items-center gap-5 flex-wrap">
-              <span className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-[#FCD24F]/20 shadow">
-                <MicrophoneIcon className="h-7 w-7 text-[#FCD24F]" aria-hidden="true" />
-              </span>
-              <span className="text-lg">Speak your idea into the microphone.</span>
-            </li>
-            <li className="flex items-center gap-5 flex-wrap">
-              <span className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-white/10 shadow">
-                <DocumentTextIcon className="h-7 w-7 text-white" aria-hidden="true" />
-              </span>
-              <span className="text-lg">We transcribe and analyze your idea.</span>
-            </li>
-            <li className="flex items-center gap-5 flex-wrap">
-              <span className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-white/10 shadow">
-                <CheckIcon className="h-7 w-7 text-[#FCD24F]" aria-hidden="true" />
-              </span>
-              <span className="text-lg">Receive feedback backed by market research.</span>
-            </li>
-          </ul>
-        </section>
-        {/* Testimonial section */}
-        <section className="mt-16 w-full max-w-3xl mx-auto bg-white/10 backdrop-blur-lg rounded-3xl shadow-lg p-6 sm:p-8 text-white">
-          <h2 className="text-2xl font-bold mb-4">What our users say</h2>
-          <blockquote className="text-2xl italic text-white/90">
-            "GoodIdea helped me turn my random thoughts into a viable startup plan. It's like having a co-founder in your pocket."
-          </blockquote>
-          <p className="mt-4 text-right text-white/60 text-lg">- Alex, Startup Founder</p>
-        </section>
+        <div className="lg:w-1/2">
+          <img src="/goodideas.png" alt="Illustration of idea workflow" className="w-full" />
+        </div>
       </main>
-      {/* Improved footer */}
-      <footer className="bg-slate-900 text-white py-8 px-4 sm:px-6 lg:px-8 mt-12 relative z-10 w-full max-w-4xl mx-auto">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 w-full">
-          <p className="text-sm text-slate-400">&copy; {new Date().getFullYear()} GoodIdea. All rights reserved.</p>
-          <div className="flex gap-6 items-center flex-wrap">
-            <a href="#" className="text-[#81D4FA] hover:underline text-sm">Privacy</a>
-            <a href="#" className="text-[#81D4FA] hover:underline text-sm">Terms</a>
-            <a href="#" className="text-[#81D4FA] hover:underline text-sm">Contact</a>
-          </div>
-        </div>
-      </footer>
-      {/* Custom font for display headline */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap');
-        .font-display { font-family: 'Poppins', 'Inter', 'Segoe UI', Arial, sans-serif; }
-        .animate-bounce {
-          animation: bounce 1.5s infinite;
-        }
-        @keyframes bounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-8px); }
-        }
-      `}</style>
+      {/* Features section */}
+      <FeaturesSection />
+      {/* Testimonials section */}
+      <TestimonialsSection />
     </div>
   );
 }
