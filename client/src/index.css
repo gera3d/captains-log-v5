@@ -39,9 +39,8 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
+  display: block; /* Changed from flex to block */
+  min-width: 100%; /* Changed from 320px to 100% */
   min-height: 100vh;
 }
 

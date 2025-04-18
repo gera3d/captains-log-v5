@@ -25,6 +25,137 @@ import AuthButton from './components/AuthButton';
     - UI: Consider a dismissible banner or modal for onboarding.
   */
 
+// Simple LandingPage component that matches the screenshot
+function LandingPage() {
+  const navigate = useNavigate();
+  return (
+    <div className="min-h-screen flex flex-col bg-[#5138CE] relative font-sans w-full">
+      {/* Subtle grid texture for background */}
+      <div className="absolute inset-0 z-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSA2MCAwIEwgMCAwIDAgNjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMC41IiBzdHJva2Utb3BhY2l0eT0iMC4wOCIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] bg-repeat opacity-10"></div>
+      {/* Animated background with SVG wave */}
+      <div className="absolute inset-0 z-0 w-full max-w-4xl mx-auto">
+        <svg viewBox="0 0 1440 320" className="w-full h-64 absolute top-0 left-0" aria-hidden="true">
+          <path fill="#6755F5" fillOpacity="0.5" d="M0,160L60,170.7C120,181,240,203,360,197.3C480,192,600,160,720,133.3C840,107,960,85,1080,101.3C1200,117,1320,171,1380,197.3L1440,224L1440,0L1380,0C1320,0,1200,0,1080,0C960,0,840,0,720,0C600,0,480,0,360,0C240,0,120,0,60,0L0,0Z"></path>
+        </svg>
+      </div>
+      {/* Header with logo and sign-in button */}
+      <header className="py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center relative z-10 w-full max-w-4xl mx-auto">
+        <div className="flex items-center flex-shrink-0">
+          <img src="/goodideas.png" alt="GoodIdea Logo" className="h-8 w-auto max-w-full" />
+        </div>
+        <div>
+          <Button 
+            variant="secondary"
+            label="Sign in with Google" 
+            leftIcon={<img src="https://img.icons8.com/color/16/000000/google-logo.png" alt="Google" />}
+            className="font-sans font-normal normal-case text-sm tracking-normal"
+          />
+        </div>
+      </header>
+      {/* Main content area */}
+      <main className="flex-grow flex flex-col items-center justify-center text-center px-4 sm:px-6 lg:px-8 py-10 relative z-10 w-full max-w-4xl mx-auto">
+        <div className="w-full max-w-4xl mx-auto flex flex-col items-center">
+          {/* Tagline */}
+          <span className="uppercase tracking-widest text-[#FCD24F] text-sm font-semibold mb-4">AI Startup Co-Pilot</span>
+          {/* Headline with display font */}
+          <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold text-white mb-6 font-display tracking-tight leading-tight break-words" style={{fontFamily: 'Poppins, Inter, Segoe UI, Arial, sans-serif'}}>
+            Turn Your Thoughts Into Startups — In Days, Not Months.
+          </h1>
+          <p className="mb-10 text-2xl text-white font-normal max-w-2xl mx-auto leading-relaxed">
+            Speak your ideas out loud.<br/>
+            We'll transcribe, organize, and tell you if it's a winner —<br/>
+            backed by research.
+          </p>
+          {/* Animated CTA */}
+          <Button
+            variant="voice"
+            size="xl"
+            label="SPEAK YOUR IDEA"
+            onClick={() => navigate('/record')}
+            className="mb-8 animate-bounce shadow-xl !bg-[#FCD24F] !text-[#1d3263] !font-bold !rounded-full !px-10 !py-5 text-2xl"
+            ariaLabel="Start recording your idea"
+          />
+          {/* Showcase the premium VoiceRecorderCard for new users */}
+          <div className="w-full flex flex-wrap justify-center mt-2 mb-8 gap-4">
+            <div className="w-full max-w-2xl">
+              <VoiceRecorderCard />
+            </div>
+          </div>
+          {/* Market data text */}
+          <p className="mt-12 text-lg text-white/80 max-w-2xl mx-auto">
+            We turn your spoken thoughts into startup blueprints — and tell you if they'll fly or flop, based on real market data.
+          </p>
+        </div>
+        {/* Featured in bar */}
+        <div className="mt-16 mb-8 w-full flex flex-col items-center">
+          <span className="uppercase text-xs text-white/60 tracking-widest mb-2">Featured in</span>
+          <div className="flex gap-8 opacity-80 flex-wrap justify-center w-full max-w-2xl overflow-x-auto">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/0/08/TechCrunch_Logo.svg" alt="TechCrunch" className="h-6 max-w-full" />
+            <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Forbes_logo.svg" alt="Forbes" className="h-6 max-w-full" />
+            <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/Product_Hunt_Logo.svg" alt="Product Hunt" className="h-6 max-w-full" />
+            <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/Fast_Company_logo.svg" alt="Fast Company" className="h-6 max-w-full" />
+          </div>
+        </div>
+        {/* How it works section */}
+        <section className="mt-8 w-full max-w-3xl mx-auto bg-white/10 backdrop-blur-lg rounded-3xl shadow-lg p-6 sm:p-10 text-white flex flex-col gap-8">
+          <h2 className="text-2xl font-bold mb-2">How it works</h2>
+          <ul className="space-y-6 text-left">
+            <li className="flex items-center gap-5 flex-wrap">
+              <span className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-[#FCD24F]/20 shadow">
+                <MicrophoneIcon className="h-7 w-7 text-[#FCD24F]" aria-hidden="true" />
+              </span>
+              <span className="text-lg">Speak your idea into the microphone.</span>
+            </li>
+            <li className="flex items-center gap-5 flex-wrap">
+              <span className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-white/10 shadow">
+                <DocumentTextIcon className="h-7 w-7 text-white" aria-hidden="true" />
+              </span>
+              <span className="text-lg">We transcribe and analyze your idea.</span>
+            </li>
+            <li className="flex items-center gap-5 flex-wrap">
+              <span className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-white/10 shadow">
+                <CheckIcon className="h-7 w-7 text-[#FCD24F]" aria-hidden="true" />
+              </span>
+              <span className="text-lg">Receive feedback backed by market research.</span>
+            </li>
+          </ul>
+        </section>
+        {/* Testimonial section */}
+        <section className="mt-16 w-full max-w-3xl mx-auto bg-white/10 backdrop-blur-lg rounded-3xl shadow-lg p-6 sm:p-8 text-white">
+          <h2 className="text-2xl font-bold mb-4">What our users say</h2>
+          <blockquote className="text-2xl italic text-white/90">
+            "GoodIdea helped me turn my random thoughts into a viable startup plan. It's like having a co-founder in your pocket."
+          </blockquote>
+          <p className="mt-4 text-right text-white/60 text-lg">- Alex, Startup Founder</p>
+        </section>
+      </main>
+      {/* Improved footer */}
+      <footer className="bg-slate-900 text-white py-8 px-4 sm:px-6 lg:px-8 mt-12 relative z-10 w-full max-w-4xl mx-auto">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 w-full">
+          <p className="text-sm text-slate-400">&copy; {new Date().getFullYear()} GoodIdea. All rights reserved.</p>
+          <div className="flex gap-6 items-center flex-wrap">
+            <a href="#" className="text-[#81D4FA] hover:underline text-sm">Privacy</a>
+            <a href="#" className="text-[#81D4FA] hover:underline text-sm">Terms</a>
+            <a href="#" className="text-[#81D4FA] hover:underline text-sm">Contact</a>
+          </div>
+        </div>
+      </footer>
+      {/* Custom font for display headline */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap');
+        .font-display { font-family: 'Poppins', 'Inter', 'Segoe UI', Arial, sans-serif; }
+        .animate-bounce {
+          animation: bounce 1.5s infinite;
+        }
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-8px); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 function Dashboard({ notes, setNotes, user }) {
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -55,8 +186,10 @@ function Dashboard({ notes, setNotes, user }) {
     setShowOnboarding(false);
   };
 
-  // FIX: Provide a no-op onNoteSaved handler to unblock dashboard and onboarding modal
-  const onNoteSaved = () => {};
+  // Handle new note saved from VoiceRecorder
+  const onNoteSaved = (newNote) => {
+    setNotes(prev => [newNote, ...prev]);
+  };
 
   const onboardingModal = (
     <div
@@ -161,177 +294,74 @@ function Dashboard({ notes, setNotes, user }) {
   );
 
   return (
-    <div className="bg-white w-full max-w-full overflow-x-hidden">
-      {/* Tailwind UI Hero with SVG background */}
-      {!effectiveUser && (
-        <>
-          <header className="relative overflow-hidden" style={{ background: "linear-gradient(90deg, #311B92 0%, #0D47A1 100%)" }}>
-            <div className="max-w-3xl mx-auto py-4 px-2 sm:px-4 text-center relative z-10 flex flex-col items-center">
-              <div className="mb-10 flex items-center justify-center">
-                <img
-                  src="/goodideas.png"
-                  alt="Good Idea Logo"
-                  className="h-[12rem] w-[12rem] sm:h-[16rem] sm:w-[16rem] object-contain"
-                  style={{ display: 'inline-block' }}
-                />
-              </div>
-              <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white mb-6 drop-shadow-2xl font-display tracking-tight leading-tight">
-                Turn Your Thoughts Into Startups — In Days, Not Months.
-              </h1>
-              <p className="mb-10 text-xl sm:text-2xl text-white/90 font-semibold drop-shadow font-sans max-w-2xl mx-auto leading-relaxed">
-                Speak your ideas out loud.<br className="hidden sm:inline" /> We’ll transcribe, organize, and tell you if it’s a winner — backed by research.
-              </p>
-              <Button
-                label="SPEAK YOUR IDEA"
-                className="px-12 py-5 rounded-3xl text-xl font-extrabold shadow-2xl bg-[#FFD600] text-[#1A237E] tracking-widest transition-all duration-200 hover:bg-[#FFC400] hover:shadow-yellow-400/60 focus-visible:ring-4 focus-visible:ring-[#FFD600] focus-visible:ring-offset-2"
-                style={{ boxShadow: '0 6px 32px 0 rgba(255, 214, 0, 0.25)' }}
-                onClick={() => {}}
+    <div className="min-h-screen bg-slate-50">
+      {/* Refined header with larger logo and subtle controls */}
+      <header className="relative z-20">
+        {/* Subtle gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#5f4def] to-[#6755f5]"></div>
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.8)_0%,_rgba(255,255,255,0)_60%)]"></div>
+        
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-20">
+            {/* Larger, more prominent logo */}
+            <div className="flex items-center">
+              <img
+                src="/goodideas.png"
+                alt="GoodIdea Logo"
+                className="h-12 w-auto drop-shadow-sm"
               />
-<>
-  <AuthButton className="mt-8" />
-</>
-              <p className="mt-10 text-lg sm:text-xl text-white/80 font-normal max-w-2xl mx-auto drop-shadow font-sans leading-relaxed">
-                We turn your spoken thoughts into startup blueprints — and tell you if they’ll fly or flop, based on real market data.
-              </p>
+            </div>
+            
+            {/* User info and sign out for logged-in users */}
+            {effectiveUser && (
+              <div className="flex items-center space-x-4">
+                <div className="text-white/80 text-sm flex items-center">
+                  <svg className="h-3.5 w-3.5 mr-1.5 text-white/60" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                  </svg>
+                  <span>{effectiveUser.email}</span>
+                </div>
+                
+                <button 
+                  onClick={() => supabase.auth.signOut()}
+                  className="text-white/90 hover:text-white bg-white/10 hover:bg-white/20 text-xs font-medium py-1.5 px-3.5 rounded-full transition-colors border border-white/10"
+                >
+                  Sign Out
+                </button>
               </div>
-            <svg className="absolute left-1/2 top-0 transform -translate-x-1/2 -translate-y-1/2 blur-3xl opacity-40" width="1000" height="1000" fill="none" viewBox="0 0 1000 1000">
-              <circle cx="500" cy="500" r="400" fill="url(#grad1)" />
-              <defs>
-                <radialGradient id="grad1" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="#ffffff" stopOpacity="0.4" />
-                  <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-                </radialGradient>
-              </defs>
-            </svg>
-          </header>
-                    {/* VoiceRecorderCard below Hero */}
-                    <div className="w-full flex flex-col items-center">
-                      <VoiceRecorderCard />
-                      <IdeaValidationFeedback />
-                    </div>
-                            </>
-                          )}
+            )}
+          </div>
+        </div>
+      </header>
+
       {effectiveUser && (
         <>
           {showOnboarding && onboardingModal}
-          <div className="w-full flex flex-col justify-start items-center px-0 sm:px-8 py-8 bg-gradient-to-br from-sky-50 via-white to-indigo-50 min-h-[50vh] box-border">
-            <nav className="w-full max-w-full sm:max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-0 px-4 sm:px-8 py-6 bg-white/80 rounded-2xl shadow-lg border border-sky-100 backdrop-blur mb-8 box-border"
-              style={{ maxWidth: '100vw' }}>
-              <div className="flex items-center gap-x-4 text-2xl sm:text-3xl md:text-4xl font-extrabold text-sky-700 tracking-tight drop-shadow">
-                <img
-                  src="/goodideas.png"
-                  alt="Good Idea Logo"
-                  className="h-8 w-8 md:h-10 md:w-10 object-contain"
-                  style={{ display: 'inline-block' }}
-                />
-                <span className="whitespace-nowrap">GoodIdea</span>
+          
+          {/* Content area with soft gradient background */}
+          <main className="relative pt-10 pb-16 bg-gradient-to-b from-slate-100 to-white min-h-[calc(100vh-5rem)]">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+              {/* Voice Recorder Card at the top */}
+              <div className="mb-16">
+                <VoiceRecorderCard onNoteSaved={onNoteSaved} />
               </div>
-              <div className="flex items-center gap-x-4">
-                <span className="text-sm font-light text-gray-400">{effectiveUser.email}</span>
-                <AuthButton className="ml-2" />
-              </div>
-            </nav>
-            <div className="w-full max-w-full sm:max-w-2xl mx-auto mt-8 box-border" style={{ maxWidth: '100vw' }}>
-              <div className="bg-gradient-to-br from-white via-sky-50 to-indigo-50 rounded-[2.5rem] shadow-[0_8px_32px_0_rgba(16,42,67,0.10)] border border-sky-100/70 p-6 sm:p-12 flex flex-col items-center box-border">
-                {/* VoiceRecorder Card */}
-                <VoiceRecorder onNoteSaved={onNoteSaved} />
-              </div>
+              
+              {/* Notes List Section */}
+              <section>
+                <NotesList notes={notes} setNotes={setNotes} />
+              </section>
             </div>
-          </div>
+          </main>
         </>
       )}
 
-      {/* Tailwind UI Features with icons */}
-      {!effectiveUser && (
-      <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Modern Feature Card: Speak Your Ideas */}
-            <div className="relative flex flex-col items-center bg-gradient-to-br from-yellow-50 via-white to-sky-50 rounded-3xl shadow-xl border border-yellow-100 p-10 sm:p-12 transition hover:shadow-2xl hover:-translate-y-2 group overflow-hidden">
-              <div className="absolute -top-8 -right-8 opacity-20 group-hover:opacity-30 transition">
-                <MicrophoneIcon className="h-28 w-28 text-yellow-300" />
-              </div>
-              <div className="flex justify-center mb-4 z-10">
-                <span className="inline-flex items-center justify-center rounded-full bg-yellow-100 p-4 shadow-lg">
-                  <MicrophoneIcon className="h-10 w-10 text-yellow-500" />
-                </span>
-              </div>
-              <h3 className="text-2xl font-extrabold text-yellow-900 mb-2 text-center leading-tight drop-shadow">Speak Your Ideas</h3>
-              <p className="text-lg text-yellow-800 text-center max-w-xs mx-auto leading-snug font-medium z-10">
-                Instantly record voice notes and brainstorm out loud with a tap.
-              </p>
-            </div>
-            {/* Modern Feature Card: AI-Powered Validation */}
-            <div className="relative flex flex-col items-center bg-gradient-to-br from-indigo-50 via-white to-yellow-50 rounded-3xl shadow-xl border border-indigo-100 p-10 sm:p-12 transition hover:shadow-2xl hover:-translate-y-2 group overflow-hidden">
-              <div className="absolute -top-8 -left-8 opacity-20 group-hover:opacity-30 transition">
-                <DocumentTextIcon className="h-28 w-28 text-indigo-300" />
-              </div>
-              <div className="flex justify-center mb-4 z-10">
-                <span className="inline-flex items-center justify-center rounded-full bg-indigo-100 p-4 shadow-lg">
-                  <DocumentTextIcon className="h-10 w-10 text-indigo-500" />
-                </span>
-              </div>
-              <h3 className="text-2xl font-extrabold text-indigo-900 mb-2 text-center leading-tight drop-shadow">AI-Powered Validation</h3>
-              <p className="text-lg text-indigo-800 text-center max-w-xs mx-auto leading-snug font-medium z-10">
-                Get instant feedback and research on your startup ideas, powered by AI.
-              </p>
-            </div>
-            {/* Modern Feature Card: Organize & Export */}
-            <div className="relative flex flex-col items-center bg-gradient-to-br from-sky-50 via-white to-indigo-50 rounded-3xl shadow-xl border border-sky-100 p-10 sm:p-12 transition hover:shadow-2xl hover:-translate-y-2 group overflow-hidden">
-              <div className="absolute -bottom-8 -left-8 opacity-20 group-hover:opacity-30 transition">
-                <ShareIcon className="h-28 w-28 text-sky-300" />
-              </div>
-              <div className="flex justify-center mb-4 z-10">
-                <span className="inline-flex items-center justify-center rounded-full bg-sky-100 p-4 shadow-lg">
-                  <ShareIcon className="h-10 w-10 text-sky-500" />
-                </span>
-              </div>
-              <h3 className="text-2xl font-extrabold text-sky-900 mb-2 text-center leading-tight drop-shadow">Organize & Export</h3>
-              <p className="text-lg text-sky-800 text-center max-w-xs mx-auto leading-snug font-medium z-10">
-                Save, review, and export your best ideas anytime with one click.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-      )}
+      {/* Landing content for non-logged in users */}
+      {!effectiveUser && <LandingPage />}
 
-      {/* Tailwind UI Content Section */}
-      {effectiveUser && (
-        <section className="bg-white py-8">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
-            {/* NotesList now sits directly on the background for a more open, mobile-friendly feel */}
-            <NotesList notes={notes} setNotes={setNotes} />
-          </div>
-        </section>
-      )}
-
-      {/* GoodIdea CTA Section */}
-      {!effectiveUser && (
-        <section
-          className="py-20"
-          style={{
-            background: "linear-gradient(90deg, #311B92 0%, #0D47A1 100%)"
-          }}
-        >
-          <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-            <h2 className="text-4xl font-extrabold text-white mb-4 drop-shadow-lg">Ready to get started?</h2>
-            <p className="mb-8 text-lg text-white font-medium drop-shadow">Sign in to record and view your voice notes.</p>
-            <AuthButton />
-          </div>
-        </section>
-      )}
-
-      {/* Tailwind UI Footer */}
-      <footer
-        className="border-t"
-        style={{
-          background: "linear-gradient(90deg, #311B92 0%, #0D47A1 100%)",
-          borderColor: "#FFD600"
-        }}
-      >
-        <div className="max-w-7xl mx-auto py-8 px-4 overflow-hidden sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-base text-white">&copy; 2025 GoodIdea. All rights reserved.</p>
+      {/* Simple, refined footer */}
+      <footer className="bg-slate-900 text-white py-8 px-4 md:px-6">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center">
+          <p className="text-sm text-slate-400">&copy; {new Date().getFullYear()} GoodIdea. All rights reserved.</p>
           <div className="mt-4 md:mt-0 flex space-x-6">
             <a href="#" className="text-[#81D4FA] hover:underline">
               <span className="sr-only">Facebook</span>
@@ -511,7 +541,8 @@ function FullIdeaPage({ user, session }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+    // Apply consistent background gradient
+    <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-indigo-50 py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
       <div className="max-w-4xl w-full space-y-8">
         <div className="bg-white shadow-xl rounded-3xl p-10 border border-gray-200">
           <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
@@ -645,6 +676,8 @@ function FullIdeaPage({ user, session }) {
 function App() {
   const [notes, setNotes] = useState([]);
   const { user, authError, loading } = useAuth();
+  const [session, setSession] = useState(null);
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
     /*
@@ -707,6 +740,7 @@ function App() {
     };
   }, []);
 
+  // Sign out function
   const signOut = async () => {
     setSigningOut(true);
     try {
@@ -722,40 +756,40 @@ function App() {
       window.location.href = '/';
     } catch (err) {
       console.error('SignOut failed:', err);
-      alert('Failed to sign out. Please try again.');
-    } finally {
-      setSigningOut(false);
     }
   };
 
   if (loading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <LoadingSpinner />
+      </div>
+    );
   }
 
   return (
-    <Routes>
-      <Route 
-        path="/" 
-        element={
-          <Dashboard 
-            notes={notes} 
-            setNotes={setNotes} 
-            user={user} 
-          />
-        } 
-      />
-      <Route 
-        path="/idea/:id" 
-        element={
-          <FullIdeaPage 
-            user={user} 
-          />
-        } 
-      />
-    </Routes>
+    <div>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            user ? (
+              <Dashboard notes={notes} setNotes={setNotes} user={user} />
+            ) : (
+              <LandingPage />
+            )
+          }
+        />
+        <Route
+          path="/idea/:id"
+          element={<FullIdeaPage user={user} session={session} />}
+        />
+      </Routes>
+    </div>
   );
 }
-export default function AppWithAuth() {
+
+export default function WrappedApp() {
   return (
     <AuthProvider>
       <App />

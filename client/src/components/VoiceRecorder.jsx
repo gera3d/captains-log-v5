@@ -2,7 +2,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 import { supabase } from '../supabaseClient';
-import { MicrophoneIcon } from '@heroicons/react/24/outline';
 
 console.log('[VoiceRecorder][DEBUG] VoiceRecorder component loaded');
 
@@ -75,9 +74,6 @@ export default function VoiceRecorder({ onNoteSaved }) {
       setIsUploading(true);
 
       mediaRecorder.onstop = async () => {
-        // ... unchanged ...
-        // (omitted for brevity, see original)
-        // ... unchanged ...
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
@@ -91,9 +87,6 @@ export default function VoiceRecorder({ onNoteSaved }) {
           return;
         }
 
-        // ... rest of upload/transcription logic unchanged ...
-        // (omitted for brevity, see original)
-        // ... unchanged ...
         const getPlayableUrl = async (baseName) => {
           const tryExts = ['mp3', 'm4a', 'webm'];
           for (const ext of tryExts) {
@@ -243,151 +236,163 @@ export default function VoiceRecorder({ onNoteSaved }) {
 
   // --- UI ---
   return (
-    <div className="flex flex-col items-center w-full gap-y-4 font-sans relative">
-      {/* Tooltip for first-time users */}
-      {showTooltip && status === 'idle' && (
-        <div className="absolute -top-16 left-1/2 -translate-x-1/2 z-20 bg-white border border-brand-link rounded-lg shadow-lg px-4 py-2 text-sm text-brand-link font-semibold flex items-center gap-2 animate-fade-in">
-          <span role="img" aria-label="info">💡</span>
-          Press and hold the mic to start recording your idea!
-          <button
-            className="ml-2 px-2 py-0.5 rounded bg-brand-link text-white text-xs font-bold"
-            onClick={handleTooltipClose}
-            aria-label="Close tooltip"
-          >
-            Got it
-          </button>
-        </div>
-      )}
+    <div className="flex flex-col items-center w-full max-w-md mx-auto relative">
+      {/* Premium mic button with depth and animation */}
+      <div className="relative group">
+        {/* Pulsing ring animation when idle */}
+        <div className={`absolute inset-0 rounded-full transition-all duration-500 ${
+          status === 'idle' ? 'bg-blue-400/20 animate-ping-slow opacity-70' : 'opacity-0'
+        }`}></div>
+        
+        {/* Inner shadow ring */}
+        <div className="absolute -inset-3 bg-gradient-to-r from-blue-500/30 to-indigo-500/30 rounded-full blur-lg opacity-70 group-hover:opacity-100 transition-opacity"></div>
+        
+        {/* Mic button */}
+        <button
+          onMouseDown={handleMicPress}
+          onMouseUp={status === 'recording' ? stopRecording : undefined}
+          onTouchStart={handleMicPress}
+          onTouchEnd={status === 'recording' ? stopRecording : undefined}
+          disabled={status === 'saving'}
+          aria-busy={status === 'saving'}
+          aria-disabled={status === 'saving'}
+          aria-label={
+            status === 'idle' ? 'Start recording' :
+            status === 'recording' ? 'Stop recording' :
+            status === 'saving' ? 'Saving recording' :
+            status === 'done' ? 'Recording saved' :
+            status === 'error' ? 'Error' : 'Voice recorder'
+          }
+          className={`
+            relative rounded-full flex items-center justify-center transition-all duration-300
+            w-32 h-32 z-10 transform
+            ${status === 'idle' ? 'bg-gradient-to-br from-blue-400 to-blue-600 hover:from-blue-500 hover:to-blue-700 hover:scale-105' : ''}
+            ${status === 'recording' ? 'bg-gradient-to-br from-red-400 to-red-600 scale-110 animate-pulse-subtle' : ''}
+            ${status === 'saving' ? 'bg-gradient-to-br from-yellow-400 to-yellow-600' : ''}
+            ${status === 'done' ? 'bg-gradient-to-br from-green-400 to-green-600 scale-105' : ''}
+            ${status === 'error' ? 'bg-gradient-to-br from-red-600 to-red-800' : ''}
+            disabled:opacity-70 disabled:cursor-not-allowed
+            shadow-[0_10px_25px_-12px_rgba(0,0,0,0.6)]
+            border border-white/20
+            focus:outline-none focus:ring-4 focus:ring-blue-300/50
+          `}
+        >
+          {/* Subtle inner lighting effect */}
+          <div className="absolute inset-1 rounded-full bg-gradient-to-b from-white/20 to-transparent"></div>
+          
+          {/* Mic icon with enhanced styling */}
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" 
+               className={`w-16 h-16 drop-shadow-lg transition-transform duration-300 ${status === 'recording' ? 'scale-110' : ''}`} 
+               aria-hidden="true">
+            <path d="M8.25 4.5a3.75 3.75 0 117.5 0v8.25a3.75 3.75 0 11-7.5 0V4.5z" />
+            <path d="M6 10.5a.75.75 0 01.75.75v1.5a5.25 5.25 0 1010.5 0v-1.5a.75.75 0 011.5 0v1.5a6.751 6.751 0 01-6 6.709v2.291h3a.75.75 0 010 1.5h-7.5a.75.75 0 010-1.5h3v-2.291a6.751 6.751 0 01-6-6.709v-1.5A.75.75 0 016 10.5z" />
+          </svg>
+        </button>
+      </div>
 
-      {/* Mic Button */}
-      <button
-        onMouseDown={handleMicPress}
-        onMouseUp={status === 'recording' ? stopRecording : undefined}
-        onTouchStart={handleMicPress}
-        onTouchEnd={status === 'recording' ? stopRecording : undefined}
-        disabled={status === 'saving'}
-        aria-busy={status === 'saving'}
-        aria-disabled={status === 'saving'}
-        aria-label={
-          status === 'idle' ? 'Start recording' :
-          status === 'recording' ? 'Stop recording' :
-          status === 'saving' ? 'Saving recording' :
-          status === 'done' ? 'Recording saved' :
-          status === 'error' ? 'Error' : 'Voice recorder'
-        }
-        className={`
-          flex items-center justify-center rounded-full transition-all duration-300 ease-in-out
-          w-32 h-32 text-brand-primary-text text-4xl shadow-lg
-          ${status === 'idle' ? 'bg-brand-gradient-start hover:bg-brand-gradient-end animate-mic-glow' : ''}
-          ${status === 'recording' ? 'bg-brand-link hover:bg-brand-gradient-end animate-mic-glow ring-4 ring-sky-300' : ''}
-          ${status === 'saving' ? 'bg-brand-accent-yellow hover:bg-yellow-400' : ''}
-          ${status === 'done' ? 'bg-green-600 hover:bg-green-700' : ''}
-          ${status === 'error' ? 'bg-red-700 hover:bg-red-800' : ''}
-          disabled:opacity-60 disabled:cursor-not-allowed
-        `}
-        style={{
-          boxShadow:
-            status === 'idle'
-              ? '0 8px 30px 0 rgba(129, 212, 250, 0.5)'
-            : status === 'recording'
-              ? '0 0 50px 10px rgba(129, 212, 250, 0.8)'
-            : status === 'saving'
-              ? '0 0 20px 5px rgba(234, 179, 8, 0.5)'
-            : status === 'done'
-              ? '0 0 20px 5px rgba(34,197,94,0.5)'
-            : status === 'error'
-              ? '0 0 20px 5px rgba(239,68,68,0.7)'
-            : '0 8px 20px rgba(0,0,0,0.2)',
-        }}
-      >
-        <MicrophoneIcon className="h-16 w-16 text-brand-primary-text" />
-      </button>
-
-      {/* Prompt / State */}
+      {/* Status/prompt with enhanced styling */}
       {status === 'saving' ? (
-        <span aria-live="polite" aria-busy="true">
-          <LoadingSpinner />
-        </span>
+        <div className="mt-8 flex flex-col items-center" aria-live="polite" aria-busy="true">
+          <div className="relative flex items-center justify-center">
+            <div className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping-slow"></div>
+            <LoadingSpinner />
+          </div>
+          <p className="text-white mt-4 font-medium">Processing your recording...</p>
+        </div>
       ) : (
         <>
-          <h3 className={`
-            ${status === 'idle' ? 'text-2xl sm:text-3xl font-extrabold text-brand-link drop-shadow text-center font-sans' : ''}
-            ${status === 'recording' ? 'text-lg font-bold text-brand-link text-center font-sans flex items-center justify-center gap-2' : ''}
-            ${status === 'done' ? 'text-lg font-bold text-green-600 text-center font-sans' : ''}
-            ${status === 'error' ? 'text-lg font-bold text-brand-accent-yellow text-center font-sans' : ''}
-          `}>
-            {status === 'idle' && (
-              <span>
-                <span className="font-bold">Hold to Record</span>
-              </span>
-            )}
-            {status === 'recording' && (
-              <span className="flex items-center gap-2">
-                <span className="text-base font-medium text-brand-button-text block mb-1">
-                  <span className="inline-block animate-listening-dots">Listening</span>
-                  <span className="inline-block animate-listening-dots">...</span>
+          <div className="mt-8 text-center">
+            <span className={`text-2xl font-medium tracking-wide ${
+              status === 'recording' ? 'text-red-400 animate-pulse-subtle' : 'text-white'
+            } drop-shadow-md transition-all`}>
+              {status === 'idle' && (
+                <span className="bg-gradient-to-r from-blue-200 via-white to-blue-200 bg-clip-text text-transparent">
+                  Hold to Record
                 </span>
-                <span className="text-2xl font-extrabold text-brand-link">{`${Math.floor(recordingTime / 60)}:${('0' + (recordingTime % 60)).slice(-2)}`}</span>
-              </span>
-            )}
-            {status === 'done' && 'Recording Saved!'}
-            {status === 'error' && <span className="text-base font-light text-brand-accent-yellow">Mic access denied</span>}
-          </h3>
-
-          {/* Animated Waveform */}
-          <div className="flex space-x-1 justify-center h-10 mt-2">
-            {waveformHeights.map((h, idx) => (
-              <div
-                key={idx}
-                className={`w-1 rounded-full bg-brand-link transition-all duration-200 ${status === 'recording' ? 'animate-wave-bounce' : ''}`}
-                style={{
-                  height: `${h}px`,
-                  opacity: status === 'recording' ? 0.85 : 0.5,
-                  backgroundColor: status === 'recording' ? '#81D4FA' : '#B3E5FC',
-                  transition: 'height 0.2s, background 0.2s, opacity 0.2s',
-                }}
-              ></div>
-            ))}
+              )}
+              {status === 'recording' && (
+                <div className="flex items-center justify-center gap-3">
+                  <span className="text-red-100 font-bold">Recording</span>
+                  <span className="text-red-100 font-mono">{`${Math.floor(recordingTime / 60)}:${('0' + (recordingTime % 60)).slice(-2)}`}</span>
+                </div>
+              )}
+              {status === 'done' && (
+                <span className="text-green-300 flex items-center justify-center">
+                  <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Recording Saved!
+                </span>
+              )}
+              {status === 'error' && "Mic access denied"}
+            </span>
           </div>
 
-          {audioUrl && (
-            <div className="w-full">
-              <AudioDiagnosticsPlayer src={audioUrl} />
+          {/* Enhanced visualizer during recording */}
+          {status === 'recording' && (
+            <div className="flex space-x-1 justify-center h-10 mt-6">
+              <div className="flex items-end gap-x-1">
+                {waveformHeights.map((h, idx) => (
+                  <div
+                    key={idx}
+                    className="w-1.5 rounded-full bg-gradient-to-t from-red-400 to-red-300"
+                    style={{
+                      height: `${h/1.5}px`,
+                      opacity: 0.8,
+                      transition: 'height 0.15s',
+                      animationDelay: `${idx * 0.05}s`
+                    }}
+                  ></div>
+                ))}
+              </div>
             </div>
           )}
         </>
       )}
+
+      {/* Tooltip - enhanced with better positioning and styling */}
+      {showTooltip && status === 'idle' && (
+        <div className="absolute top-full mt-8 max-w-xs bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-xl p-4 shadow-xl z-10 border border-blue-400/30 backdrop-blur-sm">
+          <div className="flex items-center">
+            <div className="flex-shrink-0 mr-3 p-1.5 bg-blue-500 rounded-full">
+              <svg className="h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M11 3a1 1 0 10-2 0v1.101a7.002 7.002 0 00-6.204 6.551 1 1 0 001.99.25 5.003 5.003 0 014.214-4.399v1.052a1 1 0 002 0V5.5a1 1 0 00-.379-.782A1 1 0 0010 4.5v-1V3zm5.554 15a1 1 0 00.448-.341A7 7 0 0010 4v3.159c0 .276-.112.54-.311.729l-3.414 3.414A1 1 0 007 12c.365 0 .689.234.829.578l.977 2.376a1 1 0 00.919.625h6.827l.001.007z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <span className="font-medium">Press and hold the mic to start recording your idea!</span>
+            <button
+              onClick={handleTooltipClose}
+              className="ml-auto bg-white text-blue-600 rounded-lg px-3 py-1 text-sm font-bold hover:bg-blue-50 transition-colors shadow flex items-center"
+            >
+              Got it
+            </button>
+          </div>
+          
+          {/* Triangle pointer with better positioning */}
+          <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+            <div className="w-8 h-8 bg-blue-600 rotate-45 transform origin-bottom-left"></div>
+          </div>
+        </div>
+      )}
+
+      {/* Add animation styles */}
+      <style jsx>{`
+        @keyframes ping-slow {
+          0% { transform: scale(0.95); opacity: 0.8; }
+          50% { transform: scale(1.05); opacity: 0.4; }
+          100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .animate-ping-slow {
+          animation: ping-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse-subtle {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.85; }
+        }
+        .animate-pulse-subtle {
+          animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+      `}</style>
     </div>
   );
-}
-
-// --- AudioDiagnosticsPlayer: logs diagnostics for debugging mobile audio playback issues ---
-function AudioDiagnosticsPlayer({ src }) {
-  const audioRef = useRef(null);
-  useEffect(() => {
-    const audioEl = audioRef.current;
-    if (!audioEl) return;
-    console.log('[VoiceRecorder][AUDIO DIAG] userAgent:', navigator.userAgent);
-    console.log('[VoiceRecorder][AUDIO DIAG] src:', src);
-    function onError(e) {
-      const err = audioEl.error;
-      console.error('[VoiceRecorder][AUDIO DIAG] audio error:', err ? err.message : e, 'code:', err ? err.code : undefined);
-    }
-    function onLoadedMetadata() {
-      console.log('[VoiceRecorder][AUDIO DIAG] loadedmetadata duration:', audioEl.duration, 'src:', audioEl.src);
-    }
-    function onCanPlay() {
-      console.log('[VoiceRecorder][AUDIO DIAG] canplay event fired, duration:', audioEl.duration);
-    }
-    audioEl.addEventListener('error', onError);
-    audioEl.addEventListener('loadedmetadata', onLoadedMetadata);
-    audioEl.addEventListener('canplay', onCanPlay);
-    return () => {
-      audioEl.removeEventListener('error', onError);
-      audioEl.removeEventListener('loadedmetadata', onLoadedMetadata);
-      audioEl.removeEventListener('canplay', onCanPlay);
-    };
-  }, [src]);
-  if (!src) return null;
-  return <audio ref={audioRef} src={src} controls className="w-full rounded-xl shadow font-sans text-brand-primary-text bg-brand-gradient" />;
 }

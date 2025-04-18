@@ -36,11 +36,6 @@ export default function NotesList({ notes, setNotes }) {
       } else {
         setNotes(data);
       }
-      console.warn('No notes loaded.');
-      console.warn('No notes loaded.');
-      console.warn('No notes loaded.');
-      console.warn('No notes loaded.');
-      console.warn('No notes loaded.');
       setLoadingNotes(false);
     };
     fetchNotes();
@@ -79,76 +74,72 @@ export default function NotesList({ notes, setNotes }) {
   }, [notes]);
 
   return (
-    <div className="flex flex-col gap-y-6 w-full max-w-full px-1 sm:max-w-3xl sm:px-0 overflow-x-hidden">
-      {/* Toggle Active/Archived */}
-      <div className="flex flex-wrap gap-2 mb-2">
-        <button
-          onClick={() => setShowArchived(false)}
-          className={`rounded-full px-5 py-2 text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sky-500
-            ${!showArchived
-              ? 'bg-sky-600 text-white border-sky-600 shadow-md'
-              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}
-          `}
-          aria-pressed={!showArchived}
-          aria-label="Show active notes"
-        >
-          Active Notes
-        </button>
-        <button
-          onClick={() => setShowArchived(true)}
-          className={`rounded-full px-5 py-2 text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sky-500
-            ${showArchived
-              ? 'bg-sky-600 text-white border-sky-600 shadow-md'
-              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}
-          `}
-          aria-pressed={showArchived}
-          aria-label="Show archived notes"
-        >
-          Archived Notes
-        </button>
+    <div className="w-full">
+      {/* Tab Buttons - Enhanced Styling */}
+      <div className="flex justify-center sm:justify-start mb-4">
+        <div className="bg-gray-100 rounded-full p-1 inline-flex">
+          <button
+            onClick={() => setShowArchived(false)}
+            className={`
+              rounded-full px-5 py-2 text-sm font-medium transition-all duration-200
+              ${!showArchived
+                ? 'bg-blue-500 text-white shadow-sm'
+                : 'text-gray-700 hover:text-gray-900'}
+            `}
+            aria-pressed={!showArchived}
+            aria-label="Show active notes"
+          >
+            Active Notes
+          </button>
+          <button
+            onClick={() => setShowArchived(true)}
+            className={`
+              rounded-full px-5 py-2 text-sm font-medium transition-all duration-200
+              ${showArchived
+                ? 'bg-blue-500 text-white shadow-sm'
+                : 'text-gray-700 hover:text-gray-900'}
+            `}
+            aria-pressed={showArchived}
+            aria-label="Show archived notes"
+          >
+            Archived Notes
+          </button>
+        </div>
       </div>
-      <h2 className="text-2xl sm:text-3xl font-extrabold text-sky-700 drop-shadow mb-2">Your Voice Notes</h2>
+
+      {/* List Title - Refined Styling */}
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">
+        {showArchived ? 'Archived Voice Notes' : 'Your Voice Notes'}
+      </h2>
+
+      {/* Loading and Empty States */}
       {loadingNotes ? (
-        <div className="flex justify-center py-12">
+        <div className="flex justify-center py-16">
           <LoadingSpinner />
         </div>
       ) : notes.length === 0 ? (
-        <div className="text-center text-gray-400 py-12 text-lg">No notes found.</div>
+        <div className="text-center text-gray-500 py-16 text-lg font-medium">
+          {showArchived ? 'No archived notes found.' : 'No active notes yet. Record your first idea!'}
+        </div>
       ) : (
-        <div className="flex flex-col gap-y-8">
+        <div className="flex flex-col gap-y-6 sm:gap-y-8">
           {notes.map((note) => {
-            // Parse and extract idea/root causes
-            let rootCauses = '';
             let ideaText = '';
             try {
               const trimmed = note.business_idea?.trim() || '';
-              let markdownText = trimmed;
               if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
                 const parsed = JSON.parse(trimmed);
-                if (parsed && typeof parsed === 'object' && parsed.text) {
-                  markdownText = parsed.text;
+                if (parsed && typeof parsed === 'object') {
+                  if (parsed.idea) ideaText = parsed.idea;
+                  else if (parsed.text) ideaText = parsed.text;
+                  else ideaText = JSON.stringify(parsed);
+                } else {
+                  ideaText = String(parsed);
                 }
-              }
-              markdownText = markdownText.replace(/\\n/g, '\n').trim();
-              // Extract root causes
-              const rootCausesMatch = markdownText.match(/(🚨 Possible Root Causes[\s\S]*?)(?=\n\s*\n|$)/);
-              if (rootCausesMatch) {
-                rootCauses = rootCausesMatch[1].trim();
-                markdownText = markdownText.replace(rootCausesMatch[1], '').trim();
-              }
-              // Extract only the Core Idea section
-              const coreIdeaMatch = markdownText.match(/(\*\*Core Idea\*\*[\s\S]*?)(?=\n\s*\n|$)/i);
-              if (coreIdeaMatch) {
-                ideaText = coreIdeaMatch[1].trim();
               } else {
-                ideaText = markdownText;
+                ideaText = trimmed;
               }
-              // Clean up spacing
-              ideaText = ideaText.replace(/\n{2,}/g, '\n\n').trim();
-              // Remove leading 'text":"'
-              ideaText = ideaText.replace(/^"?text":"?/, '').trim();
-              // Remove trailing quote if present
-              ideaText = ideaText.replace(/"$/, '').trim();
+              ideaText = ideaText.replace(/^"?text":"?/, '').replace(/"$/, '').replace(/\\n/g, '\n').trim();
             } catch {
               ideaText = note.business_idea || '';
             }
@@ -156,10 +147,10 @@ export default function NotesList({ notes, setNotes }) {
             return (
               <div
                 key={note.id}
-                className="relative bg-white rounded-xl sm:rounded-3xl shadow-md sm:shadow-xl p-3 sm:p-6 flex flex-col gap-y-4 border border-gray-100 transition-all duration-200 hover:shadow-2xl w-full max-w-full"
+                className="relative bg-white rounded-2xl sm:rounded-3xl shadow-lg sm:shadow-xl p-4 sm:p-6 flex flex-col gap-y-4 border border-gray-100/80 transition-all duration-200 hover:shadow-2xl w-full max-w-full"
               >
                 {/* Top Row: Actions & Info */}
-                <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-start sm:items-center justify-between min-w-0 w-full">
+                <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-start sm:items-center justify-between min-w-0 w-full">
                   <div className="flex flex-wrap gap-2 items-center">
                     <button
                       onClick={async () => {
@@ -211,13 +202,13 @@ export default function NotesList({ notes, setNotes }) {
                       }}
                       className={`
                         inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200
-                        focus:outline-none focus:ring-2 focus:ring-sky-500
+                        focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-sky-500
                         ${loadingIdea[note.id]
                           ? 'bg-gray-400 cursor-wait text-white animate-pulse'
                           : note.business_idea
-                            ? 'bg-green-600 hover:bg-green-700 text-white'
+                            ? 'bg-green-100 text-green-800 hover:bg-green-200'
                             : 'bg-sky-600 hover:bg-sky-700 text-white'}
-                        shadow
+                        shadow-sm
                       `}
                       aria-busy={loadingIdea[note.id]}
                       aria-label={note.business_idea ? 'Regenerate business idea' : 'Generate business idea'}
@@ -251,29 +242,39 @@ export default function NotesList({ notes, setNotes }) {
                       }}
                       className={`
                         inline-flex items-center px-4 py-1.5 rounded-full border text-xs font-medium transition-all duration-200
-                        focus:outline-none focus:ring-2 focus:ring-sky-500
+                        focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-sky-500
                         ${showArchived
-                          ? 'border-green-600 bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800'
-                          : 'border-gray-300 bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-800'}
-                        shadow
+                          ? 'border-green-300 bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800'
+                          : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-800'}
+                        shadow-sm
                       `}
                       aria-label={showArchived ? 'Restore note' : 'Archive note'}
                     >
                       {showArchived ? 'Restore' : 'Archive'}
                     </button>
-                    <button
-                      onClick={() => setShowFull(prev => ({ ...prev, [note.id]: !prev[note.id] }))}
-                      className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 hover:bg-sky-200 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sky-500 shadow"
-                      aria-label={showFull[note.id] ? 'Collapse idea' : 'Expand idea'}
-                    >
-                      {showFull[note.id] ? 'Collapse Idea' : 'Expand Idea'}
-                    </button>
+                  </div>
+
+                  {/* Right side action buttons with improved visibility */}
+                  <div className="flex flex-wrap gap-2 items-center mt-2 sm:mt-0">
+                    {ideaText && (
+                      <button
+                        onClick={() => setShowFull(prev => ({ ...prev, [note.id]: !prev[note.id] }))}
+                        className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 hover:bg-sky-200 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-sky-500 shadow-sm"
+                        aria-label={showFull[note.id] ? 'Collapse idea' : 'Expand idea'}
+                      >
+                        {showFull[note.id] ? 'Collapse Idea' : 'Expand Idea'}
+                      </button>
+                    )}
                     <Link
                       to={`/idea/${note.id}`}
-                      className="inline-flex items-center px-4 py-1.5 rounded-full border border-gray-300 bg-white text-xs font-medium hover:bg-gray-50 hover:text-gray-800 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sky-500 shadow"
-                      aria-label="Share note"
+                      className="inline-flex items-center px-4 py-1.5 rounded-full border border-indigo-500 bg-indigo-100 text-xs font-bold text-indigo-700 hover:bg-indigo-200 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500 shadow-md"
+                      aria-label="Go to full note view"
                     >
-                      Share
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      View Full Note
                     </Link>
                     <button
                       onClick={() => {
@@ -281,43 +282,44 @@ export default function NotesList({ notes, setNotes }) {
                         setCopiedLink(note.id);
                         setTimeout(() => setCopiedLink(null), 1500);
                       }}
-                      className="inline-flex items-center px-4 py-1.5 rounded-full border border-green-300 bg-green-50 text-xs font-medium text-green-700 hover:bg-green-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 shadow"
+                      className="inline-flex items-center px-4 py-1.5 rounded-full border border-green-500 bg-green-100 text-xs font-bold text-green-700 hover:bg-green-200 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-green-500 shadow-md"
                       aria-label="Copy public link"
                     >
-                      Copy Link
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                      </svg>
+                      {copiedLink === note.id ? 'Link Copied!' : 'Share'}
                     </button>
-                    {copiedLink === note.id && (
-                      <span className="ml-2 text-green-600 font-semibold">Link copied!</span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2 items-center text-xs text-gray-500">
-                    <span>{new Date(note.created_at).toLocaleString()}</span>
-                    {Number.isFinite(durations[note.id]) && durations[note.id] > 0 ? (
-                      <span>
-                        • Length: {(() => {
-                          const totalSeconds = Math.round(durations[note.id]);
-                          const minutes = Math.floor(totalSeconds / 60);
-                          const seconds = totalSeconds % 60;
-                          if (minutes > 0) {
-                            return `${minutes}m ${seconds}s`;
-                          } else {
-                            return `${seconds}s`;
-                          }
-                        })()}
-                      </span>
-                    ) : (
-                      <span className="text-gray-300">• Duration unavailable</span>
-                    )}
                   </div>
                 </div>
-                {/* Idea Preview/Full */}
+
+                <div className="flex flex-wrap gap-x-4 gap-y-1 items-center text-xs text-gray-500 border-t border-gray-100 pt-3 mt-3">
+                  <span>{new Date(note.created_at).toLocaleString()}</span>
+                  {Number.isFinite(durations[note.id]) && durations[note.id] > 0 ? (
+                    <span>
+                      • Length: {(() => {
+                        const totalSeconds = Math.round(durations[note.id]);
+                        const minutes = Math.floor(totalSeconds / 60);
+                        const seconds = totalSeconds % 60;
+                        if (minutes > 0) {
+                          return `${minutes}m ${seconds}s`;
+                        } else {
+                          return `${seconds}s`;
+                        }
+                      })()}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">• Duration unavailable</span>
+                  )}
+                </div>
+
                 {!showFull[note.id] && ideaText && (
-                  <div className="mt-2 prose prose-sm prose-sky max-w-none leading-tight">
+                  <div className="mt-2 prose prose-sm prose-slate max-w-none leading-relaxed cursor-pointer" onClick={() => setShowFull(prev => ({ ...prev, [note.id]: true }))}>
                     <ReactMarkdown>
                       {(() => {
                         let preview = ideaText.trim();
-                        if (preview.length > 300) {
-                          preview = preview.slice(0, 300) + '...';
+                        if (preview.length > 250) {
+                          preview = preview.slice(0, 250) + '...';
                         }
                         return preview;
                       })()}
@@ -325,41 +327,56 @@ export default function NotesList({ notes, setNotes }) {
                   </div>
                 )}
                 {showFull[note.id] && (
-                  <div className="mt-4 rounded-xl border border-gray-200 bg-white shadow-md overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                      <h3 className="font-semibold text-lg text-gray-800">Business Idea</h3>
+                  <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50/50 shadow-inner overflow-hidden">
+                    <div className="px-5 py-3 border-b border-gray-200 flex justify-between items-center">
+                      <h3 className="font-semibold text-base text-gray-700">Business Idea</h3>
+                      <button
+                        onClick={() => setShowFull(prev => ({ ...prev, [note.id]: false }))}
+                        className="text-xs font-semibold text-sky-700 hover:text-sky-900"
+                      >
+                        Collapse
+                      </button>
                     </div>
-                    <div className="px-6 py-4">
-                      <div className="prose max-w-none">
+                    <div className="px-5 py-4">
+                      <div className="prose prose-sm prose-slate max-w-none leading-relaxed">
                         <ReactMarkdown>{ideaText}</ReactMarkdown>
                       </div>
                     </div>
                   </div>
                 )}
-                {/* Root Causes */}
-                {rootCauses && (
-                  <div className="prose max-w-none mb-4">
-                    <ReactMarkdown>{rootCauses}</ReactMarkdown>
+
+                {note.audio_url && (
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <AudioPlayer
+                      src={note.audio_url}
+                      onPlay={e => console.log("onPlay")}
+                      showJumpControls={false}
+                      customAdditionalControls={[]}
+                      layout="horizontal-reverse"
+                      className="w-full rounded-lg shadow-sm border border-gray-200 bg-white"
+                      style={{ padding: '0.5rem 0.75rem' }}
+                      onLoadedData={(e) => {
+                        const audio = e.target;
+                        if (audio && !durations[note.id] && isFinite(audio.duration) && audio.duration > 0) {
+                          setDurations(prev => ({ ...prev, [note.id]: audio.duration }));
+                        }
+                      }}
+                    />
                   </div>
                 )}
-                {/* Audio Player */}
-                <AudioPlayer src={note.audio_url} className="rounded-lg mb-4" />
+
                 {/* Transcript */}
-                <p className="text-gray-700 whitespace-pre-wrap mb-2 text-sm">
-                  {(() => {
-                    if (!note.transcript) return 'Transcription pending...';
-                    try {
-                      const parsed = JSON.parse(note.transcript);
-                      if (typeof parsed === 'object' && parsed !== null) {
-                        if (parsed.data) return parsed.data;
-                        if (parsed.text) return parsed.text;
-                        return JSON.stringify(parsed);
-                      }
-                      return String(parsed);
-                    } catch {
-                      return note.transcript;
-                    }
-                  })()}
+                <p className="text-gray-700 whitespace-pre-wrap mt-4 text-sm">
+                  {note.transcript
+                    ? (() => {
+                        try {
+                          const p = JSON.parse(note.transcript);
+                          return p && typeof p === 'object' ? p.data || p.text || JSON.stringify(p) : String(p);
+                        } catch {
+                          return note.transcript;
+                        }
+                      })()
+                    : 'Transcription pending...'}
                 </p>
               </div>
             );
