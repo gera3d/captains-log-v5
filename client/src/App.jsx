@@ -44,12 +44,7 @@ function LandingPage() {
           <img src="/goodideas.png" alt="GoodIdea Logo" className="h-8 w-auto max-w-full" />
         </div>
         <div>
-          <Button 
-            variant="secondary"
-            label="Sign in with Google" 
-            leftIcon={<img src="https://img.icons8.com/color/16/000000/google-logo.png" alt="Google" />}
-            className="font-sans font-normal normal-case text-sm tracking-normal"
-          />
+          <AuthButton className="font-sans font-normal normal-case text-sm tracking-normal" />
         </div>
       </header>
       {/* Main content area */}

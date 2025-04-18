@@ -13,14 +13,28 @@ export function AuthProvider({ children }) {
   // Subscribe to auth state changes
   useEffect(() => {
     let mounted = true;
-    setLoading(true);
-    supabase.auth.getSession().then(({ data, error }) => {
+    (async () => {
+      setLoading(true);
+      // Check for OAuth callback in URL
+      const { data: oauthData, error: oauthError } = await supabase.auth.getSessionFromUrl();
+      if (!mounted) return;
+      if (oauthError) setError(oauthError.message);
+      if (oauthData?.session) {
+        setSession(oauthData.session);
+        setUser(oauthData.session.user);
+        setLoading(false);
+        // clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+      // Otherwise, get existing session
+      const { data, error } = await supabase.auth.getSession();
       if (!mounted) return;
       if (error) setError(error.message);
       setSession(data?.session || null);
       setUser(data?.session?.user || null);
       setLoading(false);
-    });
+    })();
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
@@ -42,11 +56,14 @@ export function AuthProvider({ children }) {
     setError(null);
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      // Initiate OAuth flow with redirectTo option
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo: window.location.origin }
       });
       if (error) throw error;
+      // redirect browser to OAuth URL returned
+      if (data?.url) window.location.assign(data.url);
     } catch (err) {
       if (err?.message?.includes("popup")) {
         setError("Popup closed before completing sign in.");
