@@ -23,6 +23,8 @@ import FeaturesSection from './components/FeaturesSection';
 import TestimonialsSection from './components/TestimonialsSection';
 import FAQSection from './components/FAQSection';
 import Footer from './components/Footer';
+import ReactMarkdown from 'react-markdown';
+import { useParams } from 'react-router-dom';
   /*
     TODO[MEDIUM]: Dashboard Onboarding
     - FEATURE: Add user onboarding tips for first-time users.
@@ -97,6 +99,7 @@ function LandingPage() {
 
 function Dashboard({ notes, setNotes, user }) {
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [activeIdeas, setActiveIdeas] = useState([]);
 
   // DEV MODE: If ?dev_user=1 is present, always show onboarding modal and mock user
   const isDevUser = typeof window !== "undefined" && window.location.search.includes("dev_user=1");
@@ -106,6 +109,124 @@ function Dashboard({ notes, setNotes, user }) {
     user_metadata: { full_name: "Dev User" }
   };
   const effectiveUser = isDevUser ? devMockUser : user;
+
+  // Enhanced title extraction with better JSON and markdown handling
+  const extractTitle = (idea) => {
+    // Return manually set title if available
+    if (idea.title) return idea.title;
+    
+    if (idea.business_idea) {
+      let content = idea.business_idea.trim();
+      
+      // More aggressive cleanup of JSON formatting
+      try {
+        // Handle case where entire content might be JSON
+        if (content.startsWith('{') && content.endsWith('}')) {
+          try {
+            const parsed = JSON.parse(content);
+            if (parsed && typeof parsed === 'object' && parsed.text) {
+              content = parsed.text;
+            }
+          } catch (e) {
+            // Not valid JSON, continue with normal processing
+          }
+        }
+      } catch (e) {
+        console.log("JSON parsing attempted but failed:", e);
+      }
+      
+      // Remove common text prefixes
+      content = content
+        .replace(/^text['"]\s*:\s*["']/, '')  // Remove text": or text': prefix
+        .replace(/^["']text["']\s*:\s*["']/, '')  // Remove "text": or 'text': prefix
+        .replace(/^["']/, '')  // Remove leading quotes
+        .replace(/["']$/, '')  // Remove trailing quotes
+        .trim();
+      
+      // Better H2 matching to find titles across content
+      const h2Regex = /^##\s+([^\n]+)|[\n]##\s+([^\n]+)/m;
+      const h2Match = content.match(h2Regex);
+      
+      if (h2Match) {
+        // Use the first found H2 as the title (could be from first or second group)
+        const h2Title = (h2Match[1] || h2Match[2]).trim();
+        console.log(`H2 title found: "${h2Title}"`);
+        return h2Title.length > 60 ? h2Title.substring(0, 57) + '...' : h2Title;
+      }
+      
+      // If no H2, get the first non-empty line
+      const lines = content.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+      
+      if (lines.length > 0) {
+        // Clean the first line to be used as title
+        const firstLine = lines[0]
+          .replace(/^#+\s+/, '')  // Remove any markdown headers (#, ##, ###)
+          .replace(/\\["']/g, '')  // Remove escaped quotes
+          .trim();
+        
+        console.log(`Using first line as title: "${firstLine}"`);
+        return firstLine.length > 60 ? firstLine.substring(0, 57) + '...' : firstLine;
+      }
+      
+      console.log("No good title found, using content start");
+      return content.length > 60 ? content.substring(0, 57) + '...' : content;
+    }
+    
+    // Fallback to transcription if available
+    if (idea.transcription) {
+      const text = idea.transcription.trim();
+      return text.length > 50 ? text.substring(0, 50) + '...' : text;
+    }
+    
+    return 'Untitled Idea';
+  };
+
+  // Format date to be more compact
+  const formatDate = (dateString) => {
+    const options = { month: 'short', day: 'numeric' };
+    return new Date(dateString).toLocaleDateString(undefined, options);
+  };
+
+  // Handle idea generation completion - promote to active idea
+  const handleIdeaGenerated = async (noteId) => {
+    // Find the updated note in our notes list
+    const updatedNote = notes.find(note => note.id === noteId);
+    if (!updatedNote || !updatedNote.business_idea) return;
+    
+    try {
+      // Update the note in the database to be featured/active
+      const { data, error } = await supabase
+        .from('voice_notes')
+        .update({ is_featured: true, status: 'active' })
+        .eq('id', noteId);
+        
+      if (error) throw error;
+      
+      // Update local state
+      setNotes(prev => prev.map(note => 
+        note.id === noteId ? {...note, status: 'active', is_featured: true} : note
+      ));
+      
+      // Update active ideas list
+      setActiveIdeas(prev => {
+        if (prev.some(idea => idea.id === noteId)) {
+          // Already in active ideas, just update it
+          return prev.map(idea => 
+            idea.id === noteId ? {...updatedNote, status: 'active', is_featured: true} : idea
+          );
+        } else {
+          // Add to active ideas
+          return [{...updatedNote, status: 'active', is_featured: true}, ...prev];
+        }
+      });
+      
+      console.log(`Note ${noteId} promoted to active idea after generation`);
+    } catch (err) {
+      console.error("Error promoting generated idea:", err);
+    }
+  };
 
   useEffect(() => {
     if (isDevUser) {
@@ -120,14 +241,100 @@ function Dashboard({ notes, setNotes, user }) {
     }
   }, [effectiveUser, isDevUser]);
 
+  // Improved active ideas selection logic - show all ideas with content
+  useEffect(() => {
+    if (notes.length > 0) {
+      // First, select all notes with business_idea content and sort by most recently updated
+      const contentNotes = notes
+        .filter(note => note.business_idea && note.business_idea.trim().length > 0)
+        .sort((a, b) => {
+          // Sort by updated_at (for regenerated ideas) or created_at if no update time
+          const dateA = new Date(a.updated_at || a.created_at);
+          const dateB = new Date(b.updated_at || b.created_at);
+          return dateB - dateA; // Newest first
+        });
+
+      // Prioritize featured/active notes first
+      const featuredNotes = contentNotes.filter(note => 
+        note.status === 'active' || note.is_featured === true
+      );
+      
+      // Then include other content notes
+      const otherContentNotes = contentNotes.filter(note => 
+        !featuredNotes.some(f => f.id === note.id)
+      );
+      
+      // Combine with priority to featured/active notes - show all ideas with content
+      const allPrioritizedNotes = [...featuredNotes, ...otherContentNotes];
+      
+      // Set all content notes as active ideas (no limit)
+      setActiveIdeas(allPrioritizedNotes);
+      
+      console.log(`Active ideas updated: ${allPrioritizedNotes.length} ideas found`);
+    }
+  }, [notes]);
+
+  // Listen for idea generation events
+  useEffect(() => {
+    // Set up listener for custom events when ideas are generated
+    const handleIdeaGenerationComplete = (event) => {
+      if (event.detail && event.detail.noteId) {
+        handleIdeaGenerated(event.detail.noteId);
+      }
+    };
+    
+    window.addEventListener('ideaGenerated', handleIdeaGenerationComplete);
+    
+    return () => {
+      window.removeEventListener('ideaGenerated', handleIdeaGenerationComplete);
+    };
+  }, [notes]); // Depend on notes so we always have latest state
+
   const handleDismissOnboarding = () => {
     localStorage.setItem('dashboardOnboardingSeen', 'true');
     setShowOnboarding(false);
   };
 
-  // Handle new note saved from VoiceRecorder
   const onNoteSaved = (newNote) => {
-    setNotes(prev => [newNote, ...prev]);
+    const markedNote = newNote.business_idea 
+      ? { ...newNote, is_featured: true } 
+      : newNote;
+    
+    setNotes(prev => [markedNote, ...prev]);
+    
+    if (newNote.business_idea) {
+      setActiveIdeas(prev => {
+        const updated = [markedNote, ...prev];
+        return updated;
+      });
+    }
+  };
+
+  const promoteToActiveIdea = async (noteId) => {
+    const noteToPromote = notes.find(note => note.id === noteId);
+    if (!noteToPromote) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('voice_notes')
+        .update({ is_featured: true, status: 'active' })
+        .eq('id', noteId);
+        
+      if (error) throw error;
+    } catch (err) {
+      console.error("Error promoting idea:", err);
+    }
+    
+    setNotes(prev => prev.map(note => 
+      note.id === noteId ? {...note, status: 'active', is_featured: true} : note
+    ));
+    
+    setActiveIdeas(prev => {
+      if (prev.some(idea => idea.id === noteId)) return prev;
+      
+      const updatedNote = {...noteToPromote, status: 'active', is_featured: true};
+      return [updatedNote, ...prev];
+    });
   };
 
   const onboardingModal = (
@@ -152,7 +359,6 @@ function Dashboard({ notes, setNotes, user }) {
           ×
         </button>
         <div className="flex flex-col items-center">
-          {/* Flask logo icon */}
           <div className="mb-4" aria-hidden="true">
             <svg width="56" height="56" viewBox="0 0 56 56" className="mx-auto drop-shadow-lg">
               <g>
@@ -162,7 +368,6 @@ function Dashboard({ notes, setNotes, user }) {
               </g>
             </svg>
           </div>
-          {/* GoodIdea logo text */}
           <div className="font-extrabold text-2xl mb-1 text-[#d9d9d9] tracking-wide logo-text" style={{letterSpacing: "0.04em"}}>
             GoodIdea
           </div>
@@ -234,15 +439,12 @@ function Dashboard({ notes, setNotes, user }) {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Refined header with larger logo and subtle controls */}
       <header className="relative z-20">
-        {/* Subtle gradient background */}
         <div className="absolute inset-0 bg-gradient-to-r from-[#5f4def] to-[#6755f5]"></div>
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.8)_0%,_rgba(255,255,255,0)_60%)]"></div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
-            {/* Larger, more prominent logo */}
             <div className="flex items-center">
               <img
                 src="/goodideas.png"
@@ -251,7 +453,6 @@ function Dashboard({ notes, setNotes, user }) {
               />
             </div>
             
-            {/* User info and sign out for logged-in users */}
             {effectiveUser && (
               <div className="flex items-center space-x-4">
                 <div className="text-white/80 text-sm flex items-center">
@@ -277,27 +478,117 @@ function Dashboard({ notes, setNotes, user }) {
         <>
           {showOnboarding && onboardingModal}
           
-          {/* Content area with soft gradient background */}
           <main className="relative pt-10 pb-16 bg-gradient-to-b from-slate-100 to-white min-h-[calc(100vh-5rem)]">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-              {/* Voice Recorder Card at the top */}
-              <div className="mb-16">
-                <VoiceRecorderCard onNoteSaved={onNoteSaved} />
+              <div className="flex flex-col lg:flex-row gap-8 mb-16">
+                <div className="lg:w-1/2 order-1">
+                  <h2 className="text-2xl font-semibold text-gray-800 mb-4">Record Your Idea</h2>
+                  <VoiceRecorderCard 
+                    onNoteSaved={onNoteSaved} 
+                    className="shadow-xl border border-indigo-100" 
+                  />
+                </div>
+                
+                <div className="lg:w-1/2 order-2">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-2xl font-semibold text-gray-800">Active Ideas</h2>
+                    <button 
+                      className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                      onClick={() => document.getElementById('all-notes-section').scrollIntoView({ behavior: 'smooth' })}
+                    >
+                      View All Notes
+                    </button>
+                  </div>
+                  
+                  <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-4 min-h-[350px] max-h-[500px] flex flex-col">
+                    {activeIdeas.length > 0 ? (
+                      <div className="overflow-y-auto pr-1 flex-grow">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 auto-rows-max">
+                          {activeIdeas.map(idea => (
+                            <div 
+                              key={idea.id} 
+                              className="p-2.5 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border border-blue-100 hover:bg-gradient-to-r hover:from-indigo-100 hover:to-blue-100 hover:shadow-md transition-all cursor-pointer group"
+                              onClick={() => window.location.href = `/idea/${idea.id}`}
+                            >
+                              <div className="flex flex-col h-full">
+                                <h3 className="font-medium text-sm text-gray-900 leading-tight mb-0.5 line-clamp-2">
+                                  {extractTitle(idea)}
+                                </h3>
+                                <div className="flex justify-between items-center mt-auto pt-1">
+                                  <span className="text-xs text-gray-400">
+                                    {formatDate(idea.created_at)}
+                                  </span>
+                                  <span className="text-xs font-medium text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    View
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          
+                          <div 
+                            className="p-2.5 rounded-lg border border-dashed border-gray-300 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all flex flex-col items-center justify-center cursor-pointer h-full text-center"
+                            onClick={() => document.querySelector('.voice-recorder-trigger')?.click()}
+                          >
+                            <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center mb-0.5">
+                              <svg className="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                              </svg>
+                            </div>
+                            <span className="text-xs font-medium text-gray-600">New</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-center p-6">
+                        <div className="bg-indigo-50 p-3 rounded-full mb-3">
+                          <svg className="w-6 h-6 text-indigo-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <h3 className="text-base font-medium text-gray-900 mb-1">No Active Ideas Yet</h3>
+                        <p className="text-sm text-gray-500 mb-3">Record an idea to get started!</p>
+                        <button 
+                          className="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                          onClick={() => document.querySelector('.voice-recorder-trigger')?.click()}
+                        >
+                          Record Your First Idea
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               
-              {/* Notes List Section */}
-              <section>
-                <NotesList notes={notes} setNotes={setNotes} />
+              <section id="all-notes-section">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-semibold text-gray-800">All Notes</h2>
+                  <div className="flex items-center gap-4">
+                    <button className="text-gray-500 hover:text-gray-700">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                      </svg>
+                    </button>
+                    <button className="text-gray-500 hover:text-gray-700">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <NotesList 
+                  notes={notes} 
+                  setNotes={setNotes} 
+                  onPromoteToActive={promoteToActiveIdea} 
+                />
               </section>
             </div>
           </main>
         </>
       )}
 
-      {/* Landing content for non-logged in users */}
       {!effectiveUser && <LandingPage />}
 
-      {/* Simple, refined footer */}
       <footer className="bg-slate-900 text-white py-8 px-4 md:px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm text-slate-400">&copy; {new Date().getFullYear()} GoodIdea. All rights reserved.</p>
@@ -321,21 +612,12 @@ function Dashboard({ notes, setNotes, user }) {
   );
 }
 
-import ReactMarkdown from 'react-markdown';
-import { useParams } from 'react-router-dom';
-
 function FullIdeaPage({ user, session }) {
   const { id } = useParams();
   const [note, setNote] = useState(null);
 
   useEffect(() => {
     const fetchNote = async () => {
-        /*
-          DATA-FIXME: Error Handling
-          - BUG: If fetching note fails, show a user-friendly error message instead of just logging to console.
-          - CONTEXT: FullIdeaPage > fetchNote
-        */
-
       const { data, error } = await supabase
         .from('voice_notes')
         .select('*')
@@ -343,10 +625,9 @@ function FullIdeaPage({ user, session }) {
         .single();
       if (error) {
         console.error('Fetch note error:', error);
-        console.error('Full error object:', error); // Log the full error object
+        console.error('Full error object:', error);
       }
       else {
-        // Clean up business idea if it's JSON string
         if (data?.business_idea) {
           let idea = data.business_idea.trim();
           try {
@@ -359,11 +640,8 @@ function FullIdeaPage({ user, session }) {
               }
             }
           } catch {
-            // leave as is
           }
-          // Remove leading 'text":"'
           idea = idea.replace(/^["']?text["']?\s*:\s*["']?/, '');
-          // Replace escaped newlines with real newlines
           idea = idea.replace(/\\n/g, '\n').trim();
           data.business_idea = idea;
         }
@@ -375,7 +653,6 @@ function FullIdeaPage({ user, session }) {
 
   const copyIdea = async () => {
     if (note) {
-      // Generate markdown: title, content, and any relevant metadata
       const title = note.title || (note.business_idea?.split('\n')[0]) || 'Untitled Idea';
       const description = note.description ? `\n\n${note.description}` : '';
       const content = note.business_idea || '';
@@ -417,12 +694,6 @@ function FullIdeaPage({ user, session }) {
     setCopied('link');
     setTimeout(() => setCopied(''), 1500);
   };
-
-    /*
-      ANALYZE: Export to Google Docs
-      - FEATURE: Check if we should support exporting multiple notes at once.
-      - CONTEXT: FullIdeaPage > exportToGoogleDocs
-    */
 
   const exportToGoogleDocs = async () => {
     if (!session?.provider_token) {
@@ -480,12 +751,10 @@ function FullIdeaPage({ user, session }) {
   };
 
   return (
-    // Apply consistent background gradient
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-indigo-50 py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
       <div className="max-w-4xl w-full space-y-8">
         <div className="bg-white shadow-xl rounded-3xl p-10 border border-gray-200">
           <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-            {/* Title removed as requested */}
             <div
               className="flex items-center gap-4 bg-sky-50/80 border border-sky-100 rounded-xl px-4 py-3 shadow-inner relative"
               role="group"
@@ -540,7 +809,6 @@ function FullIdeaPage({ user, session }) {
                         <span>Export to Google Docs</span>
                         <span className="ml-auto text-xs italic">(coming soon)</span>
                       </button>
-                      {/* Future actions go here */}
                     </div>
                   </div>
                 </>
@@ -583,13 +851,11 @@ function FullIdeaPage({ user, session }) {
               )}
             </div>
           </div>
-          {/* Show login required message for unauthenticated users */}
           {!user && (
             <div className="mb-6 text-center text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 font-semibold">
               Sign in to copy, share, or export this idea.
             </div>
           )}
-          {/* Toast overlay for copy feedback */}
           {copied && user && (
             <div
               className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-green-600 text-white font-bold px-6 py-3 rounded-full shadow-lg animate-fade-in-up"
@@ -619,12 +885,6 @@ function App() {
   const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
-    /*
-      TODO[MEDIUM]: Notes Pagination
-      - FEATURE: Add pagination or infinite scroll for large note sets.
-      - CONTEXT: App > useEffect (notes)
-    */
-
     const fetchNotes = async () => {
       const { data, error } = await supabase
         .from('voice_notes')
@@ -632,7 +892,7 @@ function App() {
         .order('created_at', { ascending: false });
       if (error) {
         console.error('Fetch notes error:', error);
-        console.error('Full error object:', error); // Log the full error object
+        console.error('Full error object:', error);
       } else {
         setNotes(data);
       }
@@ -679,7 +939,6 @@ function App() {
     };
   }, []);
 
-  // Sign out function
   const signOut = async () => {
     setSigningOut(true);
     try {
