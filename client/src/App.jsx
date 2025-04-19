@@ -31,33 +31,66 @@ import Footer from './components/Footer';
 
 function LandingPage() {
   return (
-    <div className="bg-gradient-primary text-primary-text">
-      <header className="container flex justify-between items-center py-6">
-        <img src="/goodideas.png" alt="GoodIdea Logo" className="h-8" />
-        <AuthButton />
-      </header>
+    <div className="bg-gradient-primary text-primary-text overflow-hidden min-h-screen flex flex-col">
+      {/* Remove header as logo will now be part of main content */}
 
-      <main className="container mx-auto px-4 lg:px-8 py-16 flex flex-col-reverse lg:flex-row items-center gap-12">
-        <div className="lg:w-1/2">
-          <h1 className="font-display text-h1 mb-4">Turn Your Thoughts Into Startups — In Days, Not Months.</h1>
-          <p className="text-lg mb-6">Speak your ideas out loud. We'll transcribe, organize, and tell you if it's a winner — backed by research.</p>
-          <div className="flex space-x-4">
-            <AuthButton />
-            <button className="bg-secondary text-primary-text rounded-lg px-6 py-3 hover:bg-opacity-90">Learn More</button>
+      <main className="flex-1 flex items-center py-16"> {/* Added top and bottom padding */}
+        <div className="container mx-auto px-4 lg:px-8 flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
+          {/* LEFT SIDE: Voice recorder card/microphone module */}
+          <div className="lg:w-1/2 lg:order-1 order-2 relative pt-12"> {/* Added padding-top to make room for the banner */}
+            <div className="transform transition-all hover:scale-105 relative z-10">
+              {/* Glow effect */}
+              <div className="absolute -inset-12 bg-blue-500/30 blur-3xl rounded-full"></div>
+              
+              {/* Repositioned "Try it now" banner */}
+              <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 z-30">
+                <div className="bg-[#FCD24F] px-8 py-3 rounded-full text-[#1d3263] font-bold shadow-lg text-base animate-pulse">
+                  Try it now!
+                </div>
+              </div>
+              
+              {/* Voice recorder component */}
+              <VoiceRecorderCard 
+                onNoteSaved={() => {}} 
+                className="relative z-20 shadow-[0_20px_70px_-15px_rgba(0,0,0,0.3)] border-2 border-white/20" 
+                demoMode={true}
+                hideGoogleSignIn={true}
+              />
+              
+              {/* Enhanced decorative effects */}
+              <div className="absolute -bottom-20 left-1/2 transform translate-y-1/2 -translate-x-1/2 w-[120%] h-40 bg-gradient-to-b from-transparent to-blue-500/20 blur-2xl rounded-full z-10"></div>
+            </div>
+          </div>
+          
+          {/* RIGHT SIDE: Logo and content */}
+          <div className="lg:w-1/2 lg:order-2 order-1 flex flex-col items-center lg:items-start">
+            {/* Large logo */}
+            <img src="/goodideas.png" alt="GoodIdea Logo" className="h-28 w-auto mb-8" />
+            
+            {/* Text content */}
+            <h1 className="font-display text-h1 mb-4 text-center lg:text-left">
+              Turn Your Thoughts Into Startups — In Days, Not Months.
+            </h1>
+            <p className="text-lg mb-6 text-center lg:text-left">
+              Speak your ideas out loud. We'll transcribe, organize, and tell you if it's a winner — backed by research.
+            </p>
+            <div className="flex space-x-4">
+              <AuthButton />
+              <button className="bg-secondary text-primary-text rounded-lg px-6 py-3 hover:bg-opacity-90">
+                Learn More
+              </button>
+            </div>
           </div>
         </div>
-        <div className="lg:w-1/2">
-          <img src="/goodideas.png" alt="Illustration of idea workflow" className="w-full" />
-        </div>
       </main>
-      {/* Features section */}
-      <FeaturesSection />
-      {/* Testimonials section */}
-      <TestimonialsSection />
-      {/* FAQ section */}
-      <FAQSection />
-      {/* Footer section */}
-      <Footer />
+      
+      {/* Features and other sections with adjusted spacing */}
+      <div className="mt-16"> {/* Reduced margin to balance spacing */}
+        <FeaturesSection />
+        <TestimonialsSection />
+        <FAQSection />
+        <Footer />
+      </div>
     </div>
   );
 }
