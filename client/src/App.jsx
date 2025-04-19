@@ -21,6 +21,8 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthButton from './components/AuthButton';
 import FeaturesSection from './components/FeaturesSection';
 import TestimonialsSection from './components/TestimonialsSection';
+import FAQSection from './components/FAQSection';
+import Footer from './components/Footer';
   /*
     TODO[MEDIUM]: Dashboard Onboarding
     - FEATURE: Add user onboarding tips for first-time users.
@@ -52,6 +54,10 @@ function LandingPage() {
       <FeaturesSection />
       {/* Testimonials section */}
       <TestimonialsSection />
+      {/* FAQ section */}
+      <FAQSection />
+      {/* Footer section */}
+      <Footer />
     </div>
   );
 }
