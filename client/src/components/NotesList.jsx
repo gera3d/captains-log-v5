@@ -3,7 +3,6 @@ import LoadingSpinner from './LoadingSpinner';
 import { supabase } from '../supabaseClient';
 import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import AudioPlayer from 'react-h5-audio-player';
 import 'react-h5-audio-player/lib/styles.css';
 
 export default function NotesList({ notes, setNotes }) {
@@ -341,21 +340,113 @@ export default function NotesList({ notes, setNotes }) {
 
                 {note.audio_url && (
                   <div className="mt-4 pt-4 border-t border-gray-100">
-                    <AudioPlayer
-                      src={note.audio_url}
-                      onPlay={e => console.log("onPlay")}
-                      showJumpControls={false}
-                      customAdditionalControls={[]}
-                      layout="horizontal-reverse"
-                      className="w-full rounded-lg shadow-sm border border-gray-200 bg-white"
-                      style={{ padding: '0.5rem 0.75rem' }}
-                      onLoadedData={(e) => {
-                        const audio = e.target;
-                        if (audio && !durations[note.id] && isFinite(audio.duration) && audio.duration > 0) {
-                          setDurations(prev => ({ ...prev, [note.id]: audio.duration }));
-                        }
-                      }}
-                    />
+                    <div className="rounded-xl bg-gradient-to-r from-[#f3f4fd] to-[#eef5ff] p-4 shadow-sm border border-blue-100">
+                      {/* Custom audio wrapper */}
+                      <div className="flex items-center w-full" id={`audio-player-${note.id}`}>
+                        {/* Simplified play button with guaranteed visibility */}
+                        <button 
+                          type="button"
+                          className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-[#4285F4] text-white shadow-md hover:opacity-90 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 mr-3"
+                          onClick={() => {
+                            const audioId = `audio-element-${note.id}`;
+                            const audio = document.getElementById(audioId);
+                            const playerContainer = document.getElementById(`audio-player-${note.id}`);
+                            
+                            if (audio) {
+                              if (audio.paused) {
+                                audio.play().then(() => {
+                                  playerContainer.classList.add('is-playing');
+                                }).catch(err => console.error('Audio play error:', err));
+                              } else {
+                                audio.pause();
+                                playerContainer.classList.remove('is-playing');
+                              }
+                            }
+                          }}
+                          aria-label="Play or pause audio"
+                        >
+                          {/* Unicode triangle character for guaranteed visibility */}
+                          <span className="play-icon text-lg leading-none" style={{marginLeft: "2px", marginTop: "-1px"}}>▶</span>
+                          
+                          {/* Unicode pause character */}
+                          <span className="pause-icon hidden text-lg">⏸</span>
+                        </button>
+                        
+                        {/* Audio info and controls */}
+                        <div className="flex-grow">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-medium text-gray-500">Voice Recording</span>
+                            <span className="text-xs font-medium text-gray-500">
+                              <span className="current-time">0:00</span> / 
+                              {Number.isFinite(durations[note.id]) && durations[note.id] > 0 
+                                ? (() => {
+                                    const totalSeconds = Math.round(durations[note.id]);
+                                    const minutes = Math.floor(totalSeconds / 60);
+                                    const seconds = totalSeconds % 60;
+                                    return ` ${minutes}:${seconds.toString().padStart(2, '0')}`;
+                                  })()
+                                : ' 0:00'}
+                            </span>
+                          </div>
+                          
+                          <div className="w-full bg-blue-100 rounded-full h-2 overflow-hidden">
+                            <div className="progress-bar bg-blue-500 h-2 w-0 rounded-full transition-all"></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Hidden native audio element but functional */}
+                      <audio 
+                        id={`audio-element-${note.id}`}
+                        src={note.audio_url} 
+                        onTimeUpdate={(e) => {
+                          const audio = e.target;
+                          const playerContainer = document.getElementById(`audio-player-${note.id}`);
+                          if (audio && playerContainer) {
+                            // Update progress bar
+                            const progressBar = playerContainer.querySelector('.progress-bar');
+                            const percent = (audio.currentTime / audio.duration) * 100;
+                            progressBar.style.width = `${percent}%`;
+                            
+                            // Update current time
+                            const currentTimeDisplay = playerContainer.querySelector('.current-time');
+                            const currentMinutes = Math.floor(audio.currentTime / 60);
+                            const currentSeconds = Math.floor(audio.currentTime % 60);
+                            currentTimeDisplay.textContent = `${currentMinutes}:${currentSeconds.toString().padStart(2, '0')}`;
+                          }
+                        }}
+                        onPlay={() => {
+                          const playerContainer = document.getElementById(`audio-player-${note.id}`);
+                          if (playerContainer) {
+                            playerContainer.classList.add('is-playing');
+                            const playIcon = playerContainer.querySelector('.play-icon');
+                            const pauseIcon = playerContainer.querySelector('.pause-icon');
+                            if (playIcon && pauseIcon) {
+                              playIcon.classList.add('hidden');
+                              pauseIcon.classList.remove('hidden');
+                            }
+                          }
+                        }}
+                        onPause={() => {
+                          const playerContainer = document.getElementById(`audio-player-${note.id}`);
+                          if (playerContainer) {
+                            playerContainer.classList.remove('is-playing');
+                            const playIcon = playerContainer.querySelector('.play-icon');
+                            const pauseIcon = playerContainer.querySelector('.pause-icon');
+                            if (playIcon && pauseIcon) {
+                              playIcon.classList.remove('hidden');
+                              pauseIcon.classList.add('hidden');
+                            }
+                          }
+                        }}
+                        onLoadedData={(e) => {
+                          const audio = e.target;
+                          if (audio && !durations[note.id] && isFinite(audio.duration) && audio.duration > 0) {
+                            setDurations(prev => ({ ...prev, [note.id]: audio.duration }));
+                          }
+                        }}
+                      />
+                    </div>
                   </div>
                 )}
 
