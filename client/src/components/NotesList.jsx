@@ -76,35 +76,29 @@ export default function NotesList({ notes, setNotes }) {
   return (
     <div className="w-full">
       {/* Tab Buttons - Enhanced Styling */}
-      <div className="flex justify-center sm:justify-start mb-4">
-        <div className="bg-gray-100 rounded-full p-1 inline-flex">
-          <button
-            onClick={() => setShowArchived(false)}
-            className={`
-              rounded-full px-5 py-2 text-sm font-medium transition-all duration-200
-              ${!showArchived
-                ? 'bg-blue-500 text-white shadow-sm'
-                : 'text-gray-700 hover:text-gray-900'}
-            `}
-            aria-pressed={!showArchived}
-            aria-label="Show active notes"
-          >
-            Active Notes
-          </button>
-          <button
-            onClick={() => setShowArchived(true)}
-            className={`
-              rounded-full px-5 py-2 text-sm font-medium transition-all duration-200
-              ${showArchived
-                ? 'bg-blue-500 text-white shadow-sm'
-                : 'text-gray-700 hover:text-gray-900'}
-            `}
-            aria-pressed={showArchived}
-            aria-label="Show archived notes"
-          >
-            Archived Notes
-          </button>
-        </div>
+      <div className="flex space-x-2 mb-4">
+        <button
+          className={`
+            rounded-full px-5 py-2 text-sm font-medium transition-all duration-200 
+            ${!showArchived ? 'bg-[#4285F4] text-white' : 'bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200'}
+          `}
+          onClick={() => setShowArchived(false)}
+          aria-pressed={!showArchived}
+          aria-label="Show active notes"
+        >
+          Active Notes
+        </button>
+        <button
+          className={`
+            rounded-full px-5 py-2 text-sm font-medium transition-all duration-200
+            ${showArchived ? 'bg-[#4285F4] text-white' : 'bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200'}
+          `}
+          onClick={() => setShowArchived(true)}
+          aria-pressed={showArchived}
+          aria-label="Show archived notes"
+        >
+          Archived Notes
+        </button>
       </div>
 
       {/* List Title - Refined Styling */}

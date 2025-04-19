@@ -440,7 +440,7 @@ function Dashboard({ notes, setNotes, user }) {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="relative z-20">
-        <div className="absolute inset-0 bg-gradient-to-r from-[#5f4def] to-[#6755f5]"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-[#2d1b8c] to-[#1355b8]"></div>
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.8)_0%,_rgba(255,255,255,0)_60%)]"></div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -464,7 +464,7 @@ function Dashboard({ notes, setNotes, user }) {
                 
                 <button 
                   onClick={() => supabase.auth.signOut()}
-                  className="text-white/90 hover:text-white bg-white/10 hover:bg-white/20 text-xs font-medium py-1.5 px-3.5 rounded-full transition-colors border border-white/10"
+                  className="text-white bg-indigo-600 hover:bg-indigo-700 text-xs font-medium py-1.5 px-3.5 rounded-full transition-colors border border-indigo-500"
                 >
                   Sign Out
                 </button>
@@ -493,7 +493,7 @@ function Dashboard({ notes, setNotes, user }) {
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-2xl font-semibold text-gray-800">Active Ideas</h2>
                     <button 
-                      className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                      className="text-white bg-indigo-600 hover:bg-indigo-700 text-sm font-medium py-1.5 px-3 rounded-lg transition-colors"
                       onClick={() => document.getElementById('all-notes-section').scrollIntoView({ behavior: 'smooth' })}
                     >
                       View All Notes
@@ -549,7 +549,7 @@ function Dashboard({ notes, setNotes, user }) {
                         <h3 className="text-base font-medium text-gray-900 mb-1">No Active Ideas Yet</h3>
                         <p className="text-sm text-gray-500 mb-3">Record an idea to get started!</p>
                         <button 
-                          className="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                          className="text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                           onClick={() => document.querySelector('.voice-recorder-trigger')?.click()}
                         >
                           Record Your First Idea
@@ -563,18 +563,6 @@ function Dashboard({ notes, setNotes, user }) {
               <section id="all-notes-section">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-2xl font-semibold text-gray-800">All Notes</h2>
-                  <div className="flex items-center gap-4">
-                    <button className="text-gray-500 hover:text-gray-700">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                      </svg>
-                    </button>
-                    <button className="text-gray-500 hover:text-gray-700">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-                      </svg>
-                    </button>
-                  </div>
                 </div>
                 <NotesList 
                   notes={notes} 
