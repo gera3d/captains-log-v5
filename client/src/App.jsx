@@ -44,12 +44,6 @@ function LandingPage() {
               {/* Glow effect */}
               <div className="absolute -inset-12 bg-blue-500/30 blur-3xl rounded-full"></div>
               
-              {/* Repositioned "Try it now" banner */}
-              <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 z-30">
-                <div className="bg-[#FCD24F] px-8 py-3 rounded-full text-[#1d3263] font-bold shadow-lg text-base animate-pulse">
-                  Try it now!
-                </div>
-              </div>
               
               {/* Voice recorder component */}
               <VoiceRecorderCard 
@@ -78,7 +72,15 @@ function LandingPage() {
             </p>
             <div className="flex space-x-4">
               <AuthButton />
-              <button className="bg-secondary text-primary-text rounded-lg px-6 py-3 hover:bg-opacity-90">
+              <button
+                className="bg-secondary text-primary-text rounded-lg px-6 py-3 hover:bg-opacity-90 cursor-pointer"
+                onClick={() => {
+                  const section = document.getElementById('how-it-works');
+                  if (section) {
+                    section.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
+              >
                 Learn More
               </button>
             </div>

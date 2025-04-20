@@ -307,7 +307,7 @@ export default function VoiceRecorder({ onNoteSaved }) {
             } drop-shadow-md transition-all`}>
               {status === 'idle' && (
                 <span className="bg-gradient-to-r from-blue-200 via-white to-blue-200 bg-clip-text text-transparent">
-                  Hold to Record
+                  Press to Record
                 </span>
               )}
               {status === 'recording' && (

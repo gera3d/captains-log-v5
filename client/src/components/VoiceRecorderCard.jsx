@@ -47,7 +47,7 @@ const VoiceRecorderCard = ({ onNoteSaved, className = "", demoMode = false, hide
         
         {/* Subtitle with refined styling */}
         <p className="text-blue-100 text-center max-w-lg mb-10 font-medium text-lg opacity-90">
-          Hold the mic and share your thoughts — we'll analyze your idea instantly.
+          Press the mic and share your thoughts — we'll analyze your idea instantly.
         </p>
         
         {/* Voice recorder component with clear placement */}

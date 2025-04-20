@@ -3,7 +3,7 @@ import { MicrophoneIcon, DocumentTextIcon, CheckIcon } from '@heroicons/react/24
 
 export default function FeaturesSection() {
   return (
-    <section className="bg-neutral-50 py-20">
+    <section id="how-it-works" className="bg-neutral-50 py-20">
       <div className="container mx-auto text-center mb-12 px-4">
         <h2 className="text-h2 font-display text-gray-900 mb-4">How it works</h2>
         <p className="text-lg text-gray-700">Transform your spoken ideas into actionable insights in three steps.</p>
