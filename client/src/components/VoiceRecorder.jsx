@@ -350,30 +350,7 @@ export default function VoiceRecorder({ onNoteSaved }) {
         </>
       )}
 
-      {/* Tooltip - enhanced with better positioning and styling */}
-      {showTooltip && status === 'idle' && (
-        <div className="absolute top-full mt-8 max-w-xs bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-xl p-4 shadow-xl z-10 border border-blue-400/30 backdrop-blur-sm">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 mr-3 p-1.5 bg-blue-500 rounded-full">
-              <svg className="h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M11 3a1 1 0 10-2 0v1.101a7.002 7.002 0 00-6.204 6.551 1 1 0 001.99.25 5.003 5.003 0 014.214-4.399v1.052a1 1 0 002 0V5.5a1 1 0 00-.379-.782A1 1 0 0010 4.5v-1V3zm5.554 15a1 1 0 00.448-.341A7 7 0 0010 4v3.159c0 .276-.112.54-.311.729l-3.414 3.414A1 1 0 007 12c.365 0 .689.234.829.578l.977 2.376a1 1 0 00.919.625h6.827l.001.007z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <span className="font-medium">Press and hold the mic to start recording your idea!</span>
-            <button
-              onClick={handleTooltipClose}
-              className="ml-auto bg-white text-blue-600 rounded-lg px-3 py-1 text-sm font-bold hover:bg-blue-50 transition-colors shadow flex items-center"
-            >
-              Got it
-            </button>
-          </div>
-          
-          {/* Triangle pointer with better positioning */}
-          <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-            <div className="w-8 h-8 bg-blue-600 rotate-45 transform origin-bottom-left"></div>
-          </div>
-        </div>
-      )}
+
 
       {/* Add animation styles */}
       <style jsx>{`

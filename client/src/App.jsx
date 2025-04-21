@@ -20,7 +20,7 @@ import Button from './components/Button';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthButton from './components/AuthButton';
 import FeaturesSection from './components/FeaturesSection';
-import TestimonialsSection from './components/TestimonialsSection';
+import RoadmapSection from './components/RoadmapSection'; // Import the RoadmapSection
 import FAQSection from './components/FAQSection';
 import Footer from './components/Footer';
 import ReactMarkdown from 'react-markdown';
@@ -91,7 +91,7 @@ function LandingPage() {
       {/* Features and other sections with adjusted spacing */}
       <div className="mt-16"> {/* Reduced margin to balance spacing */}
         <FeaturesSection />
-        <TestimonialsSection />
+        <RoadmapSection /> {/* Add RoadmapSection before FAQSection */}
         <FAQSection />
         <Footer />
       </div>
