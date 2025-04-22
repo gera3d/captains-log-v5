@@ -270,7 +270,8 @@ function Dashboard({ notes, setNotes, user }) {
   const handleIdeaGenerated = async (noteId) => {
     // Find the updated note in our notes list
     const updatedNote = notes.find(note => note.id === noteId);
-    if (!updatedNote || !updatedNote.business_idea) return;
+    // Don't promote archived notes to active ideas
+    if (!updatedNote || !updatedNote.business_idea || updatedNote.archived) return;
     
     try {
       // Update the note in the database to be featured/active
@@ -318,12 +319,18 @@ function Dashboard({ notes, setNotes, user }) {
     }
   }, [effectiveUser, isDevUser]);
 
-  // Improved active ideas selection logic - show all ideas with content
+  // Improved active ideas selection logic - show all ideas with content except archived ones
   useEffect(() => {
     if (notes.length > 0) {
-      // First, select all notes with business_idea content and sort by most recently updated
+      // First, select all non-archived notes with business_idea content 
       const contentNotes = notes
-        .filter(note => note.business_idea && note.business_idea.trim().length > 0)
+        .filter(note => 
+          // Must have business idea content
+          note.business_idea && 
+          note.business_idea.trim().length > 0 && 
+          // Must not be archived
+          note.archived !== true
+        )
         .sort((a, b) => {
           // Sort by updated_at (for regenerated ideas) or created_at if no update time
           const dateA = new Date(a.updated_at || a.created_at);
@@ -341,7 +348,7 @@ function Dashboard({ notes, setNotes, user }) {
         !featuredNotes.some(f => f.id === note.id)
       );
       
-      // Combine with priority to featured/active notes - show all ideas with content
+      // Combine with priority to featured/active notes - show all non-archived ideas with content
       const allPrioritizedNotes = [...featuredNotes, ...otherContentNotes];
       
       // Set all content notes as active ideas (no limit)
