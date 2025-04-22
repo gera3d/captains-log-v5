@@ -10,7 +10,7 @@
 import { useState, useEffect } from 'react';
 import LoadingSpinner from './components/LoadingSpinner';
 import { supabase } from './supabaseClient';
-import { Routes, Route, useNavigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, Link } from 'react-router-dom';
 import NotesList from './components/NotesList';
 import VoiceRecorder from './components/VoiceRecorder';
 import VoiceRecorderCard from './components/VoiceRecorderCard';
@@ -939,6 +939,7 @@ function Dashboard({ notes, setNotes, user }) {
 function FullIdeaPage({ user, session }) {
   const { id } = useParams();
   const [note, setNote] = useState(null);
+  const [copied, setCopied] = useState('');
 
   useEffect(() => {
     const fetchNote = async () => {
@@ -1005,8 +1006,6 @@ function FullIdeaPage({ user, session }) {
     }
   };
 
-  const [copied, setCopied] = useState('');
-
   const handleCopyIdea = async () => {
     await copyIdea();
     setCopied('idea');
@@ -1019,183 +1018,90 @@ function FullIdeaPage({ user, session }) {
     setTimeout(() => setCopied(''), 1500);
   };
 
-  const exportToGoogleDocs = async () => {
-    if (!session?.provider_token) {
-      alert('No Google access token found.');
-      return;
-    }
-    if (!note?.business_idea) {
-      alert('No idea content to export.');
-      return;
-    }
-
-    try {
-      const response = await fetch('https://docs.googleapis.com/v1/documents', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.provider_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: 'New Idea Export',
-        }),
-      });
-
-      const doc = await response.json();
-
-      if (!doc.documentId) {
-        console.error('Failed to create doc:', doc);
-        alert('Failed to create Google Doc.');
-        return;
-      }
-
-      await fetch(`https://docs.googleapis.com/v1/documents/${doc.documentId}:batchUpdate`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.provider_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          requests: [
-            {
-              insertText: {
-                location: { index: 1 },
-                text: note.business_idea,
-              },
-            },
-          ],
-        }),
-      });
-
-      window.open(`https://docs.google.com/document/d/${doc.documentId}/edit`, '_blank');
-    } catch (error) {
-      console.error('Error exporting to Google Docs:', error);
-      alert('Error exporting to Google Docs.');
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-indigo-50 py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
-      <div className="max-w-4xl w-full space-y-8">
-        <div className="bg-white shadow-xl rounded-3xl p-10 border border-gray-200">
-          <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-            <div
-              className="flex items-center gap-4 bg-sky-50/80 border border-sky-100 rounded-xl px-4 py-3 shadow-inner relative"
-              role="group"
-              aria-label="Idea actions"
-            >
-              {user ? (
-                <>
-                  <Button
-                    onClick={handleCopyIdea}
-                    className="!rounded-lg !bg-indigo-600 !px-5 !py-3 !text-base !font-bold !text-white hover:!bg-indigo-700 focus-visible:!ring-2 focus-visible:!ring-indigo-400"
-                    label="Copy Markdown"
-                    leftIcon={<DocumentTextIcon className="h-6 w-6" aria-hidden="true" />}
-                    ariaLabel="Copy idea as Markdown"
-                    title="Copy a Markdown version of this idea"
-                  />
-                  <Button
-                    onClick={handleCopyLink}
-                    className="!rounded-lg !bg-green-600 !px-5 !py-3 !text-base !font-bold !text-white hover:!bg-green-700 focus-visible:!ring-2 focus-visible:!ring-green-400"
-                    label="Share Idea"
-                    leftIcon={<ShareIcon className="h-6 w-6" aria-hidden="true" />}
-                    ariaLabel="Share public link to this idea"
-                    title="Copy a public link to this idea"
-                  />
-                  <div className="h-8 w-px bg-sky-200 mx-2 hidden sm:block" aria-hidden="true"></div>
-                  <div className="relative group">
-                    <Button
-                      disabled
-                      className="!rounded-lg !bg-gray-200 !text-gray-400 !px-5 !py-3 !text-base !font-bold cursor-not-allowed"
-                      label="More Actions"
-                      leftIcon={
-                        <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
-                          <circle cx="5" cy="12" r="2" />
-                          <circle cx="12" cy="12" r="2" />
-                          <circle cx="19" cy="12" r="2" />
-                        </svg>
-                      }
-                      ariaLabel="More actions coming soon"
-                      title="More actions coming soon"
-                    />
-                    <div className="absolute left-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-10 hidden group-hover:block pointer-events-none">
-                      <button
-                        className="w-full flex items-center gap-2 px-4 py-2 text-gray-400 bg-gray-50 cursor-not-allowed text-left rounded-lg"
-                        disabled
-                        tabIndex={-1}
-                        aria-label="Export to Google Docs (coming soon)"
-                      >
-                        <span>
-                          <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8.828A2 2 0 0 0 19.414 7L15 2.586A2 2 0 0 0 13.586 2H6zm7 1.414L18.586 9H15a2 2 0 0 1-2-2V3.414z" />
-                          </svg>
-                        </span>
-                        <span>Export to Google Docs</span>
-                        <span className="ml-auto text-xs italic">(coming soon)</span>
-                      </button>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Button
-                    disabled
-                    className="!rounded-lg !bg-indigo-100 !px-5 !py-3 !text-base !font-bold !text-gray-400 cursor-not-allowed"
-                    label="Copy Markdown"
-                    leftIcon={<DocumentTextIcon className="h-6 w-6" aria-hidden="true" />}
-                    ariaLabel="Copy idea as Markdown (login required)"
-                    title="Sign in to copy this idea"
-                  />
-                  <Button
-                    disabled
-                    className="!rounded-lg !bg-green-100 !px-5 !py-3 !text-base !font-bold !text-gray-400 cursor-not-allowed"
-                    label="Share Idea"
-                    leftIcon={<ShareIcon className="h-6 w-6" aria-hidden="true" />}
-                    ariaLabel="Share public link to this idea (login required)"
-                    title="Sign in to share this idea"
-                  />
-                  <div className="h-8 w-px bg-sky-200 mx-2 hidden sm:block" aria-hidden="true"></div>
-                  <div className="relative group">
-                    <Button
-                      disabled
-                      className="!rounded-lg !bg-gray-200 !text-gray-400 !px-5 !py-3 !text-base !font-bold cursor-not-allowed"
-                      label="More Actions"
-                      leftIcon={
-                        <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
-                          <circle cx="5" cy="12" r="2" />
-                          <circle cx="12" cy="12" r="2" />
-                          <circle cx="19" cy="12" r="2" />
-                        </svg>
-                      }
-                      ariaLabel="More actions coming soon"
-                      title="More actions coming soon"
-                    />
-                  </div>
-                </>
-              )}
+    <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-indigo-50 py-6 px-3 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Main content card with improved spacing */}
+        <div className="bg-white shadow-lg rounded-2xl border border-gray-200 overflow-hidden">
+          {/* Clean header with back button and single title */}
+          <div className="border-b border-gray-100 bg-white px-4 py-4 sm:px-6">
+            <div className="flex items-center">
+              <Link 
+                to="/" 
+                className="mr-3 p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+                aria-label="Back to dashboard"
+              >
+                <svg className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+              </Link>
+              <h1 className="text-xl font-bold text-gray-900 flex-grow truncate">
+                {note?.title || (note?.business_idea?.split('\n')[0]?.replace(/^#+\s*/, '')) || 'Loading idea...'}
+              </h1>
             </div>
           </div>
-          {!user && (
-            <div className="mb-6 text-center text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 font-semibold">
-              Sign in to copy, share, or export this idea.
-            </div>
-          )}
-          {copied && user && (
-            <div
-              className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-green-600 text-white font-bold px-6 py-3 rounded-full shadow-lg animate-fade-in-up"
-              role="status"
-              aria-live="polite"
+
+          {/* Action buttons in a separate, well-spaced row */}
+          <div className="bg-gray-50 px-4 py-3 sm:px-6 flex flex-wrap gap-2 justify-end border-b border-gray-100">
+            <button
+              onClick={handleCopyIdea}
+              className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              disabled={!note || !user}
             >
-              {copied === 'idea' ? 'Markdown copied!' : 'Link copied!'}
-            </div>
-          )}
-          {note ? (
-            <div className="prose prose-lg max-w-none">
-              <ReactMarkdown>{note.business_idea || 'No idea generated yet.'}</ReactMarkdown>
-            </div>
-          ) : (
-            <p className="text-center text-gray-500">Loading...</p>
-          )}
+              <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 2v5a2 2 0 002 2h5" />
+              </svg>
+              Copy Markdown
+            </button>
+            <button
+              onClick={handleCopyLink}
+              className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              disabled={!note || !user}
+            >
+              <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+              Share Idea
+            </button>
+            <button
+              className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-500 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              disabled
+            >
+              <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+              </svg>
+              More Actions
+            </button>
+          </div>
+
+          {/* Content section with proper padding and overflow handling */}
+          <div className="px-4 py-6 sm:px-6 overflow-auto">
+            {/* Notification toast */}
+            {copied && (
+              <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white font-medium px-4 py-2 rounded-md shadow-lg z-50">
+                {copied === 'idea' ? 'Markdown copied!' : 'Link copied!'}
+              </div>
+            )}
+            
+            {/* User sign-in prompt */}
+            {!user && (
+              <div className="mb-4 bg-indigo-50 border border-indigo-100 rounded-md px-4 py-3 text-sm text-indigo-700">
+                <p className="text-center font-medium">Sign in to copy, share, or export this idea</p>
+              </div>
+            )}
+            
+            {/* Idea content with proper styling */}
+            {note ? (
+              <div className="prose prose-indigo max-w-none break-words">
+                <ReactMarkdown>{note.business_idea || 'No idea content available.'}</ReactMarkdown>
+              </div>
+            ) : (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
