@@ -927,7 +927,7 @@ function Dashboard({ notes, setNotes, user }) {
             <a href="#" className="text-[#81D4FA] hover:underline">
               <span className="sr-only">Twitter</span>
               <svg className="h-6 w-6" fill="#FFD600" viewBox="0 0 24 24">
-                <path d="M8 19c7.732 0 11.946-6.41 11.946-11.946 0-.182 0-.364-.012-.545A8.548 8.548 0 0022 4.309a8.19 8.19 0 01-2.357.646A4.118 4.118 0 0021.448 3a8.224 8.224 0 01-2.605.996A4.107 4.107 0 0015.448 3c-2.266 0-4.104 1.838-4.104 4.104 0 .322.036.636.106.936A11.65 11.65 0 013 4.15a4.104 4.104 0 001.27 5.475 4.073 4.073 0 01-1.858-.513v.052c0 2.042 1.453 3.746 3.379 4.132a4.095 4.095 0 01-1.853.07c.522 1.63 2.037 2.816 3.833 2.85A8.233 8.233 0 012 19.54a11.616 11.616 0 006.29 1.84" />
+                <path d="M8 19c7.732 0 11.946-6.41 11.946-11.946 0-.182 0-.364-.012-.545A8.548 8.548 0 0022 4.309a8.19 8.19 0 01-2.357.646A4.118 4.118 0 0021.448 3a8.224 8.224 0 01-2.605.996A4.107 4.107 0 0015.448 3c-2.266 0-4.104 1.838-4.104 4.104 0 .322.036.636.106.936A11.65 11.65 0 013 4.15a4.104 4.104 0 001.27 5.475 a4.073 4.073 0 01-1.858-.513v.052c0 2.042 1.453 3.746 3.379 4.132a4.095 4.095 0 01-1.853.07c.522 1.63 2.037 2.816 3.833 2.85A8.233 8.233 0 012 19.54a11.616 11.616 0 006.29 1.84" />
               </svg>
             </a>
           </div>
@@ -947,6 +947,10 @@ function FullIdeaPage({ user, session }) {
   const { id } = useParams();
   const [note, setNote] = useState(null);
   const [copied, setCopied] = useState('');
+  const [generatingPRD, setGeneratingPRD] = useState(false);
+  const [prdContent, setPrdContent] = useState(null);
+  const [activeTab, setActiveTab] = useState('idea');
+  const [prdError, setPrdError] = useState(null);
 
   useEffect(() => {
     const fetchNote = async () => {
@@ -1025,6 +1029,59 @@ function FullIdeaPage({ user, session }) {
     setTimeout(() => setCopied(''), 1500);
   };
 
+  const handleCreatePRD = async () => {
+    if (!note || generatingPRD) return;
+    
+    try {
+      setGeneratingPRD(true);
+      setPrdError(null);
+      
+      // Get content for the PRD
+      const title = note.title || (note.business_idea?.split('\n')[0]) || 'Untitled Idea';
+      const content = note.business_idea || note.transcript || '';
+      
+      // Format the request body to include the chatInput field expected by n8n
+      const requestBody = {
+        chatInput: `Generate a PRD for the following business idea titled "${title}": \n\n${content}`,
+        metadata: {
+          noteId: note.id,
+          title: title
+        }
+      };
+      
+      // Call n8n webhook with production URL
+      const response = await fetch('https://n8n.why57.com/webhook/prd', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Server responded with ${response.status}: ${errorText}`);
+      }
+      
+      // Get the response data
+      const data = await response.json();
+      console.log('Response data:', data);
+      
+      // Check for content in text, prd, or output fields
+      if (!data.text && !data.prd && !data.output) {
+        throw new Error('No PRD content received from server');
+      }
+      
+      // Use either text, prd, or output field depending on n8n workflow response format
+      setPrdContent(data.text || data.prd || data.output || `# PRD for ${title}\n\nUnable to generate PRD content.`);
+      setActiveTab('prd'); // Switch to PRD tab after generation
+      
+    } catch (error) {
+      console.error('Error generating PRD:', error);
+      setPrdError(error.message || 'Failed to generate PRD. Please try again later.');
+    } finally {
+      setGeneratingPRD(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-indigo-50 py-6 px-3 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
@@ -1061,6 +1118,31 @@ function FullIdeaPage({ user, session }) {
               </svg>
               Copy Markdown
             </button>
+            
+            {/* Create PRD button - new addition */}
+            <button
+              onClick={handleCreatePRD}
+              disabled={!note || !user || generatingPRD}
+              className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+            >
+              {generatingPRD ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Create PRD
+                </>
+              )}
+            </button>
+            
             <button
               onClick={handleCopyLink}
               className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -1071,6 +1153,7 @@ function FullIdeaPage({ user, session }) {
               </svg>
               Share Idea
             </button>
+            
             <button
               className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-500 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               disabled
@@ -1080,6 +1163,32 @@ function FullIdeaPage({ user, session }) {
               </svg>
               More Actions
             </button>
+          </div>
+          
+          {/* Tab navigation - NEW */}
+          <div className="border-b border-gray-200">
+            <div className="flex px-4 sm:px-6">
+              <button
+                onClick={() => setActiveTab('idea')}
+                className={`py-3 px-4 font-medium text-sm border-b-2 transition-colors ${
+                  activeTab === 'idea'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Idea
+              </button>
+              <button
+                onClick={() => prdContent && setActiveTab('prd')}
+                className={`py-3 px-4 font-medium text-sm border-b-2 transition-colors ${
+                  activeTab === 'prd'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } ${!prdContent ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                PRD {!prdContent && '(Not Generated)'}
+              </button>
+            </div>
           </div>
 
           {/* Content section with proper padding and overflow handling */}
@@ -1091,21 +1200,60 @@ function FullIdeaPage({ user, session }) {
               </div>
             )}
             
-            {/* User sign-in prompt */}
-            {!user && (
-              <div className="mb-4 bg-indigo-50 border border-indigo-100 rounded-md px-4 py-3 text-sm text-indigo-700">
-                <p className="text-center font-medium">Sign in to copy, share, or export this idea</p>
-              </div>
-            )}
-            
-            {/* Idea content with proper styling */}
-            {note ? (
-              <div className="prose prose-indigo max-w-none break-words">
-                <ReactMarkdown>{note.business_idea || 'No idea content available.'}</ReactMarkdown>
+            {/* Tab content */}
+            {activeTab === 'idea' ? (
+              <div>
+                {note ? (
+                  <>
+                    {note.created_at && (
+                      <p className="text-sm text-gray-500 mb-3">
+                        Created on {new Date(note.created_at).toLocaleString()}
+                      </p>
+                    )}
+                    
+                    <div className="prose max-w-none">
+                      {note.business_idea ? (
+                        <ReactMarkdown>{note.business_idea}</ReactMarkdown>
+                      ) : note.transcript ? (
+                        <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                          <p className="text-gray-800 whitespace-pre-wrap">{note.transcript}</p>
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 italic">No content available for this note.</p>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
+              <div>
+                {prdContent ? (
+                  <div className="prose max-w-none">
+                    <ReactMarkdown>{prdContent}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    {prdError ? (
+                      <div className="text-red-600 mb-4">
+                        <p className="font-semibold">Error generating PRD:</p>
+                        <p>{prdError}</p>
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 mb-4">No PRD has been generated for this idea yet.</p>
+                    )}
+                    <button
+                      onClick={handleCreatePRD}
+                      disabled={generatingPRD}
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      {generatingPRD ? 'Generating PRD...' : 'Generate PRD'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
