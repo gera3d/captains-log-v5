@@ -716,14 +716,18 @@ function Dashboard({ notes, setNotes, user }) {
           <main className="relative pt-10 pb-16 bg-gradient-to-b from-slate-100 to-white min-h-[calc(100vh-5rem)]">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex flex-col lg:flex-row gap-8 mb-16">
+                {/* First container - Record Your Idea */}
                 <div className="lg:w-1/2 order-1">
                   <h2 className="text-2xl font-semibold text-gray-800 mb-4">Record Your Idea</h2>
-                  <VoiceRecorderCard 
-                    onNoteSaved={onNoteSaved} 
-                    className="shadow-xl border border-indigo-100" 
-                  />
+                  <div className="h-[600px]"> {/* Set explicit fixed height */}
+                    <VoiceRecorderCard 
+                      onNoteSaved={onNoteSaved} 
+                      className="shadow-xl border border-indigo-100 h-full" 
+                    />
+                  </div>
                 </div>
                 
+                {/* Second container - Active Ideas */}
                 <div className="lg:w-1/2 order-2">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-2xl font-semibold text-gray-800">Active Ideas</h2>
@@ -735,7 +739,8 @@ function Dashboard({ notes, setNotes, user }) {
                     </button>
                   </div>
                   
-                  <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-4 min-h-[350px] max-h-[500px] flex flex-col">
+                  {/* Set exact same height as Record Your Idea container */}
+                  <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-4 h-[600px] overflow-y-auto">
                     {activeIdeas.length > 0 ? (
                       <div className="overflow-y-auto pr-1 flex-grow">
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 auto-rows-max">
