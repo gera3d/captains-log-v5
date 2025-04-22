@@ -25,11 +25,13 @@ import FAQSection from './components/FAQSection';
 import Footer from './components/Footer';
 import ReactMarkdown from 'react-markdown';
 import { useParams } from 'react-router-dom';
-  /*
-    TODO[MEDIUM]: Dashboard Onboarding
-    - FEATURE: Add user onboarding tips for first-time users.
-    - UI: Consider a dismissible banner or modal for onboarding.
-  */
+import PersonaSelector from './components/PersonaSelector'; // Import PersonaSelector
+
+/*
+  TODO[MEDIUM]: Dashboard Onboarding
+  - FEATURE: Add user onboarding tips for first-time users.
+  - UI: Consider a dismissible banner or modal for onboarding.
+*/
 
 function LandingPage() {
   return (
@@ -102,6 +104,79 @@ function LandingPage() {
 function Dashboard({ notes, setNotes, user }) {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [activeIdeas, setActiveIdeas] = useState([]);
+  const [selectedPersona, setSelectedPersona] = useState(() => {
+    // Try to load saved persona from localStorage
+    const savedPersona = localStorage.getItem('userPersona');
+    return savedPersona || "Innovator";
+  });
+  const [showPersonaDropdown, setShowPersonaDropdown] = useState(false);
+  const [showCustomPersonaModal, setShowCustomPersonaModal] = useState(false);
+  const [customPersonaName, setCustomPersonaName] = useState('');
+  const [customPersonaGoals, setCustomPersonaGoals] = useState('');
+  const [customPersonaIcon, setCustomPersonaIcon] = useState('🔮');
+  
+  // Load custom personas from localStorage
+  const [customPersonas, setCustomPersonas] = useState(() => {
+    const saved = localStorage.getItem('customPersonas');
+    return saved ? JSON.parse(saved) : [];
+  });
+  
+  // Save custom personas to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('customPersonas', JSON.stringify(customPersonas));
+  }, [customPersonas]);
+
+  // Enhanced personas with descriptions and goals
+  const personas = [
+    { 
+      id: "innovator", 
+      label: "Innovator", 
+      icon: "💡",
+      description: "Focus on generating novel ideas and creative solutions to problems."
+    },
+    { 
+      id: "developer", 
+      label: "Developer", 
+      icon: "💻",
+      description: "Prioritize technical feasibility, implementation details, and code architecture."
+    },
+    { 
+      id: "marketer", 
+      label: "Marketer", 
+      icon: "📊",
+      description: "Concentrate on market fit, customer acquisition, and promotional strategies."
+    },
+    { 
+      id: "designer", 
+      label: "Designer", 
+      icon: "🎨",
+      description: "Focus on user experience, visual appeal, and intuitive interactions."
+    },
+    { 
+      id: "entrepreneur", 
+      label: "Entrepreneur", 
+      icon: "🚀",
+      description: "Emphasize business viability, growth potential, and scaling strategies."
+    },
+    { 
+      id: "product-manager", 
+      label: "Product Manager", 
+      icon: "📱",
+      description: "Balance features, timeline, and resources to deliver maximum value."
+    },
+    { 
+      id: "investor", 
+      label: "Investor", 
+      icon: "💰",
+      description: "Evaluate ideas based on ROI potential, market trends, and financial viability."
+    },
+    ...customPersonas
+  ];
+
+  // Save persona selection to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('userPersona', selectedPersona);
+  }, [selectedPersona]);
 
   // DEV MODE: If ?dev_user=1 is present, always show onboarding modal and mock user
   const isDevUser = typeof window !== "undefined" && window.location.search.includes("dev_user=1");
@@ -339,6 +414,33 @@ function Dashboard({ notes, setNotes, user }) {
     });
   };
 
+  const addCustomPersona = () => {
+    if (customPersonaName.trim()) {
+      const newPersona = {
+        id: `custom-${Date.now()}`,
+        label: customPersonaName.trim(),
+        icon: customPersonaIcon,
+        description: customPersonaGoals.trim() || 'Custom persona',
+        isCustom: true
+      };
+      
+      setCustomPersonas([...customPersonas, newPersona]);
+      setSelectedPersona(newPersona.label);
+      setShowCustomPersonaModal(false);
+      setCustomPersonaName('');
+      setCustomPersonaGoals('');
+      setCustomPersonaIcon('🔮');
+    }
+  };
+
+  const deleteCustomPersona = (id) => {
+    setCustomPersonas(customPersonas.filter(p => p.id !== id));
+    // If the deleted persona was selected, revert to Innovator
+    if (customPersonas.find(p => p.id === id)?.label === selectedPersona) {
+      setSelectedPersona('Innovator');
+    }
+  };
+
   const onboardingModal = (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-[#1d3263] bg-gradient-to-br from-[#1d3263] via-[#223a6d] to-[#1d3263] animate-fade-in-up"
@@ -457,11 +559,142 @@ function Dashboard({ notes, setNotes, user }) {
             
             {effectiveUser && (
               <div className="flex items-center space-x-4">
-                <div className="text-white/80 text-sm flex items-center">
+                <div className="relative flex items-center text-white/90 text-sm">
                   <svg className="h-3.5 w-3.5 mr-1.5 text-white/60" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                   </svg>
-                  <span>{effectiveUser.email}</span>
+                  <span>
+                    {effectiveUser.user_metadata?.full_name 
+                      ? effectiveUser.user_metadata.full_name.split(' ')[0] 
+                      : effectiveUser.email.split('@')[0]}
+                  </span>
+                  <span className="mx-1">the</span>
+                  
+                  {/* Only the persona with its icon in the dropdown button */}
+                  <div className="relative">
+                    <button 
+                      onClick={() => setShowPersonaDropdown(!showPersonaDropdown)}
+                      className="flex items-center text-white font-medium rounded-full px-3 py-1 transition-all duration-200 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10"
+                      aria-haspopup="listbox"
+                      aria-expanded={showPersonaDropdown}
+                    >
+                      <span className="mr-1">
+                        {personas.find(p => p.label === selectedPersona)?.icon || '💡'}
+                      </span>
+                      <span className="font-semibold">{selectedPersona}</span>
+                      <svg 
+                        className={`ml-1.5 h-4 w-4 transition-transform duration-300 ${showPersonaDropdown ? 'transform rotate-180' : ''}`} 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    
+                    {/* Dropdown content remains the same */}
+                    {showPersonaDropdown && (
+                      <div 
+                        className="absolute mt-2 w-64 right-0 origin-top-right animate-dropdown z-30"
+                        onWheel={(e) => e.stopPropagation()}
+                      >
+                        <div className="bg-white rounded-lg shadow-xl overflow-hidden border border-gray-200">
+                          <div className="px-4 py-2.5 text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50 border-b border-gray-200">
+                            Choose Your Persona
+                          </div>
+                          <div 
+                            className="max-h-80 overflow-y-auto py-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent"
+                            onWheel={(e) => e.stopPropagation()}
+                          >
+                            {personas.map((persona) => (
+                              <div key={persona.id} className="relative">
+                                <button
+                                  className={`flex w-full items-center px-4 py-3.5 text-sm hover:bg-indigo-50 transition-colors ${
+                                    persona.label === selectedPersona 
+                                      ? 'bg-indigo-100 text-indigo-700 font-medium' 
+                                      : 'bg-white text-gray-700'
+                                  }`}
+                                  onClick={() => {
+                                    setSelectedPersona(persona.label);
+                                    setShowPersonaDropdown(false);
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    // Create tooltip element
+                                    const tooltip = document.getElementById('persona-tooltip');
+                                    if (tooltip) {
+                                      // Position tooltip relative to button
+                                      const rect = e.currentTarget.getBoundingClientRect();
+                                      tooltip.style.top = `${rect.top + window.scrollY + rect.height/2}px`;
+                                      tooltip.style.left = `${rect.right + window.scrollX + 10}px`;
+                                      
+                                      // Set content
+                                      tooltip.innerHTML = `
+                                        <div class="arrow"></div>
+                                        <p class="font-medium mb-1">${persona.label} Goals:</p>
+                                        <p class="text-xs text-gray-300">${persona.description}</p>
+                                      `;
+                                      
+                                      // Show tooltip
+                                      tooltip.classList.remove('hidden');
+                                    }
+                                  }}
+                                  onMouseLeave={() => {
+                                    // Hide tooltip
+                                    const tooltip = document.getElementById('persona-tooltip');
+                                    if (tooltip) {
+                                      tooltip.classList.add('hidden');
+                                    }
+                                  }}
+                                >
+                                  <span className="flex items-center justify-center h-8 w-8 rounded-full bg-indigo-100 text-lg mr-3">
+                                    {persona.icon}
+                                  </span>
+                                  <span className="flex-grow text-left">{persona.label}</span>
+                                  
+                                  {persona.label === selectedPersona && (
+                                    <svg className="h-5 w-5 text-indigo-500 ml-3" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                  )}
+                                  
+                                  {/* Delete button for custom personas */}
+                                  {persona.isCustom && (
+                                    <button 
+                                      className="absolute right-2 top-2 text-gray-400 hover:text-red-500 p-1"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        deleteCustomPersona(persona.id);
+                                      }}
+                                    >
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                  )}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                          
+                          {/* Create Your Own Persona Button */}
+                          <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
+                            <button
+                              className="w-full py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-md text-sm font-medium flex items-center justify-center transition-colors"
+                              onClick={() => {
+                                setShowCustomPersonaModal(true);
+                                setShowPersonaDropdown(false);
+                              }}
+                            >
+                              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                              </svg>
+                              Create Your Own Persona
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 
                 <button 
@@ -579,6 +812,96 @@ function Dashboard({ notes, setNotes, user }) {
 
       {!effectiveUser && <LandingPage />}
 
+      {showCustomPersonaModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-dropdown">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="font-medium text-lg text-gray-900">Create Your Own Persona</h3>
+              <button 
+                onClick={() => setShowCustomPersonaModal(false)}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="mb-4">
+                <label htmlFor="personaName" className="block text-sm font-medium text-gray-700 mb-1">
+                  Persona Name
+                </label>
+                <input
+                  type="text"
+                  id="personaName"
+                  placeholder="e.g., UX Specialist"
+                  value={customPersonaName}
+                  onChange={(e) => setCustomPersonaName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Choose Icon
+                </label>
+                <div className="grid grid-cols-8 gap-2">
+                  {["🔮", "🎯", "🧠", "🌟", "📈", "🛠️", "🧩", "✨"].map(icon => (
+                    <button
+                      key={icon}
+                      type="button"
+                      className={`h-10 w-10 flex items-center justify-center text-xl rounded-md ${
+                        customPersonaIcon === icon 
+                          ? 'bg-indigo-100 border-2 border-indigo-500' 
+                          : 'bg-gray-100 hover:bg-gray-200'
+                      }`}
+                      onClick={() => setCustomPersonaIcon(icon)}
+                    >
+                      {icon}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <label htmlFor="personaGoals" className="block text-sm font-medium text-gray-700 mb-1">
+                  Persona Goals & Perspective
+                </label>
+                <textarea
+                  id="personaGoals"
+                  placeholder="Describe what this persona focuses on and values..."
+                  value={customPersonaGoals}
+                  onChange={(e) => setCustomPersonaGoals(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setShowCustomPersonaModal(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={addCustomPersona}
+                  disabled={!customPersonaName.trim()}
+                  className={`px-4 py-2 bg-indigo-600 text-white rounded-md ${
+                    customPersonaName.trim() ? 'hover:bg-indigo-700' : 'opacity-50 cursor-not-allowed'
+                  }`}
+                >
+                  Create Persona
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <footer className="bg-slate-900 text-white py-8 px-4 md:px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm text-slate-400">&copy; {new Date().getFullYear()} GoodIdea. All rights reserved.</p>
@@ -598,6 +921,12 @@ function Dashboard({ notes, setNotes, user }) {
           </div>
         </div>
       </footer>
+
+      {/* Global tooltip container that will float above everything */}
+      <div 
+        id="persona-tooltip" 
+        className="hidden fixed z-[9999] bg-gray-800 text-white p-3 rounded-md shadow-xl max-w-xs transform -translate-y-1/2 pointer-events-none"
+      ></div>
     </div>
   );
 }
