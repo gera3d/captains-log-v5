@@ -981,6 +981,13 @@ function FullIdeaPage({ user, session }) {
           idea = idea.replace(/\\n/g, '\n').trim();
           data.business_idea = idea;
         }
+        
+        // Set PRD content if it exists in the database
+        if (data?.prd_content) {
+          setPrdContent(data.prd_content);
+          console.log('PRD content loaded from database');
+        }
+        
         setNote(data);
       }
     };
@@ -1071,7 +1078,22 @@ function FullIdeaPage({ user, session }) {
       }
       
       // Use either text, prd, or output field depending on n8n workflow response format
-      setPrdContent(data.text || data.prd || data.output || `# PRD for ${title}\n\nUnable to generate PRD content.`);
+      const generatedPRD = data.text || data.prd || data.output || `# PRD for ${title}\n\nUnable to generate PRD content.`;
+      
+      // Save PRD to database
+      const { error: updateError } = await supabase
+        .from('voice_notes')
+        .update({ prd_content: generatedPRD })
+        .eq('id', note.id);
+        
+      if (updateError) {
+        console.error('Error saving PRD to database:', updateError);
+        // Continue with setting the PRD content in state even if saving to DB fails
+      } else {
+        console.log('PRD saved to database successfully');
+      }
+      
+      setPrdContent(generatedPRD);
       setActiveTab('prd'); // Switch to PRD tab after generation
       
     } catch (error) {
@@ -1165,95 +1187,118 @@ function FullIdeaPage({ user, session }) {
             </button>
           </div>
           
-          {/* Tab navigation - NEW */}
-          <div className="border-b border-gray-200">
-            <div className="flex px-4 sm:px-6">
+          {/* Tab Navigation - Matching Dark Theme */}
+          <div className="bg-[#1E1E1E] border-b border-gray-800">
+            <div className="flex px-4 sm:px-6 relative">
               <button
                 onClick={() => setActiveTab('idea')}
-                className={`py-3 px-4 font-medium text-sm border-b-2 transition-colors ${
+                className={`flex items-center py-3 px-4 font-medium text-sm transition-all duration-200 relative ${
                   activeTab === 'idea'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'text-white bg-[#121212]'
+                    : 'text-gray-300 hover:text-gray-100'
                 }`}
+                aria-current={activeTab === 'idea' ? 'page' : undefined}
               >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className={`mr-2 h-5 w-5 ${activeTab === 'idea' ? 'text-white' : 'text-gray-400'}`} 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
                 Idea
               </button>
               <button
                 onClick={() => prdContent && setActiveTab('prd')}
-                className={`py-3 px-4 font-medium text-sm border-b-2 transition-colors ${
+                disabled={!prdContent}
+                className={`flex items-center py-3 px-4 font-medium text-sm transition-all duration-200 relative ${
                   activeTab === 'prd'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } ${!prdContent ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    ? 'text-white bg-purple-800'
+                    : 'text-gray-300 hover:text-gray-100'
+                } ${!prdContent ? 'cursor-not-allowed opacity-50' : ''}`}
+                aria-current={activeTab === 'prd' ? 'page' : undefined}
               >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className={`mr-2 h-5 w-5 ${activeTab === 'prd' ? 'text-white' : 'text-gray-400'}`} 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
                 PRD {!prdContent && '(Not Generated)'}
               </button>
             </div>
           </div>
 
-          {/* Content section with proper padding and overflow handling */}
-          <div className="px-4 py-6 sm:px-6 overflow-auto">
-            {/* Notification toast */}
-            {copied && (
-              <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white font-medium px-4 py-2 rounded-md shadow-lg z-50">
-                {copied === 'idea' ? 'Markdown copied!' : 'Link copied!'}
+          {/* Content section with improved transitions */}
+          <div className={`px-4 py-6 sm:px-6 overflow-auto transition-all duration-200 ${
+            activeTab === 'idea' ? 'block' : 'hidden'
+          }`}>
+            {/* Existing idea tab content */}
+            {note ? (
+              <>
+                {note.created_at && (
+                  <p className="text-sm text-gray-500 mb-3">
+                    Created on {new Date(note.created_at).toLocaleString()}
+                  </p>
+                )}
+                
+                <div className="prose max-w-none">
+                  {note.business_idea ? (
+                    <ReactMarkdown>{note.business_idea}</ReactMarkdown>
+                  ) : note.transcript ? (
+                    <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                      <p className="text-gray-800 whitespace-pre-wrap">{note.transcript}</p>
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 italic">No content available for this note.</p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
               </div>
             )}
-            
-            {/* Tab content */}
-            {activeTab === 'idea' ? (
-              <div>
-                {note ? (
-                  <>
-                    {note.created_at && (
-                      <p className="text-sm text-gray-500 mb-3">
-                        Created on {new Date(note.created_at).toLocaleString()}
-                      </p>
-                    )}
-                    
-                    <div className="prose max-w-none">
-                      {note.business_idea ? (
-                        <ReactMarkdown>{note.business_idea}</ReactMarkdown>
-                      ) : note.transcript ? (
-                        <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
-                          <p className="text-gray-800 whitespace-pre-wrap">{note.transcript}</p>
-                        </div>
-                      ) : (
-                        <p className="text-gray-500 italic">No content available for this note.</p>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-                  </div>
-                )}
+          </div>
+
+          <div className={`px-4 py-6 sm:px-6 overflow-auto transition-all duration-200 ${
+            activeTab === 'prd' ? 'block' : 'hidden'
+          }`}>
+            {/* PRD tab content */}
+            {prdContent ? (
+              <div className="prose max-w-none">
+                <ReactMarkdown>{prdContent}</ReactMarkdown>
               </div>
             ) : (
-              <div>
-                {prdContent ? (
-                  <div className="prose max-w-none">
-                    <ReactMarkdown>{prdContent}</ReactMarkdown>
+              <div className="text-center py-12">
+                {prdError ? (
+                  <div className="text-red-600 mb-4">
+                    <p className="font-semibold">Error generating PRD:</p>
+                    <p>{prdError}</p>
                   </div>
                 ) : (
-                  <div className="text-center py-12">
-                    {prdError ? (
-                      <div className="text-red-600 mb-4">
-                        <p className="font-semibold">Error generating PRD:</p>
-                        <p>{prdError}</p>
-                      </div>
-                    ) : (
-                      <p className="text-gray-500 mb-4">No PRD has been generated for this idea yet.</p>
-                    )}
-                    <button
-                      onClick={handleCreatePRD}
-                      disabled={generatingPRD}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                      {generatingPRD ? 'Generating PRD...' : 'Generate PRD'}
-                    </button>
-                  </div>
+                  <p className="text-gray-500 mb-4">No PRD has been generated for this idea yet.</p>
                 )}
+                <button
+                  onClick={handleCreatePRD}
+                  disabled={generatingPRD}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  {generatingPRD ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Generating...
+                    </>
+                  ) : 'Generate PRD'}
+                </button>
               </div>
             )}
           </div>
