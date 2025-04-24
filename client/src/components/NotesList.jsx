@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import 'react-h5-audio-player/lib/styles.css';
+import { useAuth } from '../contexts/AuthContext'; // Import useAuth
 
 export default function NotesList({ notes, setNotes }) {
   const [durations, setDurations] = useState({});
@@ -12,6 +13,11 @@ export default function NotesList({ notes, setNotes }) {
   const [showArchived, setShowArchived] = useState(false);
   const [copiedLink, setCopiedLink] = useState(null);
   const [loadingNotes, setLoadingNotes] = useState(true);
+  const [pushingToGitHub, setPushingToGitHub] = useState({}); // State for GitHub push loading
+  const [gitHubError, setGitHubError] = useState(null); // State for GitHub errors
+  const [gitHubSuccess, setGitHubSuccess] = useState(null); // State for GitHub success messages
+
+  const { session, loginWithGitHub } = useAuth(); // Get session and login function from AuthContext
 
   // Persist showArchived state
   useEffect(() => {
@@ -72,6 +78,81 @@ export default function NotesList({ notes, setNotes }) {
     });
   }, [notes]);
 
+  // Function to handle pushing a note to GitHub
+  const handlePushToGitHub = async (note) => {
+    setGitHubError(null);
+    setGitHubSuccess(null);
+
+    // 1. Check if user has linked GitHub and has necessary tokens
+    const isGitHubLinked = session?.user?.app_metadata?.providers?.includes('github');
+    if (!isGitHubLinked || !session?.provider_token || !session?.access_token) {
+      alert('Please log in specifically with GitHub first to use this feature.');
+      try {
+        // Attempt to initiate GitHub login
+        await loginWithGitHub(); 
+      } catch (error) {
+        console.error('GitHub login initiation failed:', error);
+        setGitHubError('Failed to initiate GitHub login.');
+      }
+      return;
+    }
+
+    // 2. Prompt for repository details
+    const repoName = prompt("Enter GitHub repository name (e.g., my-captains-log-notes):");
+    if (!repoName) return; // User cancelled
+
+    const isNewRepo = confirm("Is this a new repository? (Click OK for Yes, Cancel for No)");
+
+    setPushingToGitHub(prev => ({ ...prev, [note.id]: true }));
+
+    // Log the session object for debugging
+    console.log("Session object before invoking function:", session);
+
+    try {
+      // Ensure session, access_token, and provider_token exist
+      const accessToken = session.access_token;
+      const githubProviderToken = session.provider_token; // Get the GitHub token
+      if (!accessToken) {
+        throw new Error("Supabase access token not found in session.");
+      }
+      if (!githubProviderToken) {
+        // This check might be redundant given the earlier check, but good for clarity
+        throw new Error("GitHub provider token not found in session.");
+      }
+      console.log("Using Access Token for Authorization header:", accessToken);
+      console.log("Sending GitHub Provider Token in body:", githubProviderToken); // Log the provider token
+
+      // 3. Invoke the Edge Function with explicit Authorization header AND provider_token in body
+      const { data, error } = await supabase.functions.invoke('push-to-github', {
+        body: {
+          note,
+          repoName,
+          isNewRepo,
+          githubToken: githubProviderToken // Pass the token in the body
+        },
+        headers: {
+          'Authorization': `Bearer ${accessToken}` // Keep this for Supabase function auth
+        }
+      });
+
+      if (error) throw error;
+
+      console.log('GitHub push response:', data);
+      setGitHubSuccess(`Successfully pushed to ${data.repoUrl || repoName}. File: ${data.fileUrl || 'link unavailable'}`);
+      // Optionally clear success message after a few seconds
+      setTimeout(() => setGitHubSuccess(null), 5000);
+
+    } catch (error) {
+      console.error('Error pushing to GitHub:', error);
+      const errorMessage = error.message || (error.context?.error_description) || 'Failed to push note to GitHub.';
+      setGitHubError(`Error: ${errorMessage}`);
+      // Optionally clear error message after a few seconds
+      setTimeout(() => setGitHubError(null), 7000);
+    } finally {
+      setPushingToGitHub(prev => ({ ...prev, [note.id]: false }));
+    }
+  };
+
   return (
     <div className="w-full">
       {/* Tab Buttons - Enhanced Styling */}
@@ -104,6 +185,18 @@ export default function NotesList({ notes, setNotes }) {
       <h2 className="text-2xl font-bold text-gray-800 mb-6">
         {showArchived ? 'Archived Voice Notes' : 'Your Voice Notes'}
       </h2>
+
+      {/* Global GitHub Messages */}
+      {gitHubError && (
+        <div className="mb-4 p-3 rounded-md bg-red-100 text-red-700 border border-red-300 text-sm">
+          {gitHubError}
+        </div>
+      )}
+      {gitHubSuccess && (
+        <div className="mb-4 p-3 rounded-md bg-green-100 text-green-700 border border-green-300 text-sm">
+          {gitHubSuccess}
+        </div>
+      )}
 
       {/* Loading and Empty States */}
       {loadingNotes ? (
@@ -282,6 +375,39 @@ export default function NotesList({ notes, setNotes }) {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                       </svg>
                       {copiedLink === note.id ? 'Link Copied!' : 'Share'}
+                    </button>
+
+                    {/* Add Push to GitHub Button */}
+                    <button
+                      onClick={() => handlePushToGitHub(note)}
+                      disabled={pushingToGitHub[note.id]}
+                      className={`
+                        inline-flex items-center px-4 py-1.5 rounded-full border text-xs font-medium transition-all duration-200
+                        focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-purple-500 shadow-sm
+                        ${pushingToGitHub[note.id]
+                          ? 'border-gray-300 bg-gray-200 text-gray-500 cursor-wait'
+                          : 'border-purple-500 bg-purple-100 text-purple-700 hover:bg-purple-200'}
+                      `}
+                      aria-label="Push note to GitHub repository"
+                      aria-busy={pushingToGitHub[note.id]}
+                    >
+                      {pushingToGitHub[note.id] ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4 mr-2 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Pushing...
+                        </>
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253m9-1.747c1.168.776 2.754 1.253 4.5 1.253s3.332-.477 4.5-1.253m0-13C13.168 7.523 14.754 8 16.5 8s3.332-.477 4.5-1.253" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 15.75l3-3m0 0l3 3m-3-3v-6m-1.5 6a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm6 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                          </svg>
+                          Push to GitHub
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>

@@ -3,26 +3,54 @@ import { useAuth } from "../contexts/AuthContext";
 import LoadingSpinner from "./LoadingSpinner";
 
 export default function AuthButton({ className = "", variant = "standard" }) {
-  const { user, loading, error, login, logout } = useAuth();
+  const { user, loading, error, login, loginWithGitHub, logout } = useAuth();
 
-  const handleClick = async () => {
+  const handleGoogleLogin = async () => {
     if (loading) return;
-    if (user) {
-      await logout();
-    } else {
-      await login();
-    }
+    await login();
+  };
+
+  const handleGitHubLogin = async () => {
+    if (loading) return;
+    await loginWithGitHub();
+  };
+
+  const handleLogout = async () => {
+    if (loading) return;
+    await logout();
   };
 
   return (
-    <div className={`flex justify-center ${className}`}>
-      <button
-        onClick={handleClick}
-        disabled={loading}
-        className={`btn ${user ? 'btn-secondary' : 'btn-primary'} ${loading ? 'loading' : ''}`}
-      >
-        {loading ? '' : user ? 'Sign Out' : 'Sign in with Google'}
-      </button>
+    <div className={`flex flex-col sm:flex-row items-center justify-center gap-3 ${className}`}>
+      {loading ? (
+        <LoadingSpinner />
+      ) : user ? (
+        <button
+          onClick={handleLogout}
+          disabled={loading}
+          className={`btn btn-secondary ${loading ? 'loading' : ''}`}
+        >
+          Sign Out
+        </button>
+      ) : (
+        <>
+          <button
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            className={`btn btn-primary ${loading ? 'loading' : ''}`}
+          >
+            Sign in with Google
+          </button>
+          <button
+            onClick={handleGitHubLogin}
+            disabled={loading}
+            className={`btn btn-accent ${loading ? 'loading' : ''}`}
+          >
+            Sign in with GitHub
+          </button>
+        </>
+      )}
+      {error && <p className="text-red-500 text-xs mt-2">{error}</p>}
     </div>
   );
 }

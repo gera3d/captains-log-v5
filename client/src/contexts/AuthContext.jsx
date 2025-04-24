@@ -37,6 +37,8 @@ export function AuthProvider({ children }) {
     })();
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("[AuthContext] onAuthStateChange event:", event);
+      console.log("[AuthContext] onAuthStateChange session:", session);
       setSession(session);
       setUser(session?.user || null);
       setLoading(false);
@@ -75,6 +77,33 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // Login with GitHub
+  const loginWithGitHub = useCallback(async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      // Initiate GitHub OAuth flow with repo scope
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "github",
+        options: {
+          redirectTo: window.location.origin,
+          scopes: 'repo', // Request repository access
+        }
+      });
+      if (error) throw error;
+      // redirect browser to OAuth URL returned
+      if (data?.url) window.location.assign(data.url);
+    } catch (err) {
+      if (err?.message?.includes("popup")) {
+        setError("Popup closed before completing GitHub sign in.");
+      } else {
+        setError(err?.message || "GitHub Sign in failed.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Logout
   const logout = useCallback(async () => {
     setError(null);
@@ -96,6 +125,7 @@ export function AuthProvider({ children }) {
     loading,
     error,
     login,
+    loginWithGitHub, // Add the new function here
     logout,
   };
 
