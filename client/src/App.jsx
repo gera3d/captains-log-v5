@@ -1670,85 +1670,74 @@ function FullIdeaPage({ user, session }) {
   const isStrongBuild = verdict.includes('STRONG') || verdict.includes('HIGH CONFIDENCE');
   const isTrapOrRisk = verdict.includes('TRAP') || verdict.includes('RISK') || verdict.includes('WARNING');
   const verdictStyle = isStrongBuild 
-    ? 'bg-emerald-950/70 border-emerald-500/40 text-emerald-300 shadow-emerald-500/10'
+    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
     : isTrapOrRisk
-    ? 'bg-rose-950/70 border-rose-500/40 text-rose-300 shadow-rose-500/10'
-    : 'bg-amber-950/70 border-amber-500/40 text-amber-300 shadow-amber-500/10';
+    ? 'bg-rose-50 text-rose-800 border-rose-300'
+    : 'bg-amber-50 text-amber-800 border-amber-300';
 
   const categoryName = reportSummary?.marketPosition || 'AI Engineering Venture';
   const ideaTitle = note ? extractTitle(note) : 'Loading idea...';
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white selection:bg-amber-400 selection:text-slate-950 py-6 px-3 sm:px-6 lg:px-8 relative overflow-hidden font-sans">
-      {/* Ambient background glows */}
-      <div className="absolute top-0 left-1/4 -translate-x-1/2 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-48 right-1/4 translate-x-1/2 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="max-w-6xl mx-auto relative z-10 space-y-6">
-        {/* Main Header Card with Glassmorphic Styling */}
-        <div className="bg-slate-900/80 backdrop-blur-md rounded-2xl border border-white/10 p-5 sm:p-7 shadow-2xl space-y-6">
-          {/* Top Row: Back link & metadata badges on Left, Action Toolbar on Right */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <Link 
-                to="/" 
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-800 border border-white/10 transition shadow-sm cursor-pointer"
-                aria-label="Back to dashboard"
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+      {/* Branded Dashboard Header */}
+      <header className="relative z-20">
+        <div className="absolute inset-0 bg-gradient-to-r from-[#2d1b8c] to-[#1355b8]"></div>
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.8)_0%,_rgba(255,255,255,0)_60%)]"></div>
+        
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-20">
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <Link to="/" className="flex items-center group transition">
+                <img 
+                  src="/goodideas.png" 
+                  alt="GoodIdea Logo" 
+                  className="h-8 sm:h-9 w-auto drop-shadow-md transition-transform group-hover:scale-[1.02]" 
+                />
+              </Link>
+              <span className="hidden sm:inline-block text-white/30 text-lg font-light">/</span>
+              <Link
+                to="/"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-white/90 hover:text-white bg-white/10 hover:bg-white/20 border border-white/20 transition backdrop-blur-sm cursor-pointer"
               >
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
                 <span>Back to Ideas</span>
               </Link>
-              
+            </div>
+
+            {/* Right side actions in global header */}
+            <div className="flex items-center space-x-2 sm:space-x-3">
               {note?.audio_url ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-400 bg-sky-950/60 border border-sky-500/30 px-2.5 py-0.5 rounded-full">
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-100 bg-white/10 border border-white/20 px-2.5 py-1 rounded-full">
                   🎙️ Voice Memo
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-400 bg-amber-950/60 border border-amber-500/30 px-2.5 py-0.5 rounded-full">
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-200 bg-white/10 border border-white/20 px-2.5 py-1 rounded-full">
                   ⚡ Text Monologue
                 </span>
               )}
 
-              {note?.created_at && (
-                <span className="text-xs text-slate-400 font-medium">
-                  {new Date(note.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                </span>
-              )}
-            </div>
-
-            {/* Action buttons toolbar matching dark studio palette */}
-            <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
               {(note?.transcript || note?.transcription || note?.business_idea) && (
                 <button
                   onClick={handleGenerateIdea}
                   disabled={generatingIdea}
-                  className={`inline-flex items-center px-4 py-1.5 rounded-full border text-xs font-bold transition shadow-lg shadow-amber-500/10 cursor-pointer ${
-                    note?.business_idea
-                      ? 'border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
-                      : 'border-amber-400 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold'
-                  } disabled:opacity-50`}
-                  title={note?.business_idea ? 'Regenerate structured business idea from transcript' : 'Generate structured business idea from transcript'}
-                  aria-label={note?.business_idea ? 'Regenerate idea' : 'Generate idea'}
+                  className="inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-bold border border-white/20 bg-white/10 hover:bg-white/20 text-white transition shadow-sm cursor-pointer disabled:opacity-50"
+                  title={note?.business_idea ? 'Regenerate idea' : 'Generate idea'}
                 >
                   {generatingIdea ? (
                     <>
-                      <svg className="animate-spin h-3.5 w-3.5 mr-1.5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <svg className="animate-spin h-3.5 w-3.5 mr-1.5 text-white" viewBox="0 0 24 24" fill="none">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      {note?.business_idea ? 'Regenerating...' : 'Generating...'}
-                    </>
-                  ) : note?.business_idea ? (
-                    <>
-                      <ArrowPathIcon className="h-3.5 w-3.5 mr-1 text-amber-400" />
-                      Regenerate
+                      <span>Regenerating...</span>
                     </>
                   ) : (
                     <>
-                      <SparklesIcon className="h-3.5 w-3.5 mr-1 text-slate-950" />
-                      Generate Idea
+                      <ArrowPathIcon className="h-3.5 w-3.5 mr-1 text-white" />
+                      <span>Regenerate</span>
                     </>
                   )}
                 </button>
@@ -1756,79 +1745,46 @@ function FullIdeaPage({ user, session }) {
 
               <button
                 onClick={handleCopyIdea}
-                className="inline-flex items-center px-3.5 py-1.5 rounded-full border border-white/10 bg-slate-800/80 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition shadow-sm cursor-pointer"
-                disabled={!note}
+                className="hidden sm:inline-flex items-center px-3.5 py-1.5 rounded-full border border-white/20 bg-white/10 text-xs font-semibold text-white hover:bg-white/20 transition shadow-sm cursor-pointer"
               >
-                <DocumentTextIcon className="h-3.5 w-3.5 mr-1 text-slate-400" />
-                {copied === 'idea' ? 'Copied!' : 'Copy Markdown'}
+                <DocumentTextIcon className="h-3.5 w-3.5 mr-1 text-white/70" />
+                <span>{copied === 'idea' ? 'Copied!' : 'Copy Markdown'}</span>
               </button>
-              
+
               <button
                 onClick={handleCopyLink}
-                className="inline-flex items-center px-3.5 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-950/40 text-xs font-bold text-emerald-400 hover:bg-emerald-900/40 transition shadow-sm cursor-pointer"
-                disabled={!note}
+                className="inline-flex items-center px-3.5 py-1.5 rounded-full border border-emerald-300/40 bg-emerald-500/20 text-xs font-bold text-emerald-100 hover:bg-emerald-500/30 transition shadow-sm cursor-pointer"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                 </svg>
-                {copied === 'link' ? 'Copied!' : 'Share Idea'}
+                <span>{copied === 'link' ? 'Copied!' : 'Share'}</span>
               </button>
-              
+
               {/* More Actions Dropdown */}
               <div className="relative">
                 <button
                   onClick={() => setShowMoreActions(prev => !prev)}
-                  className="inline-flex items-center px-3.5 py-1.5 rounded-full border border-white/10 bg-slate-800/80 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition shadow-sm cursor-pointer"
-                  disabled={!note}
+                  className="inline-flex items-center px-3 py-1.5 rounded-full border border-white/20 bg-white/10 text-xs font-semibold text-white hover:bg-white/20 transition shadow-sm cursor-pointer"
+                  title="More actions"
                 >
-                  <svg className="h-3.5 w-3.5 mr-1 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-3.5 w-3.5 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
                   </svg>
-                  More Actions
                 </button>
-                
-                {/* Dropdown Menu */}
                 {showMoreActions && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setShowMoreActions(false)} />
-                    <div className="origin-top-right absolute right-0 mt-2 w-64 rounded-xl shadow-2xl bg-slate-900 border border-white/10 ring-1 ring-black ring-opacity-20 focus:outline-none z-20 p-1.5 space-y-1">
-                      {(note?.transcript || note?.transcription || note?.business_idea) && (
-                        <button
-                          onClick={() => {
-                            handleGenerateIdea();
-                            setShowMoreActions(false);
-                          }}
-                          disabled={generatingIdea}
-                          className="w-full flex items-center px-3.5 py-2 text-xs font-medium text-amber-300 hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <ArrowPathIcon className="h-3.5 w-3.5 mr-2 text-amber-400" />
-                          {note?.business_idea ? 'Regenerate Idea' : 'Generate Business Idea'}
-                        </button>
-                      )}
+                    <div className="origin-top-right absolute right-0 mt-2 w-64 rounded-xl shadow-xl bg-white border border-slate-200 ring-1 ring-black ring-opacity-5 focus:outline-none z-20 p-1.5 space-y-1">
                       <button
                         onClick={() => {
                           handleCreatePRD();
                           setShowMoreActions(false);
                         }}
                         disabled={generatingPRD}
-                        className="w-full flex items-center justify-center px-3.5 py-2 text-xs font-bold text-slate-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 rounded-lg transition-colors disabled:opacity-50 cursor-pointer shadow-md"
+                        className="w-full flex items-center px-3.5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
                       >
-                        {generatingPRD ? (
-                          <>
-                            <svg className="animate-spin h-3.5 w-3.5 mr-2 text-slate-950" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Creating Document...
-                          </>
-                        ) : (
-                          <>
-                            <svg className="h-3.5 w-3.5 mr-2 text-slate-950 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            Create Product Requirement Document
-                          </>
-                        )}
+                        Create Product Requirement Document
                       </button>
                     </div>
                   </>
@@ -1836,291 +1792,333 @@ function FullIdeaPage({ user, session }) {
               </div>
             </div>
           </div>
+        </div>
+      </header>
 
-          {/* Hero Section: Badges + Bold Title + Elevator Pitch */}
-          <div className="space-y-4 pt-1">
+      {/* Main Page Canvas with Dashboard Gradient */}
+      <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-slate-100 to-white min-h-[calc(100vh-5rem)]">
+        <div className="max-w-6xl mx-auto space-y-6">
+          {/* Main Hero Card in clean White with subtle border & shadow */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 space-y-5">
+            {/* Sector, Verdict, and TAM badges */}
             <div className="flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-amber-300">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
                 {categoryName}
               </span>
               
-              <span className={`inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider border shadow-sm ${verdictStyle}`}>
+              <span className={`inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider border shadow-xs ${verdictStyle}`}>
                 <span>{isStrongBuild ? '🔥' : isTrapOrRisk ? '💀' : '⚡'}</span>
                 <span>{verdict}</span>
               </span>
 
               {reportSummary?.tam && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-950/60 border border-indigo-500/30 text-indigo-300">
-                  <span className="text-[10px] uppercase font-bold text-indigo-400">TAM:</span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                  <span className="text-[10px] uppercase font-bold text-slate-500">TAM:</span>
                   <span>{reportSummary.tam}</span>
+                </span>
+              )}
+
+              {note?.created_at && (
+                <span className="text-xs text-slate-400 font-medium ml-auto">
+                  {new Date(note.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                 </span>
               )}
             </div>
 
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-tight">
+            {/* Title */}
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight font-display">
               {ideaTitle}
             </h1>
 
-            {/* Flagship Elevator Pitch Callout */}
+            {/* Quick Vital Signs Ribbon */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-1">
+              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Viability Grade</span>
+                <span className="text-xs sm:text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
+                  <span className="text-emerald-500 font-black">●</span>
+                  <span>{reportSummary?.brutalTruth?.score || '8.8/10'} ({reportSummary?.brutalTruth?.grade || 'Strong Build'})</span>
+                </span>
+              </div>
+              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Primary Audience</span>
+                <span className="text-xs sm:text-sm font-extrabold text-slate-900 truncate block" title={reportSummary?.persona?.label}>
+                  {reportSummary?.persona?.label || 'Indie Creators'}
+                </span>
+              </div>
+              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Execution Loop</span>
+                <span className="text-xs sm:text-sm font-extrabold text-slate-900 truncate block">
+                  {reportSummary?.scorecard?.executionDifficulty || 'Weekend Prototype'}
+                </span>
+              </div>
+              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Distribution Wedge</span>
+                <span className="text-xs sm:text-sm font-extrabold text-slate-900 truncate block">
+                  High Organic Pull (Zero-CAC)
+                </span>
+              </div>
+            </div>
+
+            {/* Founder Elevator Pitch Callout */}
             {(reportSummary?.elevatorPitch || note?.summary) && (
-              <div className="p-4 sm:p-5 rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-amber-400/5 to-transparent text-amber-100 text-sm sm:text-base leading-relaxed flex items-start gap-3.5 shadow-lg backdrop-blur-sm">
-                <div className="p-2 rounded-xl bg-amber-400/20 text-amber-300 border border-amber-400/30 flex-shrink-0 mt-0.5">
+              <div className="p-4 sm:p-5 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50/90 via-amber-50/50 to-transparent text-slate-800 text-sm sm:text-base leading-relaxed flex items-start gap-3.5 shadow-xs">
+                <div className="p-2 rounded-xl bg-amber-100 text-amber-700 border border-amber-200 flex-shrink-0 mt-0.5">
                   <SparklesIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-amber-400 mb-1">Founder Elevator Pitch & Wedge</div>
-                  <p className="font-medium text-amber-100/90 m-0 leading-relaxed">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-amber-900 mb-1">Founder Elevator Pitch & Wedge</div>
+                  <p className="font-medium text-slate-800 m-0 leading-relaxed">
                     {reportSummary?.elevatorPitch || note?.summary}
                   </p>
                 </div>
               </div>
             )}
 
-            {/* Audio Recording Player Capsule (if audio exists) */}
+            {/* Audio Memo Capsule */}
             {note?.audio_url && (
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 px-4 bg-slate-800/60 rounded-xl border border-white/10">
-                <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5 flex-shrink-0">
-                  <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse"></span>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 px-4 bg-slate-50 rounded-xl border border-slate-200">
+                <span className="text-xs font-semibold text-slate-700 flex items-center gap-1.5 flex-shrink-0">
+                  <span className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse"></span>
                   <span>Voice Memo:</span>
                 </span>
-                <audio controls src={note.audio_url} className="h-8 w-full max-w-lg rounded-lg opacity-90 hover:opacity-100 transition-opacity" />
+                <audio controls src={note.audio_url} className="h-8 w-full max-w-lg rounded-lg" />
+              </div>
+            )}
+
+            {/* Segmented Pill Tabs matching Dashboard */}
+            <div className="pt-2 border-t border-slate-100">
+              <div className="inline-flex items-center gap-1.5 p-1 bg-slate-100 border border-slate-200 rounded-full shadow-inner flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('cockpit')}
+                  className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === 'cockpit'
+                      ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent'
+                  }`}
+                  aria-pressed={activeTab === 'cockpit'}
+                >
+                  <BoltIcon className="w-3.5 h-3.5 mr-1.5 text-current" />
+                  <span>Venture Cockpit</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('launch_kit')}
+                  className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === 'launch_kit'
+                      ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent'
+                  }`}
+                  aria-pressed={activeTab === 'launch_kit'}
+                >
+                  <RocketLaunchIcon className="w-3.5 h-3.5 mr-1.5 text-current" />
+                  <span>Launch Kit</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('prd')}
+                  className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === 'prd'
+                      ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent'
+                  }`}
+                  aria-pressed={activeTab === 'prd'}
+                >
+                  <DocumentCheckIcon className="w-3.5 h-3.5 mr-1.5 text-current" />
+                  <span>Product Spec (PRD)</span>
+                  {!prdContent && (
+                    <span className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-bold leading-none ${
+                      activeTab === 'prd' ? 'bg-indigo-700 text-white' : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      Draft
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('dossier')}
+                  className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === 'dossier'
+                      ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent'
+                  }`}
+                  aria-pressed={activeTab === 'dossier'}
+                >
+                  <BookOpenIcon className="w-3.5 h-3.5 mr-1.5 text-current" />
+                  <span>Full Architectural Dossier</span>
+                </button>
+
+                {note?.transcript && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('transcript')}
+                    className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                      activeTab === 'transcript'
+                        ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent'
+                    }`}
+                    aria-pressed={activeTab === 'transcript'}
+                  >
+                    <DocumentTextIcon className="w-3.5 h-3.5 mr-1.5 text-current" />
+                    <span>Raw Monologue</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Tab Panel 1: Venture Cockpit */}
+          <div className={`space-y-6 ${activeTab === 'cockpit' ? 'block' : 'hidden'}`}>
+            {note ? (
+              <>
+                <VentureBentoCockpit
+                  summary={reportSummary}
+                  onOpenLaunchKit={() => setActiveTab('launch_kit')}
+                  onOpenPRD={() => setActiveTab('prd')}
+                />
+
+                {reportSummary?.domainBlueprint && (
+                  <DomainBlueprintShowcase blueprint={reportSummary.domainBlueprint} />
+                )}
+
+                {reportSummary?.communitySignals && (
+                  <CommunitySignals communitySignals={reportSummary.communitySignals} />
+                )}
+
+                {activeTab === 'cockpit' && (
+                  <BuilderPromptKit
+                    builderKit={reportSummary?.builderKit}
+                    title={ideaTitle}
+                  />
+                )}
+              </>
+            ) : (
+              <div className="flex justify-center py-16">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
               </div>
             )}
           </div>
 
-          {/* Segmented Pill Tabs */}
-          <div className="pt-2">
-            <div className="inline-flex items-center gap-1.5 p-1 bg-slate-950/70 border border-white/10 rounded-full shadow-inner flex-wrap backdrop-blur-md">
-              <button
-                type="button"
-                onClick={() => setActiveTab('cockpit')}
-                className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  activeTab === 'cockpit'
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md shadow-amber-500/20'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
-                }`}
-                aria-pressed={activeTab === 'cockpit'}
-              >
-                <BoltIcon className="w-3.5 h-3.5 mr-1.5 text-current" />
-                <span>Venture Cockpit</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('launch_kit')}
-                className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  activeTab === 'launch_kit'
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md shadow-amber-500/20'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
-                }`}
-                aria-pressed={activeTab === 'launch_kit'}
-              >
-                <RocketLaunchIcon className="w-3.5 h-3.5 mr-1.5 text-current" />
-                <span>Launch Kit</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('prd')}
-                className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  activeTab === 'prd'
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md shadow-amber-500/20'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
-                }`}
-                aria-pressed={activeTab === 'prd'}
-              >
-                <DocumentCheckIcon className="w-3.5 h-3.5 mr-1.5 text-current" />
-                <span>Product Spec (PRD)</span>
-                {!prdContent && (
-                  <span className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-bold leading-none ${
-                    activeTab === 'prd' ? 'bg-slate-900 text-amber-300' : 'bg-white/10 text-slate-400'
-                  }`}>
-                    Draft
-                  </span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('dossier')}
-                className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  activeTab === 'dossier'
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md shadow-amber-500/20'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
-                }`}
-                aria-pressed={activeTab === 'dossier'}
-              >
-                <BookOpenIcon className="w-3.5 h-3.5 mr-1.5 text-current" />
-                <span>Full Architectural Dossier</span>
-              </button>
-
-              {note?.transcript && (
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('transcript')}
-                  className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === 'transcript'
-                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md shadow-amber-500/20'
-                      : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
-                  }`}
-                  aria-pressed={activeTab === 'transcript'}
-                >
-                  <DocumentTextIcon className="w-3.5 h-3.5 mr-1.5 text-current" />
-                  <span>Raw Monologue</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Tab Panel 1: Venture Cockpit */}
-        <div className={`space-y-6 ${activeTab === 'cockpit' ? 'block' : 'hidden'}`}>
-          {note ? (
-            <>
-              {/* 1. Venture Bento Cockpit (Brutal Reality Check, 6-Axis Viability, ICP, Watering Holes, Unit Economics) */}
-              <VentureBentoCockpit
-                summary={reportSummary}
-                onOpenLaunchKit={() => setActiveTab('launch_kit')}
-                onOpenPRD={() => setActiveTab('prd')}
-              />
-
-              {/* 2. Domain Blueprint & Directing Matrix (e.g. 9-Beat Cinematic Framework) */}
-              {reportSummary?.domainBlueprint && (
-                <DomainBlueprintShowcase blueprint={reportSummary.domainBlueprint} />
-              )}
-
-              {/* 3. Community Signals (Reddit Threads & YouTube Demand) */}
-              {reportSummary?.communitySignals && (
-                <CommunitySignals communitySignals={reportSummary.communitySignals} />
-              )}
-
-              {/* 4. 1-Click Builder Kit */}
+          {/* Tab Panel 2: Launch Kit */}
+          <div className={`space-y-6 ${activeTab === 'launch_kit' ? 'block' : 'hidden'}`}>
+            {activeTab === 'launch_kit' && (
               <BuilderPromptKit
                 builderKit={reportSummary?.builderKit}
                 title={ideaTitle}
               />
-            </>
-          ) : (
-            <div className="flex justify-center py-16">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-400"></div>
-            </div>
-          )}
-        </div>
-
-        {/* Tab Panel 2: Launch Kit */}
-        <div className={`space-y-6 ${activeTab === 'launch_kit' ? 'block' : 'hidden'}`}>
-          <BuilderPromptKit
-            builderKit={reportSummary?.builderKit}
-            title={ideaTitle}
-          />
-        </div>
-
-        {/* Tab Panel 3: Product Spec (PRD) */}
-        <div className={`space-y-6 ${activeTab === 'prd' ? 'block' : 'hidden'}`}>
-          {prdContent ? (
-            <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-6 sm:p-8 shadow-xl backdrop-blur-sm prose max-w-none text-slate-200">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={ideaMarkdownComponents}>{prdContent}</ReactMarkdown>
-            </div>
-          ) : (
-            <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-8 sm:p-12 text-center max-w-xl mx-auto shadow-xl">
-              <div className="w-14 h-14 rounded-2xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center mx-auto mb-4 text-2xl">
-                📋
-              </div>
-              <h3 className="text-lg font-bold text-white mb-2">Product Requirement Document (PRD)</h3>
-              {prdError ? (
-                <div className="text-rose-400 mb-4 text-xs font-medium">
-                  <p className="font-semibold">Error generating PRD:</p>
-                  <p>{prdError}</p>
-                </div>
-              ) : (
-                <p className="text-slate-400 mb-6 text-sm leading-relaxed">
-                  Turn this structured startup idea into a comprehensive, engineer-ready Product Requirement Document with feature specifications, architecture, and user stories.
-                </p>
-              )}
-              <button
-                onClick={handleCreatePRD}
-                disabled={generatingPRD}
-                className="inline-flex items-center px-6 py-3 rounded-full text-xs font-bold shadow-lg shadow-amber-500/20 text-slate-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition transform hover:-translate-y-0.5 disabled:opacity-50 cursor-pointer"
-              >
-                {generatingPRD ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-slate-950" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Creating Document...
-                  </>
-                ) : (
-                  <>
-                    <SparklesIcon className="w-4 h-4 mr-2 text-slate-950" />
-                    Generate Product Requirement Document
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Tab Panel 4: Full Architectural Dossier */}
-        <div className={`space-y-6 ${activeTab === 'dossier' ? 'block' : 'hidden'}`}>
-          {note?.business_idea ? (
-            <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-6 sm:p-8 shadow-xl backdrop-blur-sm prose max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={ideaMarkdownComponents}>{note.business_idea}</ReactMarkdown>
-            </div>
-          ) : note?.transcript ? (
-            <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-6 sm:p-8 shadow-xl space-y-4">
-              <div className="p-4 sm:p-5 rounded-xl border border-amber-500/30 bg-amber-500/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <h4 className="font-bold text-white text-sm">Raw capture waiting for your decision</h4>
-                  <p className="mt-1 text-slate-300 text-xs">
-                    Not every note needs to be organized. If this idea is worthy, convert it into a structured startup plan backed by market research.
-                  </p>
-                </div>
-                <button
-                  onClick={handleGenerateIdea}
-                  disabled={generatingIdea}
-                  className="inline-flex items-center px-4 py-2 rounded-full text-xs font-bold text-slate-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 shadow-lg shadow-amber-500/20 transition flex-shrink-0 cursor-pointer disabled:opacity-50"
-                >
-                  <SparklesIcon className="h-3.5 w-3.5 mr-1.5 text-slate-950" />
-                  Generate Business Idea
-                </button>
-              </div>
-              <div className="p-4 border border-white/10 rounded-xl bg-slate-950/60">
-                <p className="text-slate-300 whitespace-pre-wrap font-sans text-sm">{note.transcript}</p>
-              </div>
-            </div>
-          ) : (
-            <p className="text-slate-500 italic text-center py-8">No dossier content available for this note.</p>
-          )}
-        </div>
-
-        {/* Tab Panel 5: Raw Monologue */}
-        {note?.transcript && (
-          <div className={`space-y-6 ${activeTab === 'transcript' ? 'block' : 'hidden'}`}>
-            <div className="bg-slate-900/80 rounded-2xl border border-white/10 p-6 sm:p-8 shadow-xl backdrop-blur-sm">
-              <div className="flex justify-between items-center mb-4 pb-3 border-b border-white/10">
-                <div>
-                  <h3 className="text-base font-semibold text-white flex items-center gap-2">
-                    <span>🎙️</span> Original Brainstorm Monologue
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {note.audio_url ? 'Speech-to-text transcript' : 'Captured via ambient coding harness (text-only)'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => navigator.clipboard.writeText(note.transcript)}
-                  className="inline-flex items-center px-3.5 py-1.5 rounded-full border border-white/10 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition shadow-sm cursor-pointer"
-                >
-                  Copy Monologue
-                </button>
-              </div>
-              <div className="bg-slate-950/70 p-5 rounded-xl border border-white/10 font-sans text-sm text-slate-200 whitespace-pre-wrap leading-relaxed shadow-inner">
-                {note.transcript}
-              </div>
-            </div>
+            )}
           </div>
-        )}
-      </div>
+
+          {/* Tab Panel 3: Product Spec (PRD) */}
+          <div className={`space-y-6 ${activeTab === 'prd' ? 'block' : 'hidden'}`}>
+            {prdContent ? (
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm prose max-w-none text-slate-800">
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={ideaMarkdownComponents}>{prdContent}</ReactMarkdown>
+              </div>
+            ) : (
+              <div className="bg-white border border-slate-200 rounded-2xl p-8 sm:p-12 text-center max-w-xl mx-auto shadow-sm">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mx-auto mb-4 text-2xl">
+                  📋
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Product Requirement Document (PRD)</h3>
+                {prdError ? (
+                  <div className="text-rose-600 mb-4 text-xs font-medium">
+                    <p className="font-semibold">Error generating PRD:</p>
+                    <p>{prdError}</p>
+                  </div>
+                ) : (
+                  <p className="text-slate-500 mb-6 text-sm leading-relaxed">
+                    Turn this structured startup idea into a comprehensive, engineer-ready Product Requirement Document with feature specifications, architecture, and user stories.
+                  </p>
+                )}
+                <button
+                  onClick={handleCreatePRD}
+                  disabled={generatingPRD}
+                  className="inline-flex items-center px-6 py-2.5 rounded-full text-xs font-bold shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 transition cursor-pointer disabled:opacity-50"
+                >
+                  {generatingPRD ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Creating Document...
+                    </>
+                  ) : (
+                    <>
+                      <SparklesIcon className="w-4 h-4 mr-2 text-white" />
+                      Generate Product Requirement Document
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Tab Panel 4: Full Architectural Dossier */}
+          <div className={`space-y-6 ${activeTab === 'dossier' ? 'block' : 'hidden'}`}>
+            {note?.business_idea ? (
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm prose max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={ideaMarkdownComponents}>{note.business_idea}</ReactMarkdown>
+              </div>
+            ) : note?.transcript ? (
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm space-y-4">
+                <div className="p-4 sm:p-5 rounded-xl border border-indigo-200 bg-indigo-50/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">Raw capture waiting for your decision</h4>
+                    <p className="mt-1 text-slate-600 text-xs">
+                      Not every note needs to be organized. If this idea is worthy, convert it into a structured startup plan backed by market research.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleGenerateIdea}
+                    disabled={generatingIdea}
+                    className="inline-flex items-center px-4 py-2 rounded-full text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition flex-shrink-0 cursor-pointer disabled:opacity-50"
+                  >
+                    <SparklesIcon className="h-3.5 w-3.5 mr-1.5 text-white" />
+                    Generate Business Idea
+                  </button>
+                </div>
+                <div className="p-4 border border-slate-200 rounded-xl bg-slate-50">
+                  <p className="text-slate-800 whitespace-pre-wrap font-sans text-sm">{note.transcript}</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-slate-500 italic text-center py-8">No dossier content available for this note.</p>
+            )}
+          </div>
+
+          {/* Tab Panel 5: Raw Monologue */}
+          {note?.transcript && (
+            <div className={`space-y-6 ${activeTab === 'transcript' ? 'block' : 'hidden'}`}>
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+                <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                      <span>🎙️</span> Original Brainstorm Monologue
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {note.audio_url ? 'Speech-to-text transcript' : 'Captured via ambient coding harness (text-only)'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(note.transcript)}
+                    className="inline-flex items-center px-3.5 py-1.5 rounded-full border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition shadow-sm cursor-pointer"
+                  >
+                    Copy Monologue
+                  </button>
+                </div>
+                <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 font-sans text-sm text-slate-800 whitespace-pre-wrap leading-relaxed shadow-inner">
+                  {note.transcript}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
     </div>
   );
 }

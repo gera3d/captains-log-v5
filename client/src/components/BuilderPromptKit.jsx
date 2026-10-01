@@ -29,11 +29,28 @@ export default function BuilderPromptKit({ builderKit, title }) {
 
   const copyToClipboard = async (text, key) => {
     try {
-      await navigator.clipboard.writeText(text);
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        throw new Error('Clipboard API not available in non-secure context');
+      }
       setCopiedKey(key);
       setTimeout(() => setCopiedKey(''), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        setCopiedKey(key);
+        setTimeout(() => setCopiedKey(''), 2000);
+      } catch (fallbackErr) {
+        console.error('Failed to copy to clipboard:', err, fallbackErr);
+      }
     }
   };
 
@@ -85,44 +102,87 @@ export default function BuilderPromptKit({ builderKit, title }) {
       return coreEnginePrompt || v1Spec?.coreEnginePrompt || mvpSystemPrompt || `You are the Lead Core Engine Architect for ${title || 'the app'}. Provide domain formulas and output strict JSON.`;
     }
 
-    const basePrompt = cursorScaffoldPrompt || v1Spec?.cursorScaffoldPrompt;
-    if (!basePrompt) {
-      return mvpSystemPrompt || '';
-    }
+    const basePrompt = (activeTab === 'engine' ? (coreEnginePrompt || v1Spec?.coreEnginePrompt) : null) ||
+                       cursorScaffoldPrompt ||
+                       v1Spec?.cursorScaffoldPrompt ||
+                       mvpSystemPrompt || '';
+
+    if (!basePrompt) return '';
 
     let modified = basePrompt;
+    const hasXmlTags = modified.includes('<tech_stack>');
 
-    // Adapt Framework Stack
-    if (framework === 'nextjs') {
-      modified = modified.replace(/<tech_stack>[\s\S]*?<\/tech_stack>/, `<tech_stack>\n- Framework: Next.js 15 (App Router) + TypeScript\n- Styling: Tailwind CSS (dark mode by default)\n- Components: Lucide React\n- State: React hooks / Server Actions\n</tech_stack>`);
-    } else if (framework === 'sveltekit') {
-      modified = modified.replace(/<tech_stack>[\s\S]*?<\/tech_stack>/, `<tech_stack>\n- Framework: SvelteKit 2 + TypeScript\n- Styling: Tailwind CSS\n- Components: Lucide Svelte\n</tech_stack>`);
-    }
-
-    // Adapt Data & Backend
-    if (dataBackend === 'supabase') {
-      const supabaseSection = `<data_backend>\n- Supabase Integration: Create \`src/lib/supabase.ts\` client.\n- Provide SQL table schemas and enable offline mock fallback when SUPABASE_URL is missing.\n</data_backend>`;
-      if (modified.includes('<mock_engine_presets>')) {
-        modified = modified.replace(/<mock_engine_presets>[\s\S]*?<\/mock_engine_presets>/, supabaseSection);
-      } else {
-        modified = modified.replace('</tech_stack>', `</tech_stack>\n\n${supabaseSection}`);
+    if (hasXmlTags) {
+      // 1. Adapt Framework Stack
+      if (framework === 'nextjs') {
+        modified = modified.replace(/<tech_stack>[\s\S]*?<\/tech_stack>/, `<tech_stack>\n- Framework: Next.js 15 (App Router) + TypeScript\n- Styling: Tailwind CSS (dark mode by default)\n- Components: Lucide React\n- State: React hooks / Server Actions\n</tech_stack>`);
+      } else if (framework === 'sveltekit') {
+        modified = modified.replace(/<tech_stack>[\s\S]*?<\/tech_stack>/, `<tech_stack>\n- Framework: SvelteKit 2 + TypeScript\n- Styling: Tailwind CSS\n- Components: Lucide Svelte\n</tech_stack>`);
       }
-    } else if (dataBackend === 'sqlite') {
-      const sqliteSection = `<data_backend>\n- Local Database: SQLite with Prisma ORM.\n- Provide \`prisma/schema.prisma\` and \`prisma/seed.ts\` with pre-seeded test scenarios.\n</data_backend>`;
-      if (modified.includes('<mock_engine_presets>')) {
-        modified = modified.replace(/<mock_engine_presets>[\s\S]*?<\/mock_engine_presets>/, sqliteSection);
-      } else {
-        modified = modified.replace('</tech_stack>', `</tech_stack>\n\n${sqliteSection}`);
-      }
-    }
 
-    // Adapt Build Horizon
-    if (buildHorizon === 'prototype') {
-      modified = modified.replace(/<long_running_v1_guidelines>[\s\S]*?<\/long_running_v1_guidelines>/, `<rapid_prototype_guidelines>\n- Build the fastest 4-file interactive core loop.\n- Prioritize instant browser interactivity with mock state.\n</rapid_prototype_guidelines>`);
+      // 2. Adapt Data & Backend
+      if (dataBackend === 'supabase') {
+        const supabaseSection = `<data_backend>\n- Supabase Integration: Create \`src/lib/supabase.ts\` client.\n- Provide SQL table schemas and enable offline mock fallback when SUPABASE_URL is missing.\n</data_backend>`;
+        if (modified.includes('<mock_engine_presets>')) {
+          modified = modified.replace(/<mock_engine_presets>[\s\S]*?<\/mock_engine_presets>/, supabaseSection);
+        } else {
+          modified = modified.replace('</tech_stack>', `</tech_stack>\n\n${supabaseSection}`);
+        }
+      } else if (dataBackend === 'sqlite') {
+        const sqliteSection = `<data_backend>\n- Local Database: SQLite with Prisma ORM.\n- Provide \`prisma/schema.prisma\` and \`prisma/seed.ts\` with pre-seeded test scenarios.\n</data_backend>`;
+        if (modified.includes('<mock_engine_presets>')) {
+          modified = modified.replace(/<mock_engine_presets>[\s\S]*?<\/mock_engine_presets>/, sqliteSection);
+        } else {
+          modified = modified.replace('</tech_stack>', `</tech_stack>\n\n${sqliteSection}`);
+        }
+      }
+
+      // 3. Adapt Build Horizon
+      if (buildHorizon === 'prototype') {
+        modified = modified.replace(/<long_running_v1_guidelines>[\s\S]*?<\/long_running_v1_guidelines>/, `<rapid_prototype_guidelines>\n- Build the fastest 4-file interactive core loop.\n- Prioritize instant browser interactivity with mock state.\n</rapid_prototype_guidelines>`);
+      }
+
+      // 4. Adapt Target Agent wrapper
+      if (targetAgent === 'claude') {
+        modified = modified.replace('<cursor_v1_composer_scaffold>', '<claude_code_v1_task>')
+                           .replace('</cursor_v1_composer_scaffold>', '</claude_code_v1_task>');
+      } else if (targetAgent === 'antigravity') {
+        modified = modified.replace('<cursor_v1_composer_scaffold>', '<antigravity_workspace_task>')
+                           .replace('</cursor_v1_composer_scaffold>', '</antigravity_workspace_task>');
+      }
+    } else {
+      // Legacy Prompt Adaptation (Natural language / prose)
+      // Framework
+      if (framework === 'nextjs') {
+        modified = modified.replace(/Create a (?:Next\.js|Vite|React|SvelteKit)[^.]*application[^.]*\./i, 'Create a Next.js 15 (App Router) application using TypeScript, Tailwind CSS, and Lucide React.');
+      } else if (framework === 'sveltekit') {
+        modified = modified.replace(/Create a (?:Next\.js|Vite|React|SvelteKit)[^.]*application[^.]*\./i, 'Create a SvelteKit 2 application using TypeScript, Tailwind CSS, and Lucide Svelte.');
+      } else if (framework === 'vite-react') {
+        modified = modified.replace(/Create a (?:Next\.js|Vite|React|SvelteKit)[^.]*application[^.]*\./i, 'Create a Vite + React 19 application using TypeScript, Tailwind CSS, and Lucide React.');
+      }
+
+      // Data Backend
+      if (dataBackend === 'supabase') {
+        modified += '\n\n[Data Strategy: Supabase]\n- Connect to Supabase for database & auth.\n- Include src/lib/supabase.ts with offline mock fallback.';
+      } else if (dataBackend === 'sqlite') {
+        modified += '\n\n[Data Strategy: SQLite]\n- Use SQLite with Prisma ORM.\n- Include prisma/schema.prisma and seed demo.';
+      }
+
+      // Build Horizon
+      if (buildHorizon === 'prototype') {
+        modified += '\n\n[Build Horizon: Rapid Prototype]\n- Build the fastest 4-file interactive core loop prioritizing instant browser interactivity.';
+      }
+
+      // Target Agent header
+      if (targetAgent === 'claude') {
+        modified = `// TARGET AGENT: Claude Code CLI (/agent)\n` + modified;
+      } else if (targetAgent === 'antigravity') {
+        modified = `// TARGET AGENT: Antigravity Workspace\n` + modified;
+      }
     }
 
     return modified;
-  }, [targetAgent, framework, dataBackend, buildHorizon, cursorScaffoldPrompt, coreEnginePrompt, v1Spec, mvpSystemPrompt, title]);
+  }, [targetAgent, framework, dataBackend, buildHorizon, activeTab, cursorScaffoldPrompt, coreEnginePrompt, v1Spec, mvpSystemPrompt, title]);
 
   const wordCount = useMemo(() => {
     return configuredPrompt.trim().split(/\s+/).length;
@@ -253,6 +313,8 @@ export default function BuilderPromptKit({ builderKit, title }) {
               <span className="text-[10px] text-emerald-600 font-semibold">Recommended</span>
             </div>
             <select
+              id="cfg-agent"
+              data-testid="cfg-agent"
               value={targetAgent}
               onChange={(e) => setTargetAgent(e.target.value)}
               className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none font-medium cursor-pointer"
@@ -271,6 +333,8 @@ export default function BuilderPromptKit({ builderKit, title }) {
               <span className="text-[10px] text-emerald-600 font-semibold">Fastest MVP</span>
             </div>
             <select
+              id="cfg-framework"
+              data-testid="cfg-framework"
               value={framework}
               onChange={(e) => setFramework(e.target.value)}
               className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none font-medium cursor-pointer"
@@ -288,6 +352,8 @@ export default function BuilderPromptKit({ builderKit, title }) {
               <span className="text-[10px] text-emerald-600 font-semibold">Zero-Key Instant</span>
             </div>
             <select
+              id="cfg-data"
+              data-testid="cfg-data"
               value={dataBackend}
               onChange={(e) => setDataBackend(e.target.value)}
               className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none font-medium cursor-pointer"
@@ -305,6 +371,8 @@ export default function BuilderPromptKit({ builderKit, title }) {
               <span className="text-[10px] text-indigo-600 font-semibold">V1 Foundation</span>
             </div>
             <select
+              id="cfg-horizon"
+              data-testid="cfg-horizon"
               value={buildHorizon}
               onChange={(e) => setBuildHorizon(e.target.value)}
               className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none font-medium cursor-pointer"
