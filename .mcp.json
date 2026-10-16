@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "paperclip": {
+      "type": "http",
+      "url": "https://command.why57.com/mcp/paperclip"
+    }
+  }
+}
