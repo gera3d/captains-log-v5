@@ -1,3 +1,4 @@
+import { workflowUrl } from '../runtimeConfig';
 import { useEffect, useState } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 import { supabase } from '../supabaseClient';
@@ -142,7 +143,7 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
         title: note.title || 'Startup Blueprint',
         type: note.business_idea ? 'regenerate' : 'generate',
         execute: async () => {
-          const response = await fetch('https://n8n.why57.com/webhook/transcript-summarize', {
+          const response = await fetch(workflowUrl('summarize'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: transcriptText.trim() }),

@@ -1,3 +1,4 @@
+import { workflowUrl } from '../runtimeConfig';
 // TODO[progress-md][P1][VoiceRecorder] See progress.md for all open voice recording tasks
 import React, { useState, useRef, useEffect } from 'react';
 import LoadingSpinner from './LoadingSpinner';
@@ -109,7 +110,7 @@ export default function VoiceRecorder({ onNoteSaved }) {
         try {
           const formData = new FormData();
           formData.append('file', blob, fileName);
-          const response = await fetch('https://n8n.why57.com/webhook/a37165d8-dcbd-4c54-8712-4400bec5f17b', {
+          const response = await fetch(workflowUrl('transcribe'), {
             method: 'POST',
             body: formData,
           });

@@ -1,3 +1,5 @@
+import { isMockStaging } from './runtimeConfig';
+import { installStagingFetch } from './stagingMock';
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
@@ -17,6 +19,17 @@ const initializeTheme = () => {
     console.warn('Theme initialization error:', e);
     // Continue even if theme setting fails
   }
+}
+
+if (isMockStaging) {
+  installStagingFetch();
+  const banner = document.createElement('div');
+  banner.setAttribute('role', 'status');
+  banner.dataset.stagingBanner = 'true';
+  banner.textContent = 'MOCK STAGING — Synthetic local data. No production backend or real AI. Browser data persists on this origin.';
+  banner.style.cssText = 'position:relative;z-index:99999;background:#713f12;color:white;padding:10px 16px;text-align:center;font:14px system-ui';
+  document.body.prepend(banner);
+  document.title = '[MOCK STAGING] Good Idea';
 }
 
 // Initialize theme before rendering

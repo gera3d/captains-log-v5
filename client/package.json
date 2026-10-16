@@ -8,7 +8,11 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "jest"
+    "test": "jest",
+    "dev:staging": "vite --mode staging --host 127.0.0.1 --port 5176 --strictPort",
+    "build:staging": "vite build --mode staging --outDir dist-staging",
+    "preview:staging": "vite preview --mode staging --host 127.0.0.1 --port 5176 --strictPort --outDir dist-staging",
+    "check:staging": "node scripts/verify-staging-isolation.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.5",

@@ -1,3 +1,4 @@
+import { workflowUrl } from './runtimeConfig';
 /*
   ROOT-TODO[HIGH]: App Structure & Release
   - Main entry point for Captain's Log app.
@@ -1509,7 +1510,7 @@ function FullIdeaPage({ user, session }) {
         title: note.title || 'Startup Blueprint',
         type: note.business_idea ? 'regenerate' : 'generate',
         execute: async () => {
-          const response = await fetch('https://n8n.why57.com/webhook/transcript-summarize', {
+          const response = await fetch(workflowUrl('summarize'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: transcriptText.trim() }),
@@ -1619,7 +1620,7 @@ function FullIdeaPage({ user, session }) {
         };
         
         // Call n8n webhook with production URL
-        const response = await fetch('https://n8n.why57.com/webhook/prd', {
+        const response = await fetch(workflowUrl('prd'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),

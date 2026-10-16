@@ -3,6 +3,10 @@
 Source for the frontend at https://idea.why57.com. The active development branch is
 `Ideahub`; GitHub's default `main` branch is older.
 
+## Agent and staging entry point
+
+Read [docs/START-HERE.md](docs/START-HERE.md) for the Paperclip master task, private Mac Pro preview, verified live/API locations and next work. Codex reads `AGENTS.md`; Claude Code reads `CLAUDE.md`. The setup below is legacy live-integration development, not isolated staging.
+
 ## Set up another computer
 
 ```powershell
