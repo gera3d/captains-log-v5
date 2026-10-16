@@ -21,7 +21,8 @@
     "react-dom": "^19.0.0",
     "react-h5-audio-player": "^3.10.0-rc.1",
     "react-markdown": "^10.1.0",
-    "react-router-dom": "^7.5.0"
+    "react-router-dom": "^7.5.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",

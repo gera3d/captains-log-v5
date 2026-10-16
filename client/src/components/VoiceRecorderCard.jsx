@@ -8,18 +8,9 @@ import VoiceRecorder from "./VoiceRecorder";
  * - Optimized for engagement and delight
  */
 const VoiceRecorderCard = ({ onNoteSaved, className = "", demoMode = false, hideGoogleSignIn = false }) => {
-  // Add a handler for demo mode clicks
-  const handleDemoClick = () => {
-    if (demoMode) {
-      // Show a tooltip or message encouraging sign up
-      alert("Sign up to start recording your ideas!");
-      // Or implement a more elegant solution like a tooltip or modal
-    }
-  };
-
   return (
     <section
-      className={`relative max-w-2xl w-full mx-auto mt-4 mb-8 rounded-3xl overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] group ${className}`}
+      className={`relative max-w-2xl w-full mx-auto ${className.includes('mt-') ? '' : 'mt-4'} ${className.includes('mb-') ? '' : 'mb-8'} rounded-3xl overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] group ${className}`}
     >
       {/* Dynamic background gradient with subtle animation */}
       <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-blue-800 to-blue-900 motion-safe:animate-gradient-slow"></div>
@@ -51,23 +42,14 @@ const VoiceRecorderCard = ({ onNoteSaved, className = "", demoMode = false, hide
         </p>
         
         {/* Voice recorder component with clear placement */}
-        <div className="w-full flex justify-center my-4 relative">
+        <div className="w-full flex justify-center my-3 relative">
           <VoiceRecorder onNoteSaved={onNoteSaved} />
         </div>
-        
-        {/* Modify the recording button to handle demo mode */}
-        <button
-          className="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition"
-          onClick={demoMode ? handleDemoClick : () => {}}
-          disabled={demoMode ? false : false}
-        >
-          Start Recording
-        </button>
 
         {/* Only show Google sign-in if not explicitly hidden */}
         {!hideGoogleSignIn && (
           <div className="mt-4">
-            {/* Your existing Google sign-in button code */}
+            {/* Google sign-in container */}
           </div>
         )}
         

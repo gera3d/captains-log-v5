@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+
+# Local tooling and generated investigation artifacts
+.claude/
+client/*screenshot*.png
+client/*elevated*.png
+client/scripts/*.png
+client/scripts/inspect_dashboard.cjs
+client/scripts/ideabrowser_page.txt

@@ -17,6 +17,7 @@ export default function Header() {
         <ul className="menu menu-horizontal px-1">
           <li><Link to="/features">Features</Link></li>
           <li><Link to="/pricing">Pricing</Link></li>
+          <li><Link to="/integrations">Integrations</Link></li>
           <li><Link to="/docs">Docs</Link></li>
         </ul>
       </div>
@@ -38,6 +39,7 @@ export default function Header() {
           <ul className="menu menu-vertical p-2 bg-primary text-primary-text">
             <li><Link to="/features">Features</Link></li>
             <li><Link to="/pricing">Pricing</Link></li>
+            <li><Link to="/integrations">Integrations</Link></li>
             <li><Link to="/docs">Docs</Link></li>
             <li>{user ? <button onClick={logout}>Sign Out</button> : <button onClick={login}>Sign In</button>}</li>
           </ul>

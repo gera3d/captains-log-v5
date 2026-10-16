@@ -15,8 +15,8 @@ module.exports = {
     },
     extend: {
       fontFamily: {
-        display: ['Poppins', 'Inter', 'ui-sans-serif', 'system-ui'],
-        sans: ['Inter', 'ui-sans-serif', 'system-ui'],
+        display: ['"Space Grotesk"', 'Poppins', 'Inter', 'ui-sans-serif', 'system-ui'],
+        sans: ['"DM Sans"', 'Inter', 'ui-sans-serif', 'system-ui'],
       },
       fontSize: {
         'h1': ['3rem', { lineHeight: '1.1' }],

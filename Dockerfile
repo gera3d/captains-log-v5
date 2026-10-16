@@ -2,6 +2,9 @@
 FROM node:18-alpine AS build
 WORKDIR /app
 
+# Set production environment variables
+ENV VITE_REDIRECT_URL=https://idea.why57.com:5175
+
 # Copy package.json and package-lock.json (or yarn.lock)
 COPY client/package.json client/package-lock.json* ./client/
 # If using yarn, copy yarn.lock instead
@@ -32,38 +35,16 @@ COPY --from=build /app/client/dist .
 # If your build output is in 'build' folder instead of 'dist', use:
 # COPY --from=build /app/client/build .
 
-# Copy custom Nginx configuration (optional, but recommended for SPAs)
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
+# --- NGINX Configuration for Single Page Application (SPA) ---
+# Copy the properly formatted NGINX configuration file.
+# Using new-nginx.conf which was created with proper encoding to avoid issues.
+# The configuration ensures that NGINX serves the SPA correctly by redirecting
+# all non-file requests to index.html, allowing client-side routing (React Router) to handle them.
+COPY new-nginx.conf /etc/nginx/conf.d/default.conf
+# --- End NGINX Configuration ---
 
 # Expose port 80
 EXPOSE 80
 
-# Start Nginx
+# Start Nginx in the foreground
 CMD ["nginx", "-g", "daemon off;"]
-
-# --- Optional: Create nginx.conf for Single Page Application routing ---
-# If you need client-side routing to work correctly, create a file
-# named 'nginx.conf' in the same directory as the Dockerfile with content like:
-#
-# server {
-#   listen 80;
-#   server_name localhost;
-#
-#   root /usr/share/nginx/html;
-#   index index.html index.htm;
-#
-#   location / {
-#     try_files $uri $uri/ /index.html;
-#   }
-#
-#   # Optional: Add configuration for API proxy if needed
-#   # location /api {
-#   #   proxy_pass http://your-backend-api:port;
-#   #   proxy_set_header Host $host;
-#   #   proxy_set_header X-Real-IP $remote_addr;
-#   #   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-#   #   proxy_set_header X-Forwarded-Proto $scheme;
-#   # }
-# }
-#
-# Then uncomment the line `COPY nginx.conf ...` above.
