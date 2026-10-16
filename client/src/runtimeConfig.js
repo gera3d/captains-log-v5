@@ -1,5 +1,6 @@
 // Staging is selected by the build mode, never by production credentials.
 export const isMockStaging = import.meta.env.MODE === 'staging';
+export const isLivePreview = import.meta.env.MODE === 'live';
 
 export function workflowUrl(workflow) {
   if (!['summarize', 'prd', 'transcribe'].includes(workflow)) throw new Error('Unknown workflow');

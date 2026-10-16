@@ -25,3 +25,6 @@ dist-ssr
 
 # Dedicated private preview build
 dist-staging/
+
+# Private preview built with browser-public live connection settings
+dist-live/

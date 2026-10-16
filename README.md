@@ -7,6 +7,10 @@ Source for the frontend at https://idea.why57.com. The active development branch
 
 Read [docs/START-HERE.md](docs/START-HERE.md) for the Paperclip master task, private Mac Pro preview, verified live/API locations and next work. Codex reads `AGENTS.md`; Claude Code reads `CLAUDE.md`. The setup below is legacy live-integration development, not isolated staging.
 
+## Current Mac Pro test website
+
+The test website can use the existing live backend in a separately labelled local mode. From `client`, use `npm run dev:live`, or `npm run build:live` followed by `npm run preview:live`, at `http://127.0.0.1:5177`. It needs an ignored local `.env.live.local`; follow the [shared runbook](docs/START-HERE.md), which lists settings and verification limits. Saves, deletes, uploads and AI calls have real effects. The mock preview remains available on port 5176 for synthetic checks.
+
 ## Set up another computer
 
 ```powershell

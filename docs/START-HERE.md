@@ -11,7 +11,7 @@ Gera chose this approach for now: run the test website on the Mac Pro and use th
 - Before changing backend behavior, database structure, shared workflows or access rules, prepare separate test data/services and a scoped task. This decision does not authorize production backend code/schema/access changes.
 - Store real connection values only in ignored local environment files or an existing secret store; never in GitHub or Paperclip. Use browser-safe Supabase keys only, never service-role keys.
 
-**Saved decision, not a connection claim:** the currently running preview is still synthetic mock mode. A live-connected local mode, credentials and API proxy/routing have not been installed or tested. Next work is [connect the Mac Pro test website to the existing backend](https://command.why57.com/AIW/issues/AIW-509). Keep both modes clearly labelled; do not silently switch the running mock preview.
+**Ready for manual testing:** the built real-backend website is running at http://127.0.0.1:5177 with a red LIVE BACKEND banner. Its API health request reached the existing server successfully. Supabase public auth settings responded; the workflow server passed a TLS reachability check without invoking a workflow. Independent local-stub checks passed for dev and built routing, required settings and privileged-key rejection. Real sign-in/return URLs, permissions, uploads and AI operations have not been exercised; those remain manual checks. The [connection task](https://command.why57.com/AIW/issues/AIW-509) records exact evidence. The sample-data preview remains on port 5176.
 
 ## Current handoff
 
@@ -28,8 +28,43 @@ Initial checks: `npm ci --no-audit --no-fund` and `npm run build` passed on the 
 | Private mock preview | [Build the Mac Pro preview](https://command.why57.com/AIW/issues/AIW-506) | Codex implementation helper under coordinator |
 | Independent verification | [Verify preview isolation](https://command.why57.com/AIW/issues/AIW-507) | Separate Codex verification helper |
 | Shared agent instructions | [Prepare the handoff](https://command.why57.com/AIW/issues/AIW-508) | Coordinator |
+| Existing-backend connection | [Connect the test website](https://command.why57.com/AIW/issues/AIW-509) | Implemented and checked; manual sign-in/feature tests remain |
 
 Read each task's current status before taking over. These are coordinator-tracked implementation subtasks, not autonomous Paperclip-agent runs or native review verdicts. Claim/record the next bounded change in Paperclip, then use an isolated feature branch/worktree. Do not duplicate an agent's active work.
+
+## Test website using the existing backend
+
+This mode is for manual website testing with real services. It is separate from the mock preview and does not replace or deploy the public website.
+
+The built version is currently running. To start a development server after stopping the existing live-mode server, from `client`:
+
+```sh
+npm run dev:live
+# Open http://127.0.0.1:5177
+```
+
+For the built website:
+
+```sh
+npm run build:live
+npm run preview:live
+# Open http://127.0.0.1:5177
+```
+
+Use one live-mode server at a time; stop its foreground process with Ctrl-C. Both modes bind only to loopback and use a strict port. The running built website uses `dist-live`, which is ignored by Git. The sample-data preview keeps port 5176 and its separate output/data.
+
+The ignored, owner-readable-only `client/.env.live.local` holds the browser-safe Supabase connection plus explicit API/workflow settings. It was created on this Mac Pro from the public frontend's existing anon key, with its role and project checked; no server/service-role credential was copied. Another computer needs its own private environment file. Variable names:
+
+- `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`: existing login/database/storage service and a browser-safe publishable/anon key.
+- `VITE_REDIRECT_URL`: this website's local address.
+- `VITE_WORKFLOW_BASE_URL`: the local workflow proxy path.
+- `LIVE_API_TARGET`, `LIVE_WORKFLOW_TARGET`: explicit existing API and workflow-server origins, used only by the local server proxy.
+
+The local server forwards `/api/v1/...` to the existing API and `/__live/workflows/...` to the existing n8n webhook paths. Missing configuration fails startup. No production fallback is supplied silently. The red banner states that saves, deletes and AI calls use real services. Live mode starts signed out and uses a separate browser auth-storage key.
+
+Run `npm run check:live-config` to repeat configuration, labelling and proxy checks against disposable local stub servers; this command never needs real credentials or production requests.
+
+Verification must distinguish connection checks from app actions. API health and public login settings can be checked without reading idea records or running a workflow. Route/method forwarding is tested with disposable local stub servers. Do not run the synthetic mock smoke check against this address. Real sign-in and changes to records are manual tests; OAuth/magic-link return URLs may require an existing matching allowlist entry. No production callback/CORS/access settings are changed by this setup.
 
 ## Private development and staging preview
 
@@ -78,7 +113,7 @@ This preview is auto-signed in as a synthetic user; it does not test authenticat
 
 ## Backend work after the initial website pass
 
-The immediate next task is AIW-509: configure and verify the Mac Pro website's manual connection to the existing backend. Do not replace the backend or build a separate one as the next step. Keep the real public website unchanged and preserve the mock preview for automated checks.
+The current connection task is AIW-509: configure and verify the Mac Pro website's manual connection to the existing backend. Do not replace the backend or build a separate one as the next step. Keep the real public website unchanged and preserve the mock preview for automated checks.
 
 Separate API/auth/storage and synthetic test data become a later milestone when changing how information is stored or processed. The known API source and host locations above remain useful then. Historical migrations and n8n exports require validation before use; do not apply them wholesale to production.
 

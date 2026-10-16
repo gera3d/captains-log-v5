@@ -10,7 +10,7 @@
 // - [Browser Test] Verify data access control
 // =========================
 import { createClient } from '@supabase/supabase-js';
-import { isMockStaging } from './runtimeConfig';
+import { isMockStaging, isLivePreview } from './runtimeConfig';
 import { mockSupabase } from './stagingMock';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
@@ -21,4 +21,4 @@ const redirectTo = import.meta.env.MODE === 'development'
   : import.meta.env.VITE_REDIRECT_URL || undefined;
 
 // Staging never creates a network Supabase client or uses a copied environment.
-export const supabase = isMockStaging ? mockSupabase : createClient(supabaseUrl, supabaseAnonKey, { auth: { redirectTo } });
+export const supabase = isMockStaging ? mockSupabase : createClient(supabaseUrl, supabaseAnonKey, { auth: { redirectTo, ...(isLivePreview ? { storageKey: 'goodidea-live-preview-auth' } : {}) } });
