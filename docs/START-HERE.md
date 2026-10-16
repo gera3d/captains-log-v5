@@ -1,5 +1,18 @@
 # GoodIdea: start here
 
+## Current testing decision — saved October 16, 2026
+
+Gera chose this approach for now: run the test website on the Mac Pro and use the existing live backend while improving the site's look and layout. Reuse the current backend; a separate backend environment is deferred until work changes how data is stored or processed.
+
+- The test website stays private on the Mac Pro. The public website stays at https://idea.why57.com.
+- Manual testing may use the existing Supabase login/database/storage, n8n workflows and ingestion API, with a dedicated test account where available.
+- Saves and deletes affect the real app. Uploads, messages or AI workflow/provider requests have their real effects and normal costs. A test account does not isolate shared workflows or database structure.
+- Keep the existing synthetic mock preview for automated agent checks and quick layout work. Automated checks must not run against live services by default.
+- Before changing backend behavior, database structure, shared workflows or access rules, prepare separate test data/services and a scoped task. This decision does not authorize production backend code/schema/access changes.
+- Store real connection values only in ignored local environment files or an existing secret store; never in GitHub or Paperclip. Use browser-safe Supabase keys only, never service-role keys.
+
+**Saved decision, not a connection claim:** the currently running preview is still synthetic mock mode. A live-connected local mode, credentials and API proxy/routing have not been installed or tested. Next work is [connect the Mac Pro test website to the existing backend](https://command.why57.com/AIW/issues/AIW-509). Keep both modes clearly labelled; do not silently switch the running mock preview.
+
 ## Current handoff
 
 Owner: Gera. Task system: Paperclip, Good Idea project. Start with [Prove the development, staging and production workflow](https://command.why57.com/AIW/issues/AIW-504#document-start-here).
@@ -46,7 +59,7 @@ npm run check:staging
 
 The check uses the existing Playwright dependency. If its Chromium executable is unavailable, provide an installed compatible browser with `PLAYWRIGHT_CHROMIUM_EXECUTABLE`; do not infer a pass from a browser launch failure. It blocks outbound requests before transmission and reports any attempt as a test failure. Its screenshot is local-only in `client/artifacts/mock-staging.png` (ignored by Git).
 
-Use one server at a time; stop the foreground server with Ctrl-C. The implementation must bind to loopback and fail rather than silently pick a different port or production endpoint. No production `.env` is required. Ordinary `npm run dev` is the legacy integration mode and is not the isolated preview. Never copy the live `.env` as a shortcut to staging.
+Use one server at a time; stop the foreground server with Ctrl-C. The implementation must bind to loopback and fail rather than silently pick a different port or production endpoint. No production `.env` is required. Ordinary `npm run dev` is the legacy integration mode and currently lacks the complete same-origin API routing. It is not a tested live-connected local setup. The saved decision above permits a deliberately configured manual live-connected mode; keep its ignored environment file separate from the synthetic mock commands.
 
 ## Verified environment map
 
@@ -63,11 +76,11 @@ Use one server at a time; stop the foreground server with Ctrl-C. The implementa
 
 This preview is auto-signed in as a synthetic user; it does not test authentication. Audio upload/storage, real AI, Edge Functions and integration keys are disabled. Data is local to this browser origin, not a shared staging database. Hub creation has a pre-existing reference to undefined `initialSelectedIdeas` in `HubCreateModal`; it was not repaired or qualified in this setup. Record any feature repair as its own task.
 
-## Next backend milestone
+## Backend work after the initial website pass
 
-After the mock preview is verified, prepare one bounded task to extract only the API source/build metadata from the known container, excluding `.env`, data, credentials and dependencies. Record source hashes. Build a separate private API with synthetic data and mocked providers. Qualify auth/database/storage against isolated local/test services; do not use production Supabase. Validate historical migrations and n8n exports before using them locally. Do not apply them wholesale to production.
+The immediate next task is AIW-509: configure and verify the Mac Pro website's manual connection to the existing backend. Do not replace the backend or build a separate one as the next step. Keep the real public website unchanged and preserve the mock preview for automated checks.
 
-Required evidence before calling the complete staging environment ready: browser/API behavior, no production requests, separate auth/data/storage, persistence/restart checks, pinned frontend/backend release identities, and a tested rollback with schema/data limits stated. A mock preview is useful for UI refinement but cannot supply those backend guarantees.
+Separate API/auth/storage and synthetic test data become a later milestone when changing how information is stored or processed. The known API source and host locations above remain useful then. Historical migrations and n8n exports require validation before use; do not apply them wholesale to production.
 
 ## Working agreement for any agent
 
@@ -77,4 +90,4 @@ Required evidence before calling the complete staging environment ready: browser
 4. Review changes through a PR against the current application baseline (`Ideahub` until Gera changes that policy). CI/builds should pin release artifacts. No automatic production deployment or credentials/permission changes.
 5. Try the exact reviewed release privately. Gera's later release decision is required to promote to live; keep the previous release/config and account for migrations/side effects in rollback.
 
-The accepted architecture plan is [Choose the development, staging and live workflow](https://command.why57.com/AIW/issues/AIW-496#document-start-here), authored by Iron Man with actual Fury/Ultron acceptance. Its dedicated Compose stack is still the full-stack target; this lightweight mock frontend preview is a first milestone, not a claim that the accepted full-stack plan has been installed. Paperclip speed work remains paused.
+The accepted architecture plan is [Choose the development, staging and live workflow](https://command.why57.com/AIW/issues/AIW-496#document-start-here), authored by Iron Man with actual Fury/Ultron acceptance. That accepted plan remains historical architecture evidence. Gera's later testing decision above changes the immediate priority to a private test website using the existing backend; a separate backend environment is deferred. The current mock preview remains available and is not the live-connected setup. Paperclip speed work remains paused.
