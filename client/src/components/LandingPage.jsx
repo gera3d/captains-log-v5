@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import AuthModal from "./AuthModal";
+import HomepageOutputs from "./HomepageOutputs";
 import "./LandingPage.css";
 
 const steps = [
@@ -163,6 +164,7 @@ export default function LandingPage() {
               ))}
             </ol>
           </section>
+          <HomepageOutputs />
           <section
             id="faq"
             className="home-questions-section"
