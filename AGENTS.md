@@ -13,3 +13,5 @@ Read `docs/START-HERE.md` before changing this project. It is the shared runbook
 - Paperclip speed work remains paused; this project does not resume it.
 
 If this checkout has no runnable staging commands yet, consult the master task for current implementation progress instead of falling back to production services.
+
+- Apply docs/WORKFLOW-LESSONS.md and read the master task’s parallel-work document for current owners. Supply complete readable inputs before activation, isolate simultaneous edits, review an exact revision, and record only observed lessons with evidence. Do not duplicate an active owner or turn every failure into a new repair chain.

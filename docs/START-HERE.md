@@ -11,7 +11,13 @@ Gera chose this approach for now: run the test website on the Mac Pro and use th
 - Before changing backend behavior, database structure, shared workflows or access rules, prepare separate test data/services and a scoped task. This decision does not authorize production backend code/schema/access changes.
 - Store real connection values only in ignored local environment files or an existing secret store; never in GitHub or Paperclip. Use browser-safe Supabase keys only, never service-role keys.
 
-**Ready for manual testing:** the built real-backend website is running at http://127.0.0.1:5177 with a red LIVE BACKEND banner. Its API health request reached the existing server successfully. Supabase public auth settings responded; the workflow server passed a TLS reachability check without invoking a workflow. Independent local-stub checks passed for dev and built routing, required settings and privileged-key rejection. Real sign-in/return URLs, permissions, uploads and AI operations have not been exercised; those remain manual checks. The [connection task](https://command.why57.com/AIW/issues/AIW-509) records exact evidence. The sample-data preview remains on port 5176.
+**Last verified October 16:** the built real-backend website ran at http://127.0.0.1:5177 with a red LIVE BACKEND banner. **October 20 recheck:** that local preview is stopped; restoration is assigned to AIW-536. This is not evidence of a production-backend outage. Its API health request reached the existing server successfully. Supabase public auth settings responded; the workflow server passed a TLS reachability check without invoking a workflow. Independent local-stub checks passed for dev and built routing, required settings and privileged-key rejection. Real sign-in/return URLs, permissions, uploads and AI operations have not been exercised; those remain manual checks. The [connection task](https://command.why57.com/AIW/issues/AIW-509) records exact evidence. The sample-data preview remains on port 5176.
+
+## Parallel work and lessons — October20
+
+Gera chose to continue in Codex. Read [current owners and handoffs](https://command.why57.com/AIW/issues/AIW-504#document-parallel-work) before taking a task. The welcome builder owns AIW-510 in its own worktree; independent preview/testing owns AIW-536; native Iron Man owns source analysis AIW-537 with original Fury/Ultron reviews. The Claude handoff remains prepared history, not an active owner.
+
+Apply [WORKFLOW-LESSONS.md](WORKFLOW-LESSONS.md): supply complete inputs before execution, one owner per deliverable, isolated edits, exact revision for review, actual test evidence and truthful completion states. Record one useful lesson when a task finishes; update shared instructions when it prevents a recurring problem.
 
 ## Current handoff
 
@@ -36,7 +42,7 @@ Read each task's current status before taking over. These are coordinator-tracke
 
 This mode is for manual website testing with real services. It is separate from the mock preview and does not replace or deploy the public website.
 
-The built version is currently running. To start a development server after stopping the existing live-mode server, from `client`:
+The live-connected local preview was stopped at the October20 recheck. AIW-536 owns restoring it; read that task before starting a competing server. To start a development server after stopping any existing live-mode server, from `client`:
 
 ```sh
 npm run dev:live
@@ -78,7 +84,7 @@ npm run dev:staging
 # Open http://127.0.0.1:5176
 ```
 
-The built preview is currently running privately at http://127.0.0.1:5176 on the Mac Pro. To start it again after stopping the existing server:
+The mock preview responded at http://127.0.0.1:5176 on the Mac Pro at the October20 recheck. To start it again after stopping the existing server:
 
 ```sh
 npm run build:staging
