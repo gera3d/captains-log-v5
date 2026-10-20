@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import AuthModal from "./AuthModal";
 import HomepageOutputs from "./HomepageOutputs";
+import CodingTools from "./CodingTools";
 import "./LandingPage.css";
 
 const questions = [
@@ -89,6 +90,7 @@ export default function LandingPage() {
               </a>
             </div>
           </section>
+          <CodingTools />
           <section
             id="workspace"
             className="home-demo home-container"
