@@ -1,5 +1,11 @@
 # GoodIdea: start here
 
+## Current feature — homepage
+
+Gera approved the corrected welcome appearance; independent checks of revision `9717a42fccdb77e573b644408c44c87bd29e088b` passed. Welcome design/testing tasks AIW-510 and AIW-536 are Done. The reviewed UI is integrated locally in the setup branch. This is not a production deployment or a default-branch merge.
+
+The active task is [Align the whole public homepage with the dashboard](https://command.why57.com/AIW/issues/AIW-540). It covers the signed-out homepage from header/hero to footer, preserving the real dashboard’s logo, typography, colors and controls. Builder workspace: `/Users/gerayeremin/Documents/GoodIdea-worktrees/homepage`. Read the master’s [current owners and handoffs](https://command.why57.com/AIW/issues/AIW-504#document-parallel-work) before editing. Homepage preview visuals are the next deliverable; the approved welcome is not another open redesign.
+
 ## Current testing decision — saved October 16, 2026
 
 Gera chose this approach for now: run the test website on the Mac Pro and use the existing live backend while improving the site's look and layout. Reuse the current backend; a separate backend environment is deferred until work changes how data is stored or processed.
@@ -15,7 +21,7 @@ Gera chose this approach for now: run the test website on the Mac Pro and use th
 
 ## Parallel work and lessons — October20
 
-Gera chose to continue in Codex. Read [current owners and handoffs](https://command.why57.com/AIW/issues/AIW-504#document-parallel-work) before taking a task. The welcome builder owns AIW-510 in its own worktree; independent preview/testing owns AIW-536; native Iron Man owns source analysis AIW-537 with original Fury/Ultron reviews. The Claude handoff remains prepared history, not an active owner.
+Gera chose to continue in Codex. Read [current owners and handoffs](https://command.why57.com/AIW/issues/AIW-504#document-parallel-work) before taking a task. Welcome builder/testing assignments AIW-510 and AIW-536 are completed. The homepage builder now owns AIW-540 in its own worktree. Native Iron Man’s source analysis AIW-537 has a separate review blocker; it does not block homepage UI work. The Claude handoff remains prepared history, not an active owner.
 
 Apply [WORKFLOW-LESSONS.md](WORKFLOW-LESSONS.md): supply complete inputs before execution, one owner per deliverable, isolated edits, exact revision for review, actual test evidence and truthful completion states. Record one useful lesson when a task finishes; update shared instructions when it prevents a recurring problem.
 
