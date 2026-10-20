@@ -1,7 +1,8 @@
-// Visual product gallery checks. Synthetic mode, no real output generation or installation.
+// Whole-page output story: actual screenshots, complete excerpts and no live actions.
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import { chromium, expect } from "@playwright/test";
+process.chdir(new URL("..", import.meta.url).pathname);
 const origin = "http://127.0.0.1:5192";
 const browser = await chromium.launch({
   headless: true,
@@ -13,19 +14,17 @@ const outbound = [],
   exceptions = [],
   apiRequests = [],
   checks = [];
-await context.route("**/*", (route) => {
-  const u = new URL(route.request().url());
+await context.route("**/*", (r) => {
+  const u = new URL(r.request().url());
   if (u.origin !== origin) {
     outbound.push(u.origin + u.pathname);
-    return route.abort();
+    return r.abort();
   }
   if (/^\/(api|__mock)\//.test(u.pathname)) apiRequests.push(u.pathname);
-  return route.continue();
+  return r.continue();
 });
 const page = await context.newPage();
 page.on("pageerror", (e) => exceptions.push(e.message));
-const names = ["Market report", "Product spec", "Build handoff"];
-const tab = (name) => page.getByRole("tab", { name, exact: true });
 const noOverflow = async () =>
   assert.equal(
     await page.evaluate(
@@ -33,23 +32,6 @@ const noOverflow = async () =>
     ),
     true,
   );
-const selected = async (name) => {
-  await expect(tab(name)).toHaveAttribute("aria-selected", "true");
-  assert.equal(await page.getByRole("tabpanel").count(), 1);
-  for (const label of names) {
-    const button = tab(label);
-    await expect(button).toHaveAttribute(
-      "tabindex",
-      label === name ? "0" : "-1",
-    );
-    const id = await button.getAttribute("aria-controls");
-    assert.equal(await page.locator(`#${id}`).count(), 1);
-    await expect(page.locator(`#${id}`)).toHaveAttribute(
-      "aria-labelledby",
-      await button.getAttribute("id"),
-    );
-  }
-};
 try {
   for (const [name, width, height] of [
     ["desktop", 1440, 1000],
@@ -67,34 +49,62 @@ try {
     );
     await expect(page.locator('[data-staging-banner="true"]')).toBeVisible();
     await noOverflow();
-    await page.screenshot({
-      path: `artifacts/outputs-visual-${name}-hero.png`,
-    });
-    await page.screenshot({
-      path: `artifacts/outputs-visual-${name}-full.png`,
-      fullPage: true,
-    });
-    await selected("Market report");
-    for (const label of names) {
-      await tab(label).click();
-      await selected(label);
-      await noOverflow();
-      const panel = page.getByRole("tabpanel");
-      const images = panel.locator("img");
-      assert.ok((await images.count()) > 0);
+    assert.equal(await page.getByRole("heading", { level: 1 }).count(), 1);
+    assert.equal(await page.locator(".home-output-scene").count(), 3);
+    assert.equal(await page.getByRole("tab").count(), 0);
+    for (const [id, label] of [
+      ["report", "Market report"],
+      ["prd", "Product spec"],
+      ["build", "Build handoff"],
+    ]) {
+      const scene = page.locator(`[data-output="${id}"]`);
+      await expect(scene).toBeVisible();
       assert.equal(
-        await images.evaluateAll((els) =>
-          els.every((el) => el.complete && el.naturalWidth > 0),
-        ),
+        await scene
+          .locator("img")
+          .evaluateAll((els) =>
+            els.every((el) => el.complete && el.naturalWidth > 0),
+          ),
         true,
       );
-      assert.equal(await panel.locator("pre,code,input,select").count(), 0);
-      await expect(panel.getByText(/Illustrative data/)).toBeVisible();
-      const enlarge = panel.getByRole("button", {
+      const picture = scene.locator("img").first();
+      if (width <= 650)
+        assert.match(
+          await picture.evaluate((el) => el.currentSrc),
+          width <= 360 ? /-small/ : /-mobile/,
+        );
+      if (id === "report") {
+        for (const img of await scene
+          .locator(".home-gallery-risk-details img")
+          .all())
+          await expect(img).toBeVisible();
+      }
+      if (id === "prd") {
+        assert.equal(
+          await scene
+            .locator(".home-gallery-prd")
+            .evaluate((el) => getComputedStyle(el).maxHeight),
+          "none",
+        );
+        if (width <= 650)
+          assert.match(
+            await picture.evaluate((el) => el.currentSrc),
+            /excerpt/,
+          );
+      }
+      if (id === "build") {
+        assert.match(
+          await picture.evaluate((el) => el.currentSrc),
+          /blueprint-/,
+        );
+        assert.equal(await scene.locator("input,select,pre,code").count(), 0);
+      }
+      const enlarge = scene.getByRole("button", {
         name: `Enlarge ${label.toLowerCase()} example`,
         exact: true,
       });
-      await enlarge.click();
+      await enlarge.focus();
+      await page.keyboard.press("Enter");
       const dialog = page.getByRole("dialog");
       await expect(dialog).toBeVisible();
       await expect(
@@ -102,31 +112,13 @@ try {
       ).toBeVisible();
       const close = dialog.getByRole("button", {
         name: "Close enlarged example",
-        exact: true,
       });
       await expect(close).toBeFocused();
       await page.keyboard.press("Tab");
-      await expect(
-        dialog.getByRole("region", { name: "Enlarged product screens" }),
-      ).toBeFocused();
+      await expect(dialog.getByRole("region")).toBeFocused();
       await page.keyboard.press("Tab");
       await expect(close).toBeFocused();
-      if (label === "Product spec" && width <= 650) {
-        const image = dialog.locator("img");
-        assert.match(
-          await image.evaluate((el) => el.currentSrc),
-          /prd-desktop/,
-        );
-        assert.ok(
-          await dialog
-            .getByRole("region")
-            .evaluate((el) => el.scrollWidth > el.clientWidth),
-        );
-      }
       await noOverflow();
-      await page.screenshot({
-        path: `artifacts/outputs-visual-${name}-${label === "Market report" ? "report" : label === "Product spec" ? "prd" : "build"}-enlarged.png`,
-      });
       await page.keyboard.press("Escape");
       await expect(dialog).not.toBeVisible();
       await expect(enlarge).toBeFocused();
@@ -134,30 +126,17 @@ try {
       await close.click();
       await expect(enlarge).toBeFocused();
     }
-    await tab("Market report").focus();
-    for (const [key, label] of [
-      ["ArrowRight", "Product spec"],
-      ["ArrowDown", "Build handoff"],
-      ["ArrowRight", "Market report"],
-      ["ArrowLeft", "Build handoff"],
-      ["Home", "Market report"],
-      ["End", "Build handoff"],
+    for (const [label, id] of [
+      ["How it works", "how-it-works"],
+      ["The dashboard", "workspace"],
+      ["Questions", "faq"],
     ]) {
-      await page.keyboard.press(key);
-      await selected(label);
-      await expect(tab(label)).toBeFocused();
-      assert.equal(
-        await tab(label).evaluate((el) => getComputedStyle(el).outlineWidth),
-        "3px",
-      );
+      await page
+        .getByRole("navigation", { name: "Main navigation" })
+        .getByRole("link", { name: label, exact: true })
+        .click();
+      assert.equal(new URL(page.url()).hash, `#${id}`);
     }
-    await page.keyboard.press("Tab");
-    await expect(
-      page.getByRole("button", {
-        name: "Enlarge build handoff example",
-        exact: true,
-      }),
-    ).toBeFocused();
     await page
       .locator("header")
       .getByRole("button", { name: "Create an account", exact: true })
@@ -166,19 +145,33 @@ try {
       page.getByPlaceholder("e.g. alex or gera", { exact: true }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Close", exact: true }).click();
-    await page.setViewportSize({ width, height: 1800 });
-    for (const [label, key] of [
-      ["Market report", "report"],
-      ["Product spec", "prd"],
-      ["Build handoff", "build"],
-    ]) {
-      await tab(label).click();
+    await page.goto(`${origin}/?preview=homepage`, {
+      waitUntil: "networkidle",
+    });
+    await page.keyboard.press("Tab");
+    await expect(
+      page.getByRole("link", { name: "Skip to content" }),
+    ).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("main")).toBeFocused();
+    await page.goto(`${origin}/?preview=homepage`, {
+      waitUntil: "networkidle",
+    });
+    await noOverflow();
+    await page.screenshot({
+      path: `artifacts/homepage-story-${name}-full.png`,
+      fullPage: true,
+    });
+    await page.screenshot({
+      path: `artifacts/homepage-story-${name}-hero.png`,
+    });
+    await page.setViewportSize({ width, height: 2200 });
+    for (const id of ["report", "prd", "build"])
       await page
-        .locator("#outputs")
-        .screenshot({ path: `artifacts/outputs-visual-${name}-${key}.png` });
-    }
+        .locator(`[data-output="${id}"]`)
+        .screenshot({ path: `artifacts/homepage-story-${name}-${id}.png` });
     checks.push(
-      `${width}px: actual screenshot views, responsive images/no overflow, ARIA panels/roving focus, Arrow/Home/End, enlargement focus trap/Escape/close/return; PRD full-width detail accessible on mobile`,
+      `${width}px: all three outputs visible without tabs; qualitative analysis visible; coherent spec excerpt/full desktop spec without height clipping; complete blueprint handoff; loaded images, keyboard enlargement/focus trap/Escape/close/return, anchors, account entry and no horizontal overflow`,
     );
   }
   assert.deepEqual(apiRequests, []);
@@ -202,10 +195,10 @@ try {
     exceptions,
     homepageApiRequests: apiRequests,
     limits:
-      "Actual existing UI captured with disposable synthetic data. No real generation, installation, auth submission, clipboard or context sync tested or claimed.",
+      "Synthetic screenshots of real existing UI. Behavior checks support but do not replace visual inspection/owner approval. No live generation, installation, auth submission or context sync.",
   };
   writeFileSync(
-    "artifacts/outputs-visual-checks.json",
+    "artifacts/homepage-story-checks.json",
     JSON.stringify(result, null, 2) + "\n",
   );
   console.log(JSON.stringify(result, null, 2));

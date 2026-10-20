@@ -4,20 +4,6 @@ import AuthModal from "./AuthModal";
 import HomepageOutputs from "./HomepageOutputs";
 import "./LandingPage.css";
 
-const steps = [
-  [
-    "Say it or type it.",
-    "Record a voice memo or write down what you’re thinking. You don’t have to organize it first.",
-  ],
-  [
-    "Work through the idea.",
-    "When you’re ready, turn the note into a structured business idea. Review it, ask more questions, and decide what’s worth pursuing.",
-  ],
-  [
-    "Come back to it.",
-    "Keep the original note and organize related ideas in hubs, so you can pick up where you left off.",
-  ],
-];
 const questions = [
   [
     "Does it have to be a business idea?",
@@ -133,36 +119,6 @@ export default function LandingPage() {
                 </span>
               </figcaption>
             </figure>
-          </section>
-          <section
-            id="how-it-works"
-            className="home-process home-container home-section"
-            aria-labelledby="home-process-title"
-          >
-            <div className="home-process-intro">
-              <h2 id="home-process-title" className="font-display">
-                Start with
-                <br />
-                what you’ve got.
-              </h2>
-              <p>
-                You don’t need to have the whole thing figured out. Get the
-                rough version down and work from there.
-              </p>
-            </div>
-            <ol className="home-steps">
-              {steps.map(([title, text], index) => (
-                <li key={title}>
-                  <span className="home-step-number" aria-hidden="true">
-                    {index + 1}
-                  </span>
-                  <div>
-                    <h3 className="font-display">{title}</h3>
-                    <p>{text}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
           </section>
           <HomepageOutputs />
           <section

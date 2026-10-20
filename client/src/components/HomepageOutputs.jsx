@@ -10,54 +10,68 @@ const outputs = [
   {
     id: "report",
     label: "Market report",
-    caption: "See the analysis, risks and an example scorecard.",
+    title: "Work through the idea.",
+    caption: "See the risks, assumptions and an illustrative scorecard.",
   },
   {
     id: "prd",
     label: "Product spec",
-    caption: "Turn the idea into a first version you can build.",
+    title: "Decide what the first version needs.",
+    caption: "Keep the scope and the first useful check in view.",
   },
   {
     id: "build",
     label: "Build handoff",
-    caption: "Bring the build brief into your coding assistant.",
+    title: "Take it into your coding tool.",
+    caption: "A page spec you can copy into your coding assistant.",
   },
 ];
 const imagePath = (name) => `/images/outputs/${name}.png`;
-
 function OutputImages({ type, enlarged = false }) {
   if (type === "report")
     return (
-      <div className={`home-gallery-report ${enlarged ? "is-enlarged" : ""}`}>
+      <div className="home-gallery-report">
         <picture>
           <source
-            media="(max-width: 650px)"
+            media="(max-width:360px)"
+            srcSet={imagePath("scorecard-small")}
+          />
+          <source
+            media="(max-width:650px)"
             srcSet={imagePath("scorecard-mobile")}
           />
           <img
             src={imagePath("scorecard-desktop")}
-            alt="Actual GoodIdea report scorecard with illustrative example scores, not market evidence."
+            alt="Actual GoodIdea scorecard with illustrative scores, not measured market demand."
           />
         </picture>
         <div className="home-gallery-risk-details">
           <picture>
             <source
-              media="(max-width: 650px)"
+              media="(max-width:360px)"
+              srcSet={imagePath("strengths-small")}
+            />
+            <source
+              media="(max-width:650px)"
               srcSet={imagePath("strengths-mobile")}
             />
             <img
               src={imagePath("strengths-desktop")}
-              alt="Actual report comparison showing local availability and starting with a small group."
+              alt="Actual report comparison showing local availability and a small starting group."
             />
           </picture>
           <picture>
             <source
-              media="(max-width: 650px)"
+              media="(max-width:360px)"
+              srcSet={imagePath("risks-small")}
+            />
+            <source
+              media="(max-width:650px)"
               srcSet={imagePath("risks-mobile")}
             />
             <img
               src={imagePath("risks-desktop")}
-              alt="Actual report risks showing trust, damage and reliable returns for the tool-library example."
+              alt="Actual report risks showing trust, damage and reliable returns."
             />
           </picture>
         </div>
@@ -68,12 +82,16 @@ function OutputImages({ type, enlarged = false }) {
       <div className="home-gallery-prd">
         <picture>
           <source
-            media="(max-width: 650px)"
-            srcSet={imagePath(enlarged ? "prd-desktop" : "prd-mobile")}
+            media="(max-width:360px)"
+            srcSet={imagePath(enlarged ? "prd-desktop" : "prd-small-excerpt")}
+          />
+          <source
+            media="(max-width:650px)"
+            srcSet={imagePath(enlarged ? "prd-desktop" : "prd-mobile-excerpt")}
           />
           <img
             src={imagePath("prd-desktop")}
-            alt="Actual GoodIdea product spec with borrowing steps, a features table, scope checklist and acceptance check. Synthetic example."
+            alt="Actual GoodIdea product spec. Mobile shows the complete scope and first-version check excerpt; desktop shows the full spec and borrowing table."
           />
         </picture>
       </div>
@@ -82,44 +100,25 @@ function OutputImages({ type, enlarged = false }) {
     <div className="home-gallery-build">
       <picture>
         <source
-          media="(max-width: 650px)"
-          srcSet={imagePath("handoff-mobile")}
+          media="(max-width:360px)"
+          srcSet={imagePath("blueprint-small")}
+        />
+        <source
+          media="(max-width:650px)"
+          srcSet={imagePath("blueprint-mobile")}
         />
         <img
-          src={imagePath("handoff-desktop")}
-          alt="Actual GoodIdea build kit with the tool-library target and Copy Configured V1 Prompt control. Illustrative example."
-        />
-      </picture>
-      <picture>
-        <source media="(max-width: 650px)" srcSet={imagePath("build-mobile")} />
-        <img
-          src={imagePath("build-desktop")}
-          alt="Actual build-kit configuration controls for coding tool, framework, data strategy and build scope. No prompts or keys shown."
+          src={imagePath("blueprint-desktop")}
+          alt="Actual copyable GoodIdea page-spec output with a headline, value description, call to action and useful features. This is a spec, not a built app."
         />
       </picture>
     </div>
   );
 }
-
 export default function HomepageOutputs() {
-  const [selected, setSelected] = useState(0);
-  const [enlarged, setEnlarged] = useState(false);
-  const tabs = useRef([]);
+  const [enlarged, setEnlarged] = useState(null);
   const closeRef = useRef(null);
-  const current = outputs[selected];
-  const onTabKeyDown = (event, index) => {
-    let next;
-    if (["ArrowRight", "ArrowDown"].includes(event.key))
-      next = (index + 1) % outputs.length;
-    else if (["ArrowLeft", "ArrowUp"].includes(event.key))
-      next = (index + outputs.length - 1) % outputs.length;
-    else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = outputs.length - 1;
-    else return;
-    event.preventDefault();
-    setSelected(next);
-    tabs.current[next]?.focus();
-  };
+  const current = outputs.find((item) => item.id === enlarged);
   return (
     <>
       <section
@@ -127,11 +126,12 @@ export default function HomepageOutputs() {
         id="outputs"
         aria-labelledby="home-outputs-title"
       >
+        <div id="how-it-works" className="home-output-anchor" />
         <div className="home-outputs-heading">
           <h2 id="home-outputs-title" className="font-display">
-            Figure out what
+            See what your note
             <br />
-            to build next.
+            can become.
           </h2>
           <p>The same tool-library idea, in the actual app.</p>
         </div>
@@ -143,49 +143,33 @@ export default function HomepageOutputs() {
           <span aria-hidden="true">→</span> PRD{" "}
           <span aria-hidden="true">→</span> Coding tool
         </p>
-        <div
-          className="home-output-tabs"
-          role="tablist"
-          aria-label="Example idea outputs"
-        >
-          {outputs.map((item, index) => (
-            <button
-              type="button"
-              role="tab"
-              id={`output-tab-${item.id}`}
-              aria-controls={`output-panel-${item.id}`}
-              aria-selected={selected === index}
-              tabIndex={selected === index ? 0 : -1}
-              ref={(element) => {
-                tabs.current[index] = element;
-              }}
-              onClick={() => setSelected(index)}
-              onKeyDown={(event) => onTabKeyDown(event, index)}
+        <div className="home-output-story">
+          {outputs.map((item) => (
+            <figure
               key={item.id}
+              data-output={item.id}
+              className="home-output-scene"
             >
-              {item.label}
-            </button>
-          ))}
-        </div>
-        {outputs.map((item, index) => (
-          <div
-            key={item.id}
-            hidden={selected !== index}
-            role="tabpanel"
-            id={`output-panel-${item.id}`}
-            aria-labelledby={`output-tab-${item.id}`}
-            className="home-output-panel"
-          >
-            <figure>
+              <figcaption>
+                <div>
+                  <span className="home-output-kind">{item.label}</span>
+                  <h3 className="font-display">{item.title}</h3>
+                </div>
+                <p>{item.caption}</p>
+              </figcaption>
               <button
                 type="button"
                 className="home-output-preview"
                 aria-label={`Enlarge ${item.label.toLowerCase()} example`}
-                onClick={() => setEnlarged(true)}
+                onClick={() => setEnlarged(item.id)}
               >
                 <div className="home-gallery-label">
                   <span className="home-example-label">
-                    Illustrative data{item.id === "report" ? " and scores" : ""}
+                    {item.id === "report"
+                      ? "Illustrative data and scores"
+                      : item.id === "prd"
+                        ? "Illustrative spec excerpt"
+                        : "Illustrative page-spec output"}
                   </span>
                   <span>
                     <MagnifyingGlassPlusIcon aria-hidden="true" />
@@ -194,19 +178,18 @@ export default function HomepageOutputs() {
                 </div>
                 <OutputImages type={item.id} />
               </button>
-              <figcaption>{item.caption}</figcaption>
             </figure>
-          </div>
-        ))}
+          ))}
+        </div>
         <p className="home-output-skill-note">
           Install the capture skill from Integrations to save new thoughts while
           you work.
         </p>
       </section>
       <Dialog
+        open={current !== undefined}
         initialFocus={closeRef}
-        open={enlarged}
-        onClose={() => setEnlarged(false)}
+        onClose={() => setEnlarged(null)}
         className="home-output-dialog"
       >
         <div className="home-output-dialog-backdrop" aria-hidden="true" />
@@ -215,18 +198,18 @@ export default function HomepageOutputs() {
             <div className="home-output-dialog-header">
               <div>
                 <DialogTitle className="font-display">
-                  {current.label} example
+                  {current?.label} example
                 </DialogTitle>
                 <p>
                   Actual GoodIdea screens with illustrative data
-                  {current.id === "report" ? " and scores" : ""}.
+                  {current?.id === "report" ? " and scores" : ""}.
                 </p>
               </div>
               <button
                 type="button"
-                aria-label="Close enlarged example"
-                onClick={() => setEnlarged(false)}
                 ref={closeRef}
+                aria-label="Close enlarged example"
+                onClick={() => setEnlarged(null)}
               >
                 <XMarkIcon />
               </button>
@@ -237,7 +220,7 @@ export default function HomepageOutputs() {
               role="region"
               aria-label="Enlarged product screens"
             >
-              <OutputImages type={current.id} enlarged />
+              {current && <OutputImages type={current.id} enlarged />}
             </div>
           </DialogPanel>
         </div>

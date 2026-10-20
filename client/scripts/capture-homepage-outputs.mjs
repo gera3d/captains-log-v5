@@ -5,6 +5,8 @@ import {
   fixtureIdea,
   fixtureStore,
 } from "./fixtures/homepage-output-example.mjs";
+// Keep capture outputs in this worktree regardless of the invoking shell directory.
+process.chdir(new URL("..", import.meta.url).pathname);
 const origin = "http://127.0.0.1:5192";
 const browser = await chromium.launch({
   headless: true,
@@ -37,8 +39,9 @@ try {
   for (const [name, width] of [
     ["desktop", 1280],
     ["mobile", 390],
+    ["small", 320],
   ]) {
-    await page.setViewportSize({ width, height: 1800 });
+    await page.setViewportSize({ width, height: 12000 });
     await page.goto(`${origin}/idea/${fixtureIdea.id}`, {
       waitUntil: "networkidle",
     });
@@ -97,10 +100,48 @@ try {
       .filter({ hasText: "Illustrative product spec" });
     await expect(spec).toContainText("An agreed return date");
     await spec.screenshot({
-      path: `public/images/outputs/prd-${name}.png`,
+      path:
+        name === "desktop"
+          ? "public/images/outputs/prd-desktop.png"
+          : `artifacts/outputs-source-prd-${name}.png`,
       animations: "disabled",
     });
+    if (name !== "desktop") {
+      await page.evaluate(() => scrollTo(0, 0));
+      const panelBox = await spec.boundingBox();
+      const scopeBox = await spec
+        .getByRole("heading", { name: "Scope", exact: true })
+        .boundingBox();
+      const lastBox = await spec.locator(":scope > p").last().boundingBox();
+      assert.ok(panelBox && scopeBox && lastBox);
+      await page.screenshot({
+        path: `public/images/outputs/prd-${name}-excerpt.png`,
+        clip: {
+          x: panelBox.x,
+          y: scopeBox.y - 20,
+          width: panelBox.width,
+          height: lastBox.y + lastBox.height - scopeBox.y + 42,
+        },
+      });
+    }
     await page.getByRole("button", { name: "Launch Kit", exact: true }).click();
+    const blueprint = page
+      .getByRole("heading", {
+        name: "High-Converting Landing Page Blueprint",
+        exact: true,
+      })
+      .locator("..")
+      .locator("..")
+      .locator("..");
+    await expect(blueprint).toContainText("Borrow a tool from a neighbor.");
+    assert.doesNotMatch(
+      await blueprint.innerText(),
+      /fixture placeholder|Bearer|https?:|api\//i,
+    );
+    await blueprint.screenshot({
+      path: `public/images/outputs/blueprint-${name}.png`,
+      animations: "disabled",
+    });
     const config = page
       .getByRole("heading", {
         name: "Customize Architecture & Tooling",
@@ -118,7 +159,7 @@ try {
       /fixture placeholder|Bearer|https?:|api\//i,
     );
     await levers.screenshot({
-      path: `public/images/outputs/build-${name}.png`,
+      path: `artifacts/outputs-source-config-${name}.png`,
       animations: "disabled",
     });
     const hero = page
@@ -133,7 +174,7 @@ try {
       /fixture placeholder|Bearer|https?:/i,
     );
     await hero.screenshot({
-      path: `public/images/outputs/handoff-${name}.png`,
+      path: `artifacts/outputs-source-handoff-${name}.png`,
       animations: "disabled",
     });
   }
@@ -150,7 +191,7 @@ try {
         source:
           "Unmodified existing FullIdeaPage / VentureBentoCockpit / BuilderPromptKit and PRD renderer. Disposable local mock store, read-only UI actions; no generation or installation.",
         crops:
-          "Risk comparison, scorecard, PRD, builder hero and configuration controls. Unrelated hardcoded video/persona/strategic cards, generic verdict prose and raw configured prompt/terminal content are excluded.",
+          "Actual risk comparison/scorecard, complete desktop PRD, complete mobile/320 Scope + first-version-check excerpts, and entire actual copyable page-spec panel. Unrelated hardcoded cards, native settings, clipped banner, raw prompts and terminal content are excluded from public assets.",
         outbound,
         exceptions,
       },
