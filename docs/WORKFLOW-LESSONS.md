@@ -4,6 +4,7 @@ Keep this short: record an observed problem, the change it led to, and evidence.
 
 | What happened | Rule applied now | Evidence |
 | --- | --- | --- |
+| A fresh welcome layout introduced a different palette and logo from the dashboard. | A layout redesign preserves the existing brand unless Gera asks for a rebrand. Inspect the rendered adjacent screen and compare logo, typography, surfaces and accents before visual acceptance. | Gera rejected the green/cream welcome; same-task correction and independent visual comparison are pending. |
 | Similar repository names obscured the actual app. | Every task names the canonical source, baseline and exact input revision. | App is captains-log-v5 / Ideahub; setup snapshot 8f3d2c8. |
 | A screenshot of the poor welcome screen could be mistaken for a target. | Label references as BEFORE, TARGET or inspiration. | Welcome task explicitly requests a fresh design, not a copy. |
 | Mock and real-service previews were easy to confuse. | Keep distinct addresses and visible labels; automated tests use mock data. | Separate preview setup and isolation checks. |
