@@ -8,7 +8,8 @@ import { workflowUrl } from './runtimeConfig';
 */
 // TODO[progress-md][P1][App] See progress.md for all open UI polish, loading, error, and browser test tasks
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import WelcomeDialog from './components/WelcomeDialog';
 import LoadingSpinner from './components/LoadingSpinner';
 import { supabase } from './supabaseClient';
 import { Routes, Route, useNavigate, Link } from 'react-router-dom';
@@ -260,6 +261,10 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
   const { runGeneration } = useGeneration();
   const [showIntegrationsModal, setShowIntegrationsModal] = useState(initialOpenIntegrations);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingFocus, setOnboardingFocus] = useState(null);
+  const voiceCaptureRef = useRef(null);
+  const textCaptureRef = useRef(null);
+  const ideaComposerRef = useRef(null);
   const [activeIdeas, setActiveIdeas] = useState([]);
   const [selectedPersona, setSelectedPersona] = useState(() => {
     // Try to load saved persona from localStorage
@@ -405,17 +410,26 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
   };
 
   useEffect(() => {
-    if (isDevUser) {
+    if (!user?.id) return;
+    try {
+      setShowOnboarding(!localStorage.getItem('dashboardOnboardingSeen'));
+    } catch {
       setShowOnboarding(true);
-      return;
     }
-    if (effectiveUser) {
-      const seen = localStorage.getItem('dashboardOnboardingSeen');
-      if (!seen) {
-        setShowOnboarding(true);
-      }
-    }
-  }, [effectiveUser, isDevUser]);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (showOnboarding || !onboardingFocus) return;
+    const frame = requestAnimationFrame(() => {
+      const target = onboardingFocus === 'composer'
+        ? ideaComposerRef.current
+        : captureTab === 'voice' ? voiceCaptureRef.current : textCaptureRef.current;
+      target?.focus({ preventScroll: true });
+      target?.scrollIntoView({ block: 'center', behavior: 'instant' });
+      setOnboardingFocus(null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [showOnboarding, onboardingFocus, captureTab]);
 
   // Improved active ideas selection logic - show all ideas with content except archived ones, sorted strictly newest first
   useEffect(() => {
@@ -464,8 +478,19 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
   }, [notes]); // Depend on notes so we always have latest state
 
   const handleDismissOnboarding = () => {
-    localStorage.setItem('dashboardOnboardingSeen', 'true');
+    try {
+      localStorage.setItem('dashboardOnboardingSeen', 'true');
+    } catch {
+      console.warn('Welcome dismissal could not be saved in this browser.');
+    }
     setShowOnboarding(false);
+    setOnboardingFocus('capture');
+  };
+
+  const handleStartOnboarding = () => {
+    handleDismissOnboarding();
+    setCaptureTab('text');
+    setOnboardingFocus('composer');
   };
 
   const onNoteSaved = (newNote) => {
@@ -636,105 +661,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
     }
   };
 
-  const onboardingModal = (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#1d3263] bg-gradient-to-br from-[#1d3263] via-[#223a6d] to-[#1d3263] animate-fade-in-up"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="onboarding-title"
-      aria-describedby="onboarding-desc"
-      tabIndex={-1}
-      onKeyDown={e => { if (e.key === "Escape") handleDismissOnboarding(); }}
-    >
-      <div className="relative bg-white/5 rounded-3xl shadow-2xl max-w-md w-full px-8 py-10 sm:px-12 sm:py-12 border border-white/10 ring-1 ring-white/10 glass-gradient focus:outline-none outline-none"
-        style={{ outline: "none" }}
-      >
-        <button
-          className="absolute top-4 right-4 text-white hover:text-[#FCD24F] text-2xl font-bold transition focus:outline-none focus:ring-2 focus:ring-[#FCD24F] rounded-full bg-white/10 hover:bg-white/20 shadow"
-          onClick={handleDismissOnboarding}
-          aria-label="Dismiss onboarding"
-          tabIndex={0}
-        >
-          ×
-        </button>
-        <div className="flex flex-col items-center">
-          <div className="mb-4" aria-hidden="true">
-            <svg width="56" height="56" viewBox="0 0 56 56" className="mx-auto drop-shadow-lg">
-              <g>
-                <rect width="56" height="56" rx="16" fill="#fff" fillOpacity="0.08"/>
-                <path d="M28 12v13.5c0 1.1.9 2 2 2h1.5a2 2 0 012 2V36a7.5 7.5 0 11-15 0V29.5a2 2 0 012-2H26a2 2 0 002-2V12" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                <ellipse cx="28" cy="40" rx="7.5" ry="3.5" fill="#FCD24F" fillOpacity="0.85"/>
-              </g>
-            </svg>
-          </div>
-          <div className="font-extrabold text-2xl mb-1 text-[#d9d9d9] tracking-wide logo-text" style={{letterSpacing: "0.04em"}}>
-            GoodIdea
-          </div>
-          <h2 id="onboarding-title" className="text-2xl sm:text-3xl font-bold mb-2 text-[#f2f2f2] text-center drop-shadow-lg">
-            Welcome aboard!
-          </h2>
-          <p id="onboarding-desc" className="text-[#d9d9d9] mb-5 text-center text-lg font-medium">
-            Here’s how to get started:
-          </p>
-          <ul className="text-left space-y-4 mb-8 w-full max-w-xs">
-            <li className="flex items-center gap-3">
-              <span className="inline-flex items-center justify-center h-9 w-9 rounded-full bg-[#FCD24F]/20 shadow">
-                <MicrophoneIcon className="h-6 w-6 text-[#FCD24F]" aria-hidden="true" />
-              </span>
-              <span className="font-semibold text-[#FCD24F]">Record</span>
-              <span className="text-[#d9d9d9] ml-2">Tap the mic to capture voice notes.</span>
-            </li>
-            <li className="flex items-center gap-3">
-              <span className="inline-flex items-center justify-center h-9 w-9 rounded-full bg-white/10 shadow">
-                <DocumentTextIcon className="h-6 w-6 text-white" aria-hidden="true" />
-              </span>
-              <span className="font-semibold text-white">View</span>
-              <span className="text-[#d9d9d9] ml-2">See and organize your notes.</span>
-            </li>
-            <li className="flex items-center gap-3">
-              <span className="inline-flex items-center justify-center h-9 w-9 rounded-full bg-white/10 shadow">
-                <ShareIcon className="h-6 w-6 text-white" aria-hidden="true" />
-              </span>
-              <span className="font-semibold text-white">Share</span>
-              <span className="text-[#d9d9d9] ml-2">Export or share your notes anytime.</span>
-            </li>
-          </ul>
-          <button
-            className="mt-2 px-10 py-3 rounded-full bg-[#FCD24F] text-[#1d3263] text-lg font-bold shadow-lg transition-all duration-200 transform hover:scale-105 hover:bg-[#ffe27a] focus:outline-none focus:ring-4 focus:ring-[#FCD24F]/60 active:scale-98"
-            onClick={handleDismissOnboarding}
-            autoFocus
-            tabIndex={0}
-            aria-label="Close onboarding and start using GoodIdea"
-          >
-            GOT IT!
-          </button>
-          <div className="mt-6 text-center">
-            <span className="text-[#f2f2f2] underline underline-offset-4 decoration-2 decoration-[#f2f2f2] cursor-pointer transition hover:text-[#FCD24F]" tabIndex={0} role="button" aria-label="Learn more about GoodIdea">
-              Learn more
-            </span>
-          </div>
-        </div>
-      </div>
-      <style>
-        {`
-          .glass-gradient {
-            background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%);
-            backdrop-filter: blur(12px);
-          }
-          @keyframes fade-in-up {
-            0% { opacity: 0; transform: translateY(40px);}
-            100% { opacity: 1; transform: translateY(0);}
-          }
-          .animate-fade-in-up {
-            animation: fade-in-up 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-          }
-          .logo-text {
-            font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
-          }
-        `}
-      </style>
-    </div>
-  );
+  const onboardingModal = <WelcomeDialog onDismiss={handleDismissOnboarding} onStart={handleStartOnboarding} />;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -937,6 +864,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                       <button
                         type="button"
                         onClick={() => setCaptureTab('voice')}
+                        ref={voiceCaptureRef}
                         className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                           captureTab === 'voice'
                             ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
@@ -950,6 +878,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                       <button
                         type="button"
                         onClick={() => setCaptureTab('text')}
+                        ref={textCaptureRef}
                         className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                           captureTab === 'text'
                             ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
@@ -1016,6 +945,8 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
 
                           <div className="flex-1 min-h-0 flex flex-col mb-3">
                             <textarea
+                              ref={ideaComposerRef}
+                              aria-label="Your idea"
                               placeholder="Dump your stream of consciousness, transcript, or startup thoughts here...
 
 e.g. In this idea, I want to explore how to use shorts as a way of telling an interesting story, and you build that story in a story builder..."
