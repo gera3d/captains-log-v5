@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Description, Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
-import { ArrowRightIcon, LightBulbIcon, PencilSquareIcon, SparklesIcon, Squares2X2Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ArrowRightIcon, PencilSquareIcon, SparklesIcon, Squares2X2Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import GoodIdeaFlaskLogo from './GoodIdeaFlaskLogo';
 import './WelcomeDialog.css';
 
 export default function WelcomeDialog({ onDismiss, onStart }) {
@@ -18,17 +19,17 @@ export default function WelcomeDialog({ onDismiss, onStart }) {
   }, []);
 
   return (
-    <Dialog open onClose={onDismiss} initialFocus={titleRef} className="welcome-dialog" style={{ '--welcome-banner-height': `${bannerHeight}px` }}>
+    <Dialog open onClose={onDismiss} initialFocus={titleRef} className="welcome-dialog font-sans" style={{ '--welcome-banner-height': `${bannerHeight}px` }}>
       <div className="welcome-backdrop" aria-hidden="true" />
       <div className="welcome-viewport">
         <DialogPanel className="welcome-panel">
+          <div className="welcome-brand"><img src="/goodideas.png" alt="GoodIdea" /></div>
           <button type="button" className="welcome-close" onClick={onDismiss} aria-label="Dismiss onboarding">
             <XMarkIcon aria-hidden="true" />
           </button>
           <div className="welcome-content">
-            <div className="welcome-brand"><LightBulbIcon aria-hidden="true" /><span>GoodIdea</span></div>
             <p className="welcome-eyebrow">YOUR NEXT CHAPTER STARTS HERE</p>
-            <DialogTitle as="h1" ref={titleRef} tabIndex={-1} className="welcome-title">Big ideas start<br />with a <span>little spark.</span></DialogTitle>
+            <DialogTitle as="h1" ref={titleRef} tabIndex={-1} className="welcome-title font-display">Big ideas start<br />with a <span>little spark.</span></DialogTitle>
             <Description className="welcome-description">A passing thought. A problem to solve. Give it a home here, and see what it could become.</Description>
             <ol className="welcome-steps" aria-label="How GoodIdea works">
               <li><PencilSquareIcon aria-hidden="true" /><div><strong>Capture the thought</strong><span>Write it down or record a voice memo.</span></div></li>
@@ -42,11 +43,9 @@ export default function WelcomeDialog({ onDismiss, onStart }) {
             <p className="welcome-reassurance">Start with a few words. No perfect pitch needed.</p>
           </div>
           <aside className="welcome-preview" aria-label="Example idea">
-            <div className="welcome-orbit welcome-orbit-outer" aria-hidden="true" />
-            <div className="welcome-orbit welcome-orbit-inner" aria-hidden="true" />
-            <div className="welcome-spark" aria-hidden="true"><LightBulbIcon /></div>
+            <div className="welcome-spark" aria-hidden="true"><GoodIdeaFlaskLogo className="h-12 w-12" /></div>
             <div className="welcome-example">
-              <div className="welcome-example-label"><span aria-hidden="true" /> A LITTLE SPARK</div>
+              <div className="welcome-example-label"><PencilSquareIcon aria-hidden="true" /> EXAMPLE IDEA</div>
               <p>What if neighbors could share tools instead of buying them?</p>
               <div className="welcome-example-footer"><PencilSquareIcon aria-hidden="true" /> Example thought<span>Just now</span></div>
             </div>
