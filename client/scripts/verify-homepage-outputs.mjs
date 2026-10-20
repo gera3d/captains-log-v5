@@ -1,33 +1,31 @@
-// Built synthetic preview only: no live auth, API writes, clipboard or installation.
+// Visual product gallery checks. Synthetic mode, no real output generation or installation.
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { chromium, expect } from "@playwright/test";
 const origin = "http://127.0.0.1:5192";
 const browser = await chromium.launch({
   headless: true,
   executablePath:
-    process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ||
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
 });
 const context = await browser.newContext({ serviceWorkers: "block" });
 const outbound = [],
   exceptions = [],
   apiRequests = [],
-  checks = [],
-  heroComparison = {};
-await context.route("**/*", async (route) => {
-  const url = new URL(route.request().url());
-  if (url.origin !== origin) {
-    outbound.push(url.origin + url.pathname);
-    return route.abort("blockedbyclient");
+  checks = [];
+await context.route("**/*", (route) => {
+  const u = new URL(route.request().url());
+  if (u.origin !== origin) {
+    outbound.push(u.origin + u.pathname);
+    return route.abort();
   }
-  if (/^\/(api|__mock)\//.test(url.pathname)) apiRequests.push(url.pathname);
+  if (/^\/(api|__mock)\//.test(u.pathname)) apiRequests.push(u.pathname);
   return route.continue();
 });
 const page = await context.newPage();
-page.on("pageerror", (error) => exceptions.push(error.message));
-const labels = ["Market report", "Product spec", "Coding context"];
-const tab = (label) => page.getByRole("tab", { name: label, exact: true });
+page.on("pageerror", (e) => exceptions.push(e.message));
+const names = ["Market report", "Product spec", "Build handoff"];
+const tab = (name) => page.getByRole("tab", { name, exact: true });
 const noOverflow = async () =>
   assert.equal(
     await page.evaluate(
@@ -35,21 +33,20 @@ const noOverflow = async () =>
     ),
     true,
   );
-const assertSelected = async (label) => {
-  await expect(tab(label)).toHaveAttribute("aria-selected", "true");
-  assert.equal(await page.getByRole("tab", { selected: true }).count(), 1);
+const selected = async (name) => {
+  await expect(tab(name)).toHaveAttribute("aria-selected", "true");
   assert.equal(await page.getByRole("tabpanel").count(), 1);
-  assert.equal(await page.locator('[role="tabpanel"]').count(), 3);
-  for (const name of labels) {
-    const control = await tab(name).getAttribute("aria-controls");
-    assert.equal(await page.locator(`#${control}`).count(), 1);
-    await expect(page.locator(`#${control}`)).toHaveAttribute(
-      "aria-labelledby",
-      await tab(name).getAttribute("id"),
-    );
-    await expect(tab(name)).toHaveAttribute(
+  for (const label of names) {
+    const button = tab(label);
+    await expect(button).toHaveAttribute(
       "tabindex",
-      name === label ? "0" : "-1",
+      label === name ? "0" : "-1",
+    );
+    const id = await button.getAttribute("aria-controls");
+    assert.equal(await page.locator(`#${id}`).count(), 1);
+    await expect(page.locator(`#${id}`)).toHaveAttribute(
+      "aria-labelledby",
+      await button.getAttribute("id"),
     );
   }
 };
@@ -70,41 +67,84 @@ try {
     );
     await expect(page.locator('[data-staging-banner="true"]')).toBeVisible();
     await noOverflow();
-    await page.screenshot({ path: `artifacts/outputs-${name}-hero.png` });
-    if (["desktop", "mobile"].includes(name))
-      heroComparison[name] = readFileSync(
-        `artifacts/outputs-${name}-hero.png`,
-      ).equals(readFileSync(`artifacts/homepage-revised-${name}-hero.png`));
     await page.screenshot({
-      path: `artifacts/outputs-${name}-full.png`,
+      path: `artifacts/outputs-visual-${name}-hero.png`,
+    });
+    await page.screenshot({
+      path: `artifacts/outputs-visual-${name}-full.png`,
       fullPage: true,
     });
-    await assertSelected("Market report");
-    for (const label of labels) {
+    await selected("Market report");
+    for (const label of names) {
       await tab(label).click();
-      await assertSelected(label);
-      await expect(
-        page
-          .getByRole("tabpanel")
-          .getByText("Illustrative example", { exact: true }),
-      ).toBeVisible();
-      await expect(page.getByRole("tabpanel").getByRole("heading")).toHaveText(
-        /A tool library for\s*the neighborhood/,
-      );
+      await selected(label);
       await noOverflow();
+      const panel = page.getByRole("tabpanel");
+      const images = panel.locator("img");
+      assert.ok((await images.count()) > 0);
+      assert.equal(
+        await images.evaluateAll((els) =>
+          els.every((el) => el.complete && el.naturalWidth > 0),
+        ),
+        true,
+      );
+      assert.equal(await panel.locator("pre,code,input,select").count(), 0);
+      await expect(panel.getByText(/Illustrative data/)).toBeVisible();
+      const enlarge = panel.getByRole("button", {
+        name: `Enlarge ${label.toLowerCase()} example`,
+        exact: true,
+      });
+      await enlarge.click();
+      const dialog = page.getByRole("dialog");
+      await expect(dialog).toBeVisible();
+      await expect(
+        dialog.getByRole("heading", { name: `${label} example`, exact: true }),
+      ).toBeVisible();
+      const close = dialog.getByRole("button", {
+        name: "Close enlarged example",
+        exact: true,
+      });
+      await expect(close).toBeFocused();
+      await page.keyboard.press("Tab");
+      await expect(
+        dialog.getByRole("region", { name: "Enlarged product screens" }),
+      ).toBeFocused();
+      await page.keyboard.press("Tab");
+      await expect(close).toBeFocused();
+      if (label === "Product spec" && width <= 650) {
+        const image = dialog.locator("img");
+        assert.match(
+          await image.evaluate((el) => el.currentSrc),
+          /prd-desktop/,
+        );
+        assert.ok(
+          await dialog
+            .getByRole("region")
+            .evaluate((el) => el.scrollWidth > el.clientWidth),
+        );
+      }
+      await noOverflow();
+      await page.screenshot({
+        path: `artifacts/outputs-visual-${name}-${label === "Market report" ? "report" : label === "Product spec" ? "prd" : "build"}-enlarged.png`,
+      });
+      await page.keyboard.press("Escape");
+      await expect(dialog).not.toBeVisible();
+      await expect(enlarge).toBeFocused();
+      await enlarge.click();
+      await close.click();
+      await expect(enlarge).toBeFocused();
     }
     await tab("Market report").focus();
     for (const [key, label] of [
       ["ArrowRight", "Product spec"],
-      ["ArrowDown", "Coding context"],
+      ["ArrowDown", "Build handoff"],
       ["ArrowRight", "Market report"],
-      ["ArrowLeft", "Coding context"],
-      ["ArrowUp", "Product spec"],
+      ["ArrowLeft", "Build handoff"],
       ["Home", "Market report"],
-      ["End", "Coding context"],
+      ["End", "Build handoff"],
     ]) {
       await page.keyboard.press(key);
-      await assertSelected(label);
+      await selected(label);
       await expect(tab(label)).toBeFocused();
       assert.equal(
         await tab(label).evaluate((el) => getComputedStyle(el).outlineWidth),
@@ -112,8 +152,12 @@ try {
       );
     }
     await page.keyboard.press("Tab");
-    await expect(page.getByRole("tabpanel")).toBeFocused();
-    // Existing account entry is preserved; no form submission or OAuth.
+    await expect(
+      page.getByRole("button", {
+        name: "Enlarge build handoff example",
+        exact: true,
+      }),
+    ).toBeFocused();
     await page
       .locator("header")
       .getByRole("button", { name: "Create an account", exact: true })
@@ -122,40 +166,19 @@ try {
       page.getByPlaceholder("e.g. alex or gera", { exact: true }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Close", exact: true }).click();
-    await page
-      .locator("header")
-      .getByRole("button", { name: "Sign in", exact: true })
-      .click();
-    await expect(
-      page.getByPlaceholder("Username or your@email.com", { exact: true }),
-    ).toBeVisible();
-    await page.getByRole("button", { name: "Close", exact: true }).click();
-    await expect(
-      page.getByText(/Illustrative excerpts for the same neighborhood/),
-    ).toBeVisible();
-    await expect(
-      page.getByText(/You can also install the GoodIdea capture skill/),
-    ).toBeVisible();
-    assert.equal(
-      await page
-        .locator("#outputs a, #outputs input, #outputs pre, #outputs code")
-        .count(),
-      0,
-    );
-    // Capture a tall section in a tall viewport to avoid browser fixed-element clipping artifacts.
-    await page.setViewportSize({ width, height: 2000 });
+    await page.setViewportSize({ width, height: 1800 });
     for (const [label, key] of [
       ["Market report", "report"],
       ["Product spec", "prd"],
-      ["Coding context", "coding"],
+      ["Build handoff", "build"],
     ]) {
       await tab(label).click();
       await page
         .locator("#outputs")
-        .screenshot({ path: `artifacts/outputs-${name}-${key}.png` });
+        .screenshot({ path: `artifacts/outputs-visual-${name}-${key}.png` });
     }
     checks.push(
-      `${name} ${width}px: three output views, resolved ARIA panels, keyboard arrows/Home/End/Tab, focus visibility, no overflow, existing sign-in/signup entry`,
+      `${width}px: actual screenshot views, responsive images/no overflow, ARIA panels/roving focus, Arrow/Home/End, enlargement focus trap/Escape/close/return; PRD full-width detail accessible on mobile`,
     );
   }
   assert.deepEqual(apiRequests, []);
@@ -169,24 +192,20 @@ try {
   await expect(
     page.getByRole("heading", { name: "Capture Your Idea", exact: true }),
   ).toBeVisible();
-  checks.push(
-    "Normal mock dashboard/welcome unchanged; output walkthrough has no API, clipboard, installation or external actions",
-  );
   assert.deepEqual(outbound, []);
   assert.deepEqual(exceptions, []);
   const result = {
     passed: true,
     origin,
     checks,
-    heroComparison,
     outbound,
     exceptions,
     homepageApiRequests: apiRequests,
-    scope:
-      "Synthetic illustrative homepage checks only. Live output generation, skill installation and round-trip context sync are not tested or claimed.",
+    limits:
+      "Actual existing UI captured with disposable synthetic data. No real generation, installation, auth submission, clipboard or context sync tested or claimed.",
   };
   writeFileSync(
-    "artifacts/outputs-checks.json",
+    "artifacts/outputs-visual-checks.json",
     JSON.stringify(result, null, 2) + "\n",
   );
   console.log(JSON.stringify(result, null, 2));
