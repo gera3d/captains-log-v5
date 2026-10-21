@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react-swc'
+import { betaConfig } from './config/beta.mjs'
 
 const stagingCsp = "default-src 'self'; connect-src 'self' ws://127.0.0.1:5176; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'";
 function mockStagingPlugin() {
@@ -62,6 +63,7 @@ function livePreviewPlugin() {
 }
 
 export default defineConfig(({ mode }) => {
+  betaConfig({ ...loadEnv(mode, process.cwd(), ''), ...process.env }, mode);
   const live = mode === 'live';
   // Explicit live mode has no hardcoded backend target or production fallback.
   const proxy = live ? livePreviewConfig(loadEnv(mode, process.cwd(), '')) : undefined;

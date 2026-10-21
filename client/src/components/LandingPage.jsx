@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import AuthModal from "./AuthModal";
-import { isMockStaging } from "../runtimeConfig";
-import { BetaWaitlistDialog } from "./BetaDraft";
+import { isBetaMode } from "../runtimeConfig";
+import BetaWaitlistDialog from "./BetaWaitlist";
 import HomepageOutputs from "./HomepageOutputs";
 import CodingTools from "./CodingTools";
 import "./LandingPage.css";
@@ -30,7 +30,7 @@ export default function LandingPage() {
   const [authMode, setAuthMode] = useState(null);
   const [showWaitlist, setShowWaitlist] = useState(false);
   const requestAccess = () => {
-    if (isMockStaging) {
+    if (isBetaMode) {
       setAuthMode(null);
       setShowWaitlist(true);
     } else {
@@ -65,7 +65,7 @@ export default function LandingPage() {
                 Sign in
               </button>
               <button className="home-nav-create" onClick={requestAccess}>
-                {isMockStaging ? "Join the waiting list" : "Create an account"}
+                {isBetaMode ? "Join the waiting list" : "Create an account"}
               </button>
             </div>
           </nav>
@@ -82,7 +82,7 @@ export default function LandingPage() {
               <br className="home-desktop-break" /> to do with it.
             </h1>
             <div className="home-intro-copy">
-              {isMockStaging && (
+              {isBetaMode && (
                 <p className="beta-public-note">Good Idea is in beta.</p>
               )}
               <p>
@@ -91,7 +91,7 @@ export default function LandingPage() {
                 you can decide what to do next.
               </p>
               <button className="home-primary" onClick={requestAccess}>
-                {isMockStaging ? "Join the waiting list" : "Create an account"}
+                {isBetaMode ? "Join the waiting list" : "Create an account"}
               </button>
               <a className="home-secondary" href="#how-it-works">
                 See how it works
@@ -171,14 +171,14 @@ export default function LandingPage() {
                 Want to try it?
               </h2>
               <p>
-                {isMockStaging
+                {isBetaMode
                   ? "Join the waiting list to hear when you can try it."
                   : "Start with an idea you’ve been thinking about."}
               </p>
             </div>
             <div className="home-final-actions">
               <button className="home-primary" onClick={requestAccess}>
-                {isMockStaging ? "Join the waiting list" : "Create an account"}
+                {isBetaMode ? "Join the waiting list" : "Create an account"}
               </button>
               <p>
                 Already have an account?{" "}
@@ -210,11 +210,11 @@ export default function LandingPage() {
       <AuthModal
         isOpen={authMode !== null}
         initialMode={authMode || "signin"}
-        allowSignup={!isMockStaging}
+        allowSignup={!isBetaMode}
         onRequestWaitlist={requestAccess}
         onClose={() => setAuthMode(null)}
       />
-      {isMockStaging && (
+      {isBetaMode && (
         <BetaWaitlistDialog
           open={showWaitlist}
           onClose={() => setShowWaitlist(false)}

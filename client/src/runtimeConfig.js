@@ -1,3 +1,8 @@
+import { betaConfig } from '../config/beta.mjs';
+
+export const beta = betaConfig(import.meta.env, import.meta.env.MODE);
+export const isBetaMode = beta.enabled;
+
 // Staging is selected by the build mode, never by production credentials.
 export const isMockStaging = import.meta.env.MODE === 'staging';
 export const isLivePreview = import.meta.env.MODE === 'live';

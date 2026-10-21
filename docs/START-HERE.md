@@ -1,5 +1,9 @@
 # GoodIdea: start here
 
+## Next release candidate — beta waiting list (AIW-548)
+
+The bounded frontend candidate is prepared on `feature/beta-relaunch` from reviewed `f1e8d45`, retaining the voice-first homepage. Read [BETA-RELAUNCH.md](BETA-RELAUNCH.md) for the explicit `VITE_BETA_MODE` / `VITE_BETA_WAITLIST_URL` contract, local fixture preview and offline verification. The verified official responder URL comes from AIW-549; exact-source review belongs to AIW-550 and publication to AIW-551. Invitations are deferred. This candidate is separate from the production release below.
+
 ## Current production release — October 20, 2026
 
 The approved welcome screen, dashboard-aligned homepage, visible report/spec/build examples and coding-tool brand row are live at https://idea.why57.com. The exact deployed frontend source is `18929f35ac3397812e9a4291f7cc68afd31e5cd5`; its production assets passed an independent rebuild and all 42 files were verified after deployment. The public page and sign-in/account-form entry were checked without submitting credentials or running AI.

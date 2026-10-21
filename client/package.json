@@ -16,7 +16,10 @@
     "dev:live": "vite --mode live --host 127.0.0.1 --port 5177 --strictPort",
     "build:live": "vite build --mode live --outDir dist-live",
     "preview:live": "vite preview --mode live --host 127.0.0.1 --port 5177 --strictPort --outDir dist-live",
-    "check:live-config": "node scripts/verify-live-preview.mjs"
+    "check:live-config": "node scripts/verify-live-preview.mjs",
+    "check:beta-config": "node scripts/verify-beta-config.mjs",
+    "check:beta": "node scripts/verify-beta-relaunch.mjs",
+    "check:beta-matrix": "node scripts/verify-beta-matrix.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.5",

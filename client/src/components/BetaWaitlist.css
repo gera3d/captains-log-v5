@@ -1,0 +1,105 @@
+.beta-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  color: #0f172a;
+  font-family: "DM Sans", Inter, ui-sans-serif, system-ui;
+}
+.beta-backdrop {
+  position: fixed;
+  inset: 0;
+  background: #0f172abf;
+}
+.beta-dialog-viewport {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow-y: auto;
+}
+.beta-panel {
+  position: relative;
+  width: 100%;
+  max-width: 490px;
+  margin: auto;
+  border-radius: 24px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 20px 80px #0004;
+}
+.beta-panel-brand {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 26px;
+  background: linear-gradient(90deg, #2d1b8c, #1355b8);
+}
+.beta-panel-brand img {
+  width: 110px;
+  height: auto;
+}
+.beta-panel-brand button {
+  background: #ffffff1a;
+  border: 1px solid #ffffff44;
+  color: white;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  font-size: 25px;
+  line-height: 1;
+  cursor: pointer;
+}
+.beta-panel-content {
+  padding: 29px;
+}
+.beta-panel-content h2 {
+  font-size: 31px;
+  letter-spacing: -1px;
+  line-height: 1.2;
+  font-weight: 600;
+  margin: 0 0 16px;
+}
+.beta-panel-content > p {
+  color: #52627a;
+  font-size: 14px;
+  line-height: 1.8;
+  margin: 0 0 24px;
+}
+.beta-form-link {
+  display: inline-flex;
+  justify-content: center;
+  text-decoration: none;
+}
+.beta-panel-content .beta-form-help {
+  font-size: 12px;
+  margin: 18px 0 0;
+}
+.beta-panel-content .beta-unavailable {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  color: #3730a3;
+  border-radius: 12px;
+  padding: 12px;
+  margin: 0;
+}
+.beta-panel :is(button, a):focus-visible {
+  outline: 3px solid #d97706;
+  outline-offset: 4px;
+}
+.beta-public-note {
+  color: #4338ca;
+  font-size: 11px;
+  margin: 0 0 12px;
+}
+@media (max-width: 600px) {
+  .beta-dialog-viewport { padding: 18px; }
+  .beta-panel { border-radius: 18px; }
+  .beta-panel-brand { padding: 17px 21px; }
+  .beta-panel-content { padding: 24px 21px; }
+  .beta-panel-content h2 { font-size: 29px; }
+}
+@media (max-width: 360px) {
+  .beta-panel-content h2 { font-size: 26px; }
+}
