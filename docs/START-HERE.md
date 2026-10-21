@@ -1,5 +1,17 @@
 # GoodIdea: start here
 
+## Current production release — October 20, 2026
+
+The approved welcome screen, dashboard-aligned homepage, visible report/spec/build examples and coding-tool brand row are live at https://idea.why57.com. The exact deployed frontend source is `18929f35ac3397812e9a4291f7cc68afd31e5cd5`; its production assets passed an independent rebuild and all 42 files were verified after deployment. The public page and sign-in/account-form entry were checked without submitting credentials or running AI.
+
+The release replaced only the frontend through Portainer. Existing Nginx/API routing, ports, Supabase browser configuration, workflows and backend were preserved. Old hashed assets and a complete pre-release frontend image are retained for rollback. [Publish the reviewed website with rollback](https://command.why57.com/AIW/issues/AIW-545) holds the exact image/container identities, checks and rollback procedure.
+
+Before new work, fetch `Ideahub` and verify it includes the deployed source above; `main` remains older. Read the current Paperclip master and task before assuming any preview server is still running. Local addresses and older status statements below are setup history that require a fresh health check.
+
+**Future production builds need explicit settings:** `VITE_SUPABASE_URL`, browser-safe `VITE_SUPABASE_ANON_KEY`, canonical public `VITE_REDIRECT_URL` and verified `VITE_WORKFLOW_BASE_URL`. Keep values in ignored local configuration or an authorized secret store. Production uses ordinary `npm run build` with production mode, never `build:staging` or `build:live`. The workflow base is now required; leaving it unset disables workflow actions. Do not copy local preview proxy paths or loopback redirects into a public release.
+
+**The legacy root Dockerfile is not the preserved production recipe.** It omits the live API proxy and contains an old redirect setting. This release used a snapshot of the running frontend plus the reviewed static files, preserving the actual server configuration. Use the release task evidence before any later rebuild or promotion.
+
 ## Current feature — homepage
 
 Gera approved the corrected welcome appearance; independent checks of revision `9717a42fccdb77e573b644408c44c87bd29e088b` passed. Welcome design/testing tasks AIW-510 and AIW-536 are Done. The reviewed UI is integrated locally in the setup branch. This is not a production deployment or a default-branch merge.
