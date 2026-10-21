@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { StarIcon, LightBulbIcon, DocumentTextIcon, BookOpenIcon, DocumentCheckIcon, ChevronRightIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { StarIcon, LightBulbIcon, DocumentTextIcon, BookOpenIcon, DocumentCheckIcon, ChevronRightIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
 import { savedText } from './NotePreview';
 import { extractTitle, extractSummary } from '../utils/extractTitle';
 import './ActiveIdeas.css';
@@ -18,11 +18,8 @@ function savedPreview(note) {
   if (!report) return { label: 'Original note', text: excerpt(original), report: false };
   const pitch = report.match(/\*\*Elevator Pitch:\*\*\s*([^\n]+)/i)?.[1] || report.match(/\*{0,2}Elevator Pitch\*{0,2}\s*:\s*([^\n]+)/i)?.[1];
   if (pitch) return { label: 'From the report', text: excerpt(pitch.trim()), report: true };
-  const sections = report.split(/\n(?=#{1,3}\s)/);
-  const section = sections.find(part => /^#{1,3}\s+(?:.*(?:Problem|Solution|What could work|Blue team))/i.test(part)) || sections.find(part => /^#{2,3}\s/.test(part) && !/^#{2,3}\s+.*(?:Summary|Sources|search|keywords)/i.test(part)) || report;
-  const heading = section.match(/^#{1,3}\s+([^\n]+)/)?.[1];
-  const body = section.replace(/^#{1,3}\s+[^\n]+\n?/, '').trim();
-  return { label: heading || 'Report excerpt', text: excerpt(body), report: true };
+  const summary = extractSummary({ ...note, business_idea: report, transcript: original });
+  return { label: 'From the report', text: excerpt(summary), report: true };
 }
 function keywords(note) {
   const report = savedText(note.business_idea);
@@ -32,7 +29,7 @@ function keywords(note) {
 function Availability({ note }) {
   const report = Boolean(savedText(note.business_idea).trim());
   const original = Boolean(savedText(note.transcript || note.transcription).trim());
-  return <div className="active-idea-availability">{report && <span><BookOpenIcon aria-hidden="true" />Report</span>}{note.prd_content?.trim() && <span><DocumentCheckIcon aria-hidden="true" />Product spec</span>}{original && <span><DocumentTextIcon aria-hidden="true" />Original note</span>}</div>;
+  return <div className="active-idea-availability">{report && <span><BookOpenIcon aria-hidden="true" />Report</span>}{note.prd_content?.trim() && <span><DocumentCheckIcon aria-hidden="true" />Product spec</span>}{original && <span><DocumentTextIcon aria-hidden="true" />Original note</span>}{note.audio_url && <span><MicrophoneIcon aria-hidden="true" />Recording</span>}</div>;
 }
 export default function ActiveIdeas({ notes, userId, loading, error, onChoose, onViewAll, onRetry }) {
   const selected = notes.filter(note => note.user_id === userId && featured(note) && !archived(note));
@@ -43,14 +40,14 @@ export default function ActiveIdeas({ notes, userId, loading, error, onChoose, o
       <div className="active-idea-gallery">{visible.map((note, index) => {
         const lead = index === 0;
         const preview = savedPreview(note);
-        const summary = extractSummary({ ...note, business_idea: savedText(note.business_idea) });
+        const summary = extractSummary({ ...note, business_idea: savedText(note.business_idea), transcript: savedText(note.transcript || note.transcription) }) || preview.text;
         const terms = keywords(note);
         return <Link className={`active-idea-card ${lead ? 'is-lead' : 'is-support'}`} key={note.id} to={`/idea/${note.id}`} aria-label={`Open active idea ${extractTitle(note)}`}>
-          <div className="active-idea-heading"><LightBulbIcon aria-hidden="true" /><h3>{extractTitle(note)}</h3><ChevronRightIcon className="active-idea-arrow" aria-hidden="true" /></div>
+          <div className="active-idea-heading"><LightBulbIcon aria-hidden="true" /><h3>{extractTitle(note)}</h3>{!lead && <ChevronRightIcon className="active-idea-arrow" aria-hidden="true" />}</div>
           {!lead && summary && <p className="active-idea-summary">{summary}</p>}
           {lead && preview.text && <div className="active-idea-reading"><span>{preview.label}</span><ReactMarkdown allowedElements={['p','strong','em','ul','ol','li','blockquote']} unwrapDisallowed>{preview.text}</ReactMarkdown></div>}
           <Availability note={note} />
-          {lead && terms.length > 0 && <div className="active-idea-keywords"><MagnifyingGlassIcon aria-hidden="true" /><span className="sr-only">Saved search terms: </span>{terms.map(term => <span key={term}>{term}</span>)}</div>}
+          {lead && terms.length > 0 && <p className="active-idea-keywords"><span className="sr-only">Saved search terms: </span>{terms.join(' · ')}</p>}
           {lead && <span className="active-idea-open">Open idea<ChevronRightIcon aria-hidden="true" /></span>}
         </Link>;
       })}</div>
