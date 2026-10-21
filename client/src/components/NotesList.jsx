@@ -168,7 +168,7 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
     const report = savedText(note.business_idea);
     const transcript = savedText(note.transcript || note.transcription);
     const summary = extractSummary({ ...note, business_idea: report }) || transcript;
-    return <article key={note.id} className={`original-note ${report ? 'is-developed' : 'is-capture'}`} aria-labelledby={`note-${note.id}`}>
+    return <article key={note.id} className={`original-note ${report.trim() ? 'is-developed' : 'is-capture'}`} aria-labelledby={`note-${note.id}`}>
       {noteIdentity(note)}
       <div className="original-note-heading"><div><div className="original-note-title"><h3 id={`note-${note.id}`}><Link to={`/idea/${note.id}`}>{title}</Link></h3></div>{noteMeta(note)}</div><Link className={`original-open ${!report && transcript && ownsNote(note) && !isArchived(note) ? 'is-secondary' : ''}`} to={`/idea/${note.id}`} aria-label={`Open ${title}`}>Open note<ChevronRightIcon aria-hidden="true" /></Link></div>
       {summary && <p className="original-note-summary">{summary}</p>}
