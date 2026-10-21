@@ -30,7 +30,7 @@ await context.route("**/*", (route) => {
   return route.continue();
 });
 await context.addInitScript((store) => {
-  localStorage.setItem("goodidea.mock-staging.v2", JSON.stringify(store));
+  localStorage.setItem("goodidea.mock-staging.v4", JSON.stringify(store));
   localStorage.setItem("dashboardOnboardingSeen", "true");
   localStorage.setItem("voiceRecorderTooltipShown", "true");
   window.__homepageMicrophoneAttempts = 0;

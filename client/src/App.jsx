@@ -65,6 +65,10 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
 
   // Text Monologue & Fast Ingestion State
   const [captureOpen, setCaptureOpen] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState('idle');
+  const voiceStatusRef = useRef('idle');
+  const voiceBusy = ['preparing', 'recording', 'saving'].includes(voiceStatus);
+  const isVoiceBusy = () => ['preparing', 'recording', 'saving'].includes(voiceStatusRef.current);
   const [captureTab, setCaptureTab] = useState('voice'); // 'voice' or 'text'
   const [monologueText, setMonologueText] = useState('');
   const [monologueTitle, setMonologueTitle] = useState('');
@@ -450,20 +454,20 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
           
           <main className="idea-desk">
             <NotesList notes={notes} setNotes={setNotes} loadingNotes={loadingNotes} notesError={notesError} onReloadNotes={onReloadNotes} onRecord={() => { setCaptureTab('voice'); setCaptureOpen(true); }} onWrite={() => { setCaptureTab('text'); setCaptureOpen(true); }} />
-            <Dialog open={captureOpen} onClose={() => { if (!isSubmittingMonologue) setCaptureOpen(false); }} initialFocus={captureTab === 'voice' ? voiceCaptureRef : ideaComposerRef} className="note-dialog desk-capture-dialog">
+            <Dialog open={captureOpen} onClose={() => { if (!isSubmittingMonologue && !isVoiceBusy()) setCaptureOpen(false); }} initialFocus={captureTab === 'voice' ? voiceCaptureRef : ideaComposerRef} className="note-dialog desk-capture-dialog">
               <div className="note-dialog-backdrop" aria-hidden="true" /><div className="note-dialog-viewport"><DialogPanel className="desk-capture-panel">
-                <button className="desk-capture-close" onClick={() => setCaptureOpen(false)} disabled={isSubmittingMonologue} aria-label="Close capture">×</button>
+                <button className="desk-capture-close" onClick={() => setCaptureOpen(false)} disabled={isSubmittingMonologue || voiceBusy} aria-label="Close capture">×</button>
               <section className="dashboard-capture" aria-labelledby="capture-title">
                 <DialogTitle as="h2" id="capture-title">Capture an idea</DialogTitle>
                 <Description className="dashboard-hint">Speak the rough thought. You can develop it later.</Description>
                 <div className="capture-tabs" aria-label="Capture method">
-                  <button type="button" ref={voiceCaptureRef} onClick={() => setCaptureTab('voice')} aria-pressed={captureTab === 'voice'}><MicrophoneIcon aria-hidden="true" />Voice Memo</button>
-                  <button type="button" ref={textCaptureRef} onClick={() => setCaptureTab('text')} aria-pressed={captureTab === 'text'}><DocumentTextIcon aria-hidden="true" />Text</button>
+                  <button type="button" ref={voiceCaptureRef} onClick={() => setCaptureTab('voice')} disabled={voiceBusy} aria-pressed={captureTab === 'voice'}><MicrophoneIcon aria-hidden="true" />Voice Memo</button>
+                  <button type="button" ref={textCaptureRef} onClick={() => setCaptureTab('text')} disabled={voiceBusy} aria-pressed={captureTab === 'text'}><DocumentTextIcon aria-hidden="true" />Text</button>
                 </div>
                 {captureTab === 'voice' ? (
                   <div className="dashboard-voice">
-                    <VoiceRecorder onNoteSaved={onNoteSaved} compact />
-                    <p>Record your thought, then open the saved note to explore it.</p>
+                    <VoiceRecorder onNoteSaved={onNoteSaved} compact onStatusChange={status => { voiceStatusRef.current = status; setVoiceStatus(status); }} />
+                    <p>{voiceStatus === 'recording' ? 'Recording. Press Stop recording to finish and save.' : voiceStatus === 'saving' ? 'Saving your recording. Keep this window open.' : 'Record your thought, then open the saved note to explore it.'}</p>
                   </div>
                 ) : (
                   <div className="dashboard-text">
@@ -599,6 +603,7 @@ function FullIdeaPage({ user, session }) {
   const [copied, setCopied] = useState('');
   const [generatingPRD, setGeneratingPRD] = useState(false);
   const [generatingIdea, setGeneratingIdea] = useState(false);
+  const [ideaError, setIdeaError] = useState(null);
   const { runGeneration, isGenerating, activeTask } = useGeneration();
   const [prdContent, setPrdContent] = useState(null);
   const [activeTab, setActiveTab] = useState('cockpit');
@@ -818,6 +823,7 @@ function FullIdeaPage({ user, session }) {
 
     try {
       setGeneratingIdea(true);
+      setIdeaError(null);
       await runGeneration({
         ideaId: note.id,
         title: note.title || 'Startup Blueprint',
@@ -841,37 +847,15 @@ function FullIdeaPage({ user, session }) {
           const extractedTitle = extractTitle({ business_idea: idea });
           const extractedSummary = extractSummary({ business_idea: idea });
 
-          setNote(prev => ({
-            ...prev,
-            business_idea: idea,
-            title: extractedTitle || prev.title,
-            summary: extractedSummary || prev.summary
-          }));
-
-          if (String(note.id).startsWith('idea_')) {
-            try {
-              const { data: sessionData } = await supabase.auth.getSession();
-              const token = sessionData?.session?.access_token;
-              const headers = { 'Content-Type': 'application/json' };
-              if (token) headers['Authorization'] = `Bearer ${token}`;
-              await fetch(`/api/v1/ideas/${note.id}`, {
-                method: 'PATCH',
-                headers,
-                body: JSON.stringify({
-                  business_idea: idea,
-                  title: extractedTitle,
-                  summary: extractedSummary
-                })
-              });
-            } catch (err) {
-              console.error('Failed to update ambient idea business_idea on server:', err);
-            }
-          } else {
-            await supabase
-              .from('voice_notes')
-              .update({ business_idea: idea })
-              .eq('id', note.id).eq('user_id', user.id);
+          const { data: savedIdea, error: saveError } = await supabase
+            .from('voice_notes')
+            .update({ business_idea: idea })
+            .eq('id', note.id).eq('user_id', user.id)
+            .select('id,business_idea').single();
+          if (saveError || savedIdea?.id !== note.id || savedIdea.business_idea !== idea) {
+            throw new Error('The generated idea could not be saved. Please retry.');
           }
+          setNote(prev => ({ ...prev, business_idea: idea, title: extractedTitle || prev.title, summary: extractedSummary || prev.summary }));
           setActiveTab('cockpit');
 
           return {
@@ -884,7 +868,7 @@ function FullIdeaPage({ user, session }) {
       });
     } catch (err) {
       console.error('Error generating idea:', err);
-      alert(err.message || 'Failed to generate business idea. Please try again.');
+      setIdeaError(err.message || 'Failed to generate business idea. Please try again.');
     } finally {
       setGeneratingIdea(false);
     }
@@ -1109,6 +1093,7 @@ function FullIdeaPage({ user, session }) {
 
       {/* Main Page Canvas with Dashboard Gradient */}
       <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-slate-100 to-white min-h-[calc(100vh-5rem)]">
+        {ideaError && <div role="alert" className="max-w-7xl mx-auto mb-5 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><p>{ideaError}</p><p className="mt-1">Your original content is still shown below.</p></div>}
         {note && !canDevelopNote && <p className="max-w-7xl mx-auto mb-5 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">You can read this idea. Generating an idea or product document isn’t available for this note here.</p>}
         <div className="max-w-6xl mx-auto space-y-6">
           {/* Main Hero Card in clean White with subtle border & shadow */}

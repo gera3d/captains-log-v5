@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGeneration, STAGES, ESTIMATED_TOTAL_SECONDS } from '../contexts/GenerationContext';
 import { 
@@ -47,6 +47,17 @@ export default function GenerationProgressHUD() {
     notifyEnabled,
     toggleNotify
   } = useGeneration();
+
+  const [previewBannerHeight, setPreviewBannerHeight] = useState(0);
+  useEffect(() => {
+    const banner = document.querySelector('[data-staging-banner], [data-live-preview-banner]');
+    if (!banner) return;
+    const update = () => setPreviewBannerHeight(banner.getBoundingClientRect().height);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(banner);
+    return () => observer.disconnect();
+  }, []);
 
   if (!activeTask) return null;
 
@@ -145,10 +156,11 @@ export default function GenerationProgressHUD() {
   // 2. FULL EXPANDED PROGRESS MODAL (Matching Main Dashboard Signature Style)
   // =========================================================================
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in" style={{ paddingTop: previewBannerHeight + 16 }}>
       <div 
         className="relative w-full max-w-xl rounded-3xl bg-white border border-slate-200/90 shadow-2xl overflow-hidden animate-dropdown"
         onClick={(e) => e.stopPropagation()}
+        style={{ maxHeight: `calc(100dvh - ${previewBannerHeight + 32}px)`, overflowY: 'auto' }}
       >
         {/* Signature Header Bar (Matching GoodIdea Main Dashboard Header) */}
         <div className="relative bg-gradient-to-r from-[#2d1b8c] via-[#1e3a8a] to-[#1355b8] p-6 sm:p-7 text-white overflow-hidden">
