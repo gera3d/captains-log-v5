@@ -89,6 +89,8 @@
 .original-note-meta .original-featured-mark { color:#4338ca; }
 .original-open { display:inline-flex; align-items:center; justify-content:center; gap:4px; white-space:nowrap; min-height:44px; background:#4f46e5; color:#fff; font-size:13px; font-weight:650; padding:10px 14px; border-radius:11px; }
 .original-open:hover { background:#4338ca; }
+.original-open.is-secondary { color:#4338ca; background:transparent; border:1px solid #c7d2fe; }
+.original-open.is-secondary:hover { background:#eef2ff; }
 .original-open svg { width:15px; height:15px; }
 .original-note-summary { font-size:16px; line-height:27px; color:#334155; max-width:80ch; }
 .original-report-context { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; margin-top:12px; }

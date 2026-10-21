@@ -172,7 +172,7 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
     const transcript = savedText(note.transcript || note.transcription);
     const summary = extractSummary({ ...note, business_idea: report }) || transcript;
     return <article key={note.id} className="original-note" aria-labelledby={`note-${note.id}`}>
-      <div className="original-note-heading"><div><div className="original-note-title">{noteIdentity(note)}<h3 id={`note-${note.id}`}><Link to={`/idea/${note.id}`}>{title}</Link></h3></div>{noteMeta(note)}</div><Link className="original-open" to={`/idea/${note.id}`} aria-label={`Open ${title}`}>Open note<ChevronRightIcon aria-hidden="true" /></Link></div>
+      <div className="original-note-heading"><div><div className="original-note-title">{noteIdentity(note)}<h3 id={`note-${note.id}`}><Link to={`/idea/${note.id}`}>{title}</Link></h3></div>{noteMeta(note)}</div><Link className={`original-open ${!report && transcript && ownsNote(note) && !isArchived(note) ? 'is-secondary' : ''}`} to={`/idea/${note.id}`} aria-label={`Open ${title}`}>Open note<ChevronRightIcon aria-hidden="true" /></Link></div>
       {summary && <p className="original-note-summary">{summary}</p>}
       <div className="original-report-context"><ReportBadges text={report} />{note.prd_content?.trim() && <span className="original-artifact"><DocumentCheckIcon aria-hidden="true" />Product spec saved</span>}</div>
       <div className="original-disclosures">
