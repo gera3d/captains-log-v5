@@ -5,6 +5,7 @@ import { isBetaMode } from "../runtimeConfig";
 import BetaWaitlistDialog from "./BetaWaitlist";
 import HomepageOutputs from "./HomepageOutputs";
 import CodingTools from "./CodingTools";
+import GoodIdeaWord from "./GoodIdeaWord";
 import "./LandingPage.css";
 
 const questions = [
@@ -82,20 +83,18 @@ export default function LandingPage() {
               <br className="home-desktop-break" /> to do with it.
             </h1>
             <div className="home-intro-copy">
-              {isBetaMode && (
-                <p className="beta-public-note">Good Idea is in beta.</p>
-              )}
               <p>
-                Record what you’re thinking. You can type it out, too. Good Idea
-                keeps the original note and helps you work through the idea, so
-                you can decide what to do next.
+                Record what you’re thinking. You can type it out, too.{" "}
+                <GoodIdeaWord /> keeps your original note and helps you decide
+                what to do next.
               </p>
-              <button className="home-primary" onClick={requestAccess}>
-                {isBetaMode ? "Join the waiting list" : "Create an account"}
-              </button>
-              <a className="home-secondary" href="#how-it-works">
-                See how it works
-              </a>
+              <div className="home-intro-actions">
+                <button className="home-primary" onClick={requestAccess}>
+                  {isBetaMode ? "Join the waiting list" : "Create an account"}
+                </button>
+                <a className="home-secondary" href="#how-it-works">See how it works</a>
+              </div>
+              {isBetaMode && <p className="beta-public-note"><GoodIdeaWord /> is in beta.</p>}
             </div>
           </section>
           <CodingTools />
@@ -203,7 +202,7 @@ export default function LandingPage() {
                 <Link to="/contact">Contact</Link>
               </nav>
             </div>
-            <p>© {new Date().getFullYear()} GoodIdea</p>
+            <p>© {new Date().getFullYear()} <GoodIdeaWord /></p>
           </div>
         </footer>
       </div>

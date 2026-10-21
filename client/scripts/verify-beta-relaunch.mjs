@@ -74,7 +74,7 @@ try {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await expect(page.locator('img[src="/images/homepage-workspace-desktop.png"]')).toHaveAttribute('alt', /Voice Memo selected and the microphone idle/);
     if (enabled) {
-      await expect(page.getByText('Good Idea is in beta.', { exact: true })).toBeVisible();
+      await expect(page.locator('.beta-public-note')).toHaveText('GoodIdea is in beta.');
       await expect(page.getByText(/Have an invitation|Invitation code|Check invitation/)).toHaveCount(0);
       for (let index = 0; index < 3; index++) {
         const trigger = waitlist.nth(index);

@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import GoodIdeaWord from "./GoodIdeaWord";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import {
   MagnifyingGlassPlusIcon,
@@ -201,7 +202,7 @@ export default function HomepageOutputs() {
                   {current?.label} example
                 </DialogTitle>
                 <p>
-                  Actual GoodIdea screens with illustrative data
+                  Actual <GoodIdeaWord /> screens with illustrative data
                   {current?.id === "report" ? " and scores" : ""}.
                 </p>
               </div>

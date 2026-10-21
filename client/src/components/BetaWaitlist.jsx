@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import { beta } from "../runtimeConfig";
+import GoodIdeaWord from "./GoodIdeaWord";
 import "./BetaWaitlist.css";
 
 export default function BetaWaitlistDialog({ open, onClose }) {
@@ -16,7 +17,7 @@ export default function BetaWaitlistDialog({ open, onClose }) {
           </div>
           <div className="beta-panel-content">
             <DialogTitle className="font-display">Join the beta waiting list.</DialogTitle>
-            <p>Good Idea is in beta. Leave your email for an update when there’s room to try it. Joining the list doesn’t create an account.</p>
+            <p><GoodIdeaWord /> is in beta. Leave your email for an update when there’s room to try it. Joining the list doesn’t create an account.</p>
             {beta.responderUrl ? (
               <>
                 <a className="home-primary beta-form-link" href={beta.responderUrl} target="_blank" rel="noopener noreferrer">Open the waiting-list form</a>

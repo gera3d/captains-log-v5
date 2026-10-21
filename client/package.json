@@ -19,7 +19,8 @@
     "check:live-config": "node scripts/verify-live-preview.mjs",
     "check:beta-config": "node scripts/verify-beta-config.mjs",
     "check:beta": "node scripts/verify-beta-relaunch.mjs",
-    "check:beta-matrix": "node scripts/verify-beta-matrix.mjs"
+    "check:beta-matrix": "node scripts/verify-beta-matrix.mjs",
+    "check:homepage-composition": "node scripts/verify-homepage-composition.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.5",

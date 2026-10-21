@@ -29,7 +29,7 @@ if (isMockStaging) {
   banner.textContent = 'MOCK STAGING — Synthetic local data. No production backend or real AI. Browser data persists on this origin.';
   banner.style.cssText = 'position:relative;z-index:99999;background:#713f12;color:white;padding:10px 16px;text-align:center;font:14px system-ui';
   document.body.prepend(banner);
-  document.title = '[MOCK STAGING] Good Idea';
+  document.title = '[MOCK STAGING] GoodIdea';
 }
 
 if (isLivePreview) {
@@ -39,7 +39,7 @@ if (isLivePreview) {
   banner.textContent = 'LIVE BACKEND — Mac Pro test website. Saves, deletes, uploads and AI requests affect the real app and may incur costs.';
   banner.style.cssText = 'position:sticky;top:0;z-index:99999;background:#991b1b;color:white;padding:12px 16px;text-align:center;font:600 14px system-ui';
   document.body.prepend(banner);
-  document.title = '[LIVE BACKEND TEST] Good Idea';
+  document.title = '[LIVE BACKEND TEST] GoodIdea';
 }
 
 // Initialize theme before rendering

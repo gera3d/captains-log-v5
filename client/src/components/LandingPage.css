@@ -38,6 +38,10 @@
   gap: 28px;
   min-height: 84px;
 }
+.home-nav > a,
+.home-account-actions {
+  flex-shrink: 0;
+}
 .home-wordmark {
   width: 115px;
   height: auto;
@@ -51,6 +55,7 @@
 }
 .home-nav-links {
   color: #e0e7ff;
+  white-space: nowrap;
 }
 .home-account-actions {
   gap: 12px;
@@ -87,10 +92,10 @@
 }
 .home-intro {
   display: grid;
-  grid-template-columns: 1.55fr 1fr;
-  gap: 90px;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 72px;
   padding-block: 68px 58px;
-  align-items: end;
+  align-items: start;
 }
 .home-intro h1 {
   font-size: 58px;
@@ -99,7 +104,8 @@
   margin: 0;
 }
 .home-intro-copy {
-  padding-bottom: 3px;
+  padding-top: 4px;
+  max-width: 450px;
 }
 .home-intro-copy > p {
   font-size: 16px;
@@ -125,9 +131,21 @@
   display: inline-block;
   font-size: 12px;
   color: #3730a3;
-  margin: 16px 0 0 17px;
+  margin: 0;
   text-underline-offset: 4px;
   text-decoration: underline;
+}
+.home-intro-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 22px;
+}
+.home-intro-copy > .beta-public-note {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #64748b;
+  margin: 14px 0 0;
 }
 .home-demo {
   scroll-margin-top: 25px;
@@ -363,57 +381,66 @@
     width: calc(100% - 48px);
   }
   .home-intro {
-    grid-template-columns: 1.4fr 1fr;
-    gap: 45px;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 40px;
   }
   .home-intro h1 {
     font-size: 50px;
     letter-spacing: -2px;
   }
   .home-nav-links {
+    gap: 18px;
+    font-size: 12px;
+  }
+  .home-nav {
     gap: 20px;
   }
   .home-intro-copy > p {
     font-size: 15px;
-  }
-  .home-secondary {
-    margin-left: 0;
-    display: block;
   }
   .home-process,
   .home-faq {
     gap: 65px;
   }
 }
-@media (max-width: 850px) {
-  .home-nav {
-    flex-wrap: wrap;
-    padding-block: 18px;
-    gap: 15px;
-  }
-  .home-nav-links {
-    order: 3;
-    width: 100%;
-    justify-content: center;
-    gap: 40px;
-    font-size: 12px;
-  }
+@media (max-width: 960px) {
   .home-intro {
-    grid-template-columns: 1.15fr 1fr;
-    gap: 30px;
-    padding-block: 45px;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding-block: 44px 40px;
   }
   .home-intro h1 {
-    font-size: 43px;
-    letter-spacing: -1.8px;
+    font-size: 50px;
+    max-width: 700px;
+  }
+  .home-intro-copy {
+    padding: 0;
+    max-width: 560px;
   }
   .home-intro-copy > p {
-    font-size: 14px;
-    line-height: 1.75;
-    margin-bottom: 20px;
+    margin-bottom: 22px;
   }
-  .home-secondary {
-    margin-top: 12px;
+  .home-intro-copy > .beta-public-note {
+    margin: 14px 0 0;
+  }
+  .home-account-actions {
+    font-size: 12px;
+    gap: 8px;
+  }
+  .home-account-actions button {
+    padding-inline: 14px;
+  }
+  .home-nav {
+    gap: 16px;
+  }
+  .home-nav-links {
+    gap: 14px;
+  }
+}
+@media (max-width: 850px) {
+  .home-intro h1 {
+    font-size: 48px;
+    letter-spacing: -1.8px;
   }
   .home-section {
     padding-block: 65px;
@@ -453,6 +480,7 @@
     width: 96px;
   }
   .home-nav {
+    flex-wrap: wrap;
     gap: 17px;
     padding-block: 17px 13px;
   }
@@ -465,6 +493,8 @@
     min-height: 39px;
   }
   .home-nav-links {
+    order: 3;
+    width: 100%;
     gap: 15px;
     justify-content: space-between;
     font-size: 11px;
@@ -491,14 +521,17 @@
     line-height: 1.8;
     margin-bottom: 23px;
   }
+  .home-intro-copy > .beta-public-note {
+    font-size: 12px;
+    line-height: 1.6;
+    margin: 14px 0 0;
+  }
   .home-primary {
     font-size: 12px;
     padding-inline: 23px;
     min-height: 46px;
   }
   .home-secondary {
-    display: inline-block;
-    margin: 0 0 0 18px;
     font-size: 11px;
   }
   .home-demo-heading {
@@ -637,7 +670,6 @@
     font-size: 14px;
   }
   .home-secondary {
-    margin-left: 12px;
     font-size: 10px;
   }
   .home-primary {
