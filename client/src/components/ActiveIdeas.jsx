@@ -52,6 +52,6 @@ export default function ActiveIdeas({ notes, userId, loading, error, onChoose, o
         </Link>;
       })}</div>
       {selected.length > 3 && <button className="active-ideas-view-all" onClick={onViewAll}>View all {selected.length} active ideas<ChevronRightIcon aria-hidden="true" /></button>}
-    </> : <div className="active-ideas-state"><StarIcon aria-hidden="true" /><h3>Keep the ideas you want to return to</h3><p>Use Feature on any note in your library to bring it here. A rough capture can be an active idea too.</p><button onClick={onChoose}>Choose from your library</button></div>}
+    </> : <div className="active-ideas-state"><StarIcon aria-hidden="true" /><h3>Keep the ideas you want to return to</h3><p>Use Feature in your library to keep an idea here. A rough capture can be an active idea too.</p><button onClick={onChoose}>Choose from your library</button></div>}
   </section>;
 }
