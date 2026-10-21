@@ -227,7 +227,7 @@ try {
   assert.deepEqual(await writes(page),[]);await page.screenshot({path:resolve(evidence,'final-detail-read-only.png'),fullPage:true});await context.close();
  }
  for(const options of [{incomplete:true},{apiFailure:true},{readFault:true}]){
-  const {context,page}=await contextFor(fixture,options);if(!options.readFault)for(const action of ['Feature','Archive','Delete'])await expect(page.getByRole('button',{name:`${action} ${own.title}`,exact:true})).toBeDisabled();if(options.apiFailure||options.readFault)await expect(page.getByRole('button',{name:'Retry loading'})).toBeVisible();assert.deepEqual(await writes(page),[]);await context.close();
+  const {context,page}=await contextFor(fixture,options);if(!options.readFault)for(const action of ['Feature','Archive','Delete'])await expect(page.getByRole('button',{name:`${action} ${own.title}`,exact:true})).toBeDisabled();if(options.apiFailure||options.readFault)await expect(page.getByRole('region',{name:'Your captured notes & ideas',exact:true}).getByRole('button',{name:'Retry loading',exact:true})).toBeVisible();assert.deepEqual(await writes(page),[]);await context.close();
  }
  record('public/ambient detail readable with mutation controls closed; incomplete/error metadata closes all cross-store management actions');
  for(const mode of ['recording','preparing','saving']){
