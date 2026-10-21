@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { StarIcon, LightBulbIcon, DocumentTextIcon, BookOpenIcon, DocumentCheckIcon, ChevronRightIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
-import { savedText } from './NotePreview';
+import { BookmarkIcon, DocumentTextIcon, BookOpenIcon, DocumentCheckIcon, ChevronRightIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
+import { savedText, formatDuration } from './NotePreview';
 import { extractTitle, extractSummary } from '../utils/extractTitle';
+import IdeaIdentity from './IdeaIdentity';
 import './ActiveIdeas.css';
 
 const archived = note => note.archived === true || note.archived === 'true' || note.status === 'archived';
@@ -35,23 +36,24 @@ export default function ActiveIdeas({ notes, userId, loading, error, onChoose, o
   const selected = notes.filter(note => note.user_id === userId && featured(note) && !archived(note));
   const visible = selected.slice(0, 3);
   return <section className="active-ideas" aria-labelledby="active-ideas-title">
-    <div className="original-section-heading"><h2 id="active-ideas-title">Active ideas</h2><button onClick={onChoose}>{selected.length ? 'Manage Featured' : 'Choose ideas'}<ChevronRightIcon aria-hidden="true" /></button></div>
+    <div className="original-section-heading"><h2 id="active-ideas-title">Active ideas</h2><button onClick={onChoose}>{selected.length ? 'Manage pins' : 'Choose ideas'}<ChevronRightIcon aria-hidden="true" /></button></div>
     {loading ? <div className="active-ideas-state" role="status">Loading active ideas…</div> : error ? <div className="active-ideas-state"><h3>Active ideas couldn’t be loaded</h3><p>Retry to see your saved selection.</p><button onClick={onRetry}>Retry loading</button></div> : visible.length ? <>
       <div className="active-idea-gallery">{visible.map((note, index) => {
         const lead = index === 0;
         const preview = savedPreview(note);
         const summary = extractSummary({ ...note, business_idea: savedText(note.business_idea), transcript: savedText(note.transcript || note.transcription) }) || preview.text;
         const terms = keywords(note);
-        return <Link className={`active-idea-card ${lead ? 'is-lead' : 'is-support'}`} key={note.id} to={`/idea/${note.id}`} aria-label={`Open active idea ${extractTitle(note)}`}>
-          <div className="active-idea-heading"><LightBulbIcon aria-hidden="true" /><h3>{extractTitle(note)}</h3>{!lead && <ChevronRightIcon className="active-idea-arrow" aria-hidden="true" />}</div>
+        return <Link className={`active-idea-card ${lead ? 'is-lead' : 'is-support'} ${preview.report ? 'is-developed' : 'is-capture'}`} key={note.id} to={`/idea/${note.id}`} aria-label={`Open active idea ${extractTitle(note)}`}>
+          <IdeaIdentity developed={preview.report} pinned={featured(note)} voice={Boolean(note.audio_url || formatDuration(note.duration))} />
+          <div className="active-idea-heading"><h3>{extractTitle(note)}</h3>{!lead && <ChevronRightIcon className="active-idea-arrow" aria-hidden="true" />}</div>
           {!lead && summary && <p className="active-idea-summary">{summary}</p>}
-          {lead && (preview.text || !preview.report) && <div className="active-idea-reading"><span>{preview.label}</span><ReactMarkdown allowedElements={['p','strong','em','ul','ol','li','blockquote']} unwrapDisallowed>{preview.text}</ReactMarkdown></div>}
+          {lead && (preview.text || !preview.report) && <div className="active-idea-reading"><ReactMarkdown allowedElements={['p','strong','em','ul','ol','li','blockquote']} unwrapDisallowed>{preview.text}</ReactMarkdown></div>}
           <Availability note={note} />
           {lead && terms.length > 0 && <p className="active-idea-keywords"><span className="sr-only">Saved search terms: </span>{terms.join(' · ')}</p>}
           {lead && <span className="active-idea-open">Open idea<ChevronRightIcon aria-hidden="true" /></span>}
         </Link>;
       })}</div>
       {selected.length > 3 && <button className="active-ideas-view-all" onClick={onViewAll}>View all {selected.length} active ideas<ChevronRightIcon aria-hidden="true" /></button>}
-    </> : <div className="active-ideas-state"><StarIcon aria-hidden="true" /><h3>Keep the ideas you want to return to</h3><p>Use Feature in your library to keep an idea here. A rough capture can be an active idea too.</p><button onClick={onChoose}>Choose from your library</button></div>}
+    </> : <div className="active-ideas-state"><BookmarkIcon aria-hidden="true" /><h3>Keep the ideas you want to return to</h3><p>Use Pin in your library to keep an idea here. A rough capture can be an active idea too.</p><button onClick={onChoose}>Choose from your library</button></div>}
   </section>;
 }

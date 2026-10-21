@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import ActiveIdeas from './ActiveIdeas';
+import IdeaIdentity from './IdeaIdentity';
 import remarkGfm from 'remark-gfm';
 import { ideaMarkdownComponents } from '../utils/ideaMarkdownComponents';
 import { savedText, formatDuration, ReportBadges, RecordingPlayer } from './NotePreview';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogPanel, DialogTitle, Description } from '@headlessui/react';
-import { MagnifyingGlassIcon, ArchiveBoxIcon, ArrowUturnLeftIcon, TrashIcon, SparklesIcon, MicrophoneIcon, LightBulbIcon, StarIcon, Squares2X2Icon, DocumentTextIcon, DocumentCheckIcon, BookOpenIcon, ChevronRightIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, ArchiveBoxIcon, ArrowUturnLeftIcon, TrashIcon, SparklesIcon, MicrophoneIcon, LightBulbIcon, BookmarkIcon, Squares2X2Icon, DocumentTextIcon, DocumentCheckIcon, BookOpenIcon, ChevronRightIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
 import { supabase } from '../supabaseClient';
 import { workflowUrl } from '../runtimeConfig';
 import { useAuth } from '../contexts/AuthContext';
@@ -52,7 +53,7 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
     { id: 'workspace', label: 'All notes', icon: Squares2X2Icon, count: activeNotes.length },
     { id: 'captures', label: 'Captures', icon: MicrophoneIcon, count: captures.length },
     { id: 'ideas', label: 'Ideas', icon: LightBulbIcon, count: ideas.length },
-    { id: 'featured', label: 'Featured', icon: StarIcon, count: featuredNotes.length },
+    { id: 'featured', label: 'Pinned', icon: BookmarkIcon, count: featuredNotes.length },
     { id: 'archived', label: 'Archived', icon: ArchiveBoxIcon, count: archivedNotes.length },
   ];
   const selectedView = views.find(item => item.id === view);
@@ -67,10 +68,10 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
     setFeedback(null);
     try {
       const { data, error } = await supabase.from('voice_notes').update({ is_featured: featured }).eq('id', note.id).eq('user_id', user.id).select('id,is_featured').single();
-      if (error || data?.id !== note.id || data.is_featured !== featured) throw new Error('The featured change could not be confirmed. Please retry.');
+      if (error || data?.id !== note.id || data.is_featured !== featured) throw new Error('The pin change could not be confirmed. Please retry.');
       setNotes(previous => previous.map(row => row.id === note.id ? { ...row, is_featured: featured } : row));
       if (view === 'workspace' || (view === 'featured' && !featured)) setFocusAfterMutation(true);
-      setFeedback({ type: 'success', text: `“${extractTitle(note)}” ${featured ? 'added to Featured.' : 'removed from Featured.'}` });
+      setFeedback({ type: 'success', text: `“${extractTitle(note)}” ${featured ? 'pinned.' : 'unpinned.'}` });
     } catch (error) { setFeedback({ type: 'error', text: error.message }); }
     finally { setPending(null); pendingRef.current = false; }
   };
@@ -153,18 +154,13 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
     }
   };
 
-  const noteIdentity = note => {
-    const developed = Boolean(savedText(note.business_idea).trim());
-    const Icon = developed ? LightBulbIcon : note.audio_url || formatDuration(note.duration) ? MicrophoneIcon : DocumentTextIcon;
-    return <span className={`original-identity ${developed ? 'is-developed' : ''}`}><Icon aria-hidden="true" /><span className="sr-only">{developed ? 'Developed idea' : 'Original capture'}: </span></span>;
-  };
+  const noteIdentity = note => <IdeaIdentity developed={Boolean(savedText(note.business_idea).trim())} pinned={isFeatured(note)} voice={Boolean(note.audio_url || formatDuration(note.duration))} />;
   const noteMeta = note => {
     const date = new Date(note.created_at || note.createdAt);
     const voice = Boolean(note.audio_url || formatDuration(note.duration));
     return <div className="original-note-meta"><span className="original-source-label">{voice ? <MicrophoneIcon aria-hidden="true" /> : <DocumentTextIcon aria-hidden="true" />}{voice ? 'Voice capture' : 'Text capture'}</span>
       {Number.isFinite(date.getTime()) && <time dateTime={date.toISOString()}>{date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</time>}
       {formatDuration(note.duration) && <span>{formatDuration(note.duration)}</span>}
-      {isFeatured(note) && <span className="original-featured-mark"><StarIcon aria-hidden="true" />Featured</span>}
     </div>;
   };
   const renderNote = note => {
@@ -172,8 +168,9 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
     const report = savedText(note.business_idea);
     const transcript = savedText(note.transcript || note.transcription);
     const summary = extractSummary({ ...note, business_idea: report }) || transcript;
-    return <article key={note.id} className="original-note" aria-labelledby={`note-${note.id}`}>
-      <div className="original-note-heading"><div><div className="original-note-title">{noteIdentity(note)}<h3 id={`note-${note.id}`}><Link to={`/idea/${note.id}`}>{title}</Link></h3></div>{noteMeta(note)}</div><Link className={`original-open ${!report && transcript && ownsNote(note) && !isArchived(note) ? 'is-secondary' : ''}`} to={`/idea/${note.id}`} aria-label={`Open ${title}`}>Open note<ChevronRightIcon aria-hidden="true" /></Link></div>
+    return <article key={note.id} className={`original-note ${report ? 'is-developed' : 'is-capture'}`} aria-labelledby={`note-${note.id}`}>
+      {noteIdentity(note)}
+      <div className="original-note-heading"><div><div className="original-note-title"><h3 id={`note-${note.id}`}><Link to={`/idea/${note.id}`}>{title}</Link></h3></div>{noteMeta(note)}</div><Link className={`original-open ${!report && transcript && ownsNote(note) && !isArchived(note) ? 'is-secondary' : ''}`} to={`/idea/${note.id}`} aria-label={`Open ${title}`}>Open note<ChevronRightIcon aria-hidden="true" /></Link></div>
       {summary && <p className="original-note-summary">{summary}</p>}
       <div className="original-report-context"><ReportBadges text={report} />{note.prd_content?.trim() && <span className="original-artifact"><DocumentCheckIcon aria-hidden="true" />Product spec saved</span>}</div>
       <div className="original-disclosures">
@@ -184,7 +181,7 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
       {!report && transcript && <p className="original-next-step">Keep this as a note, or develop it into a structured idea when you’re ready.</p>}
       <div className="original-note-actions">
         {ownsNote(note) && !report && transcript && !isArchived(note) && <button className="original-develop" onClick={() => handleGenerateIdea(note)} disabled={pending !== null || loadingIdea[note.id]}><SparklesIcon aria-hidden="true" />{loadingIdea[note.id] ? 'Generating…' : 'Develop idea'}</button>}
-        <button className={isFeatured(note) ? 'original-feature-action is-featured' : 'original-feature-action'} onClick={() => handleFeature(note)} disabled={pending !== null || !canFeature(note)} aria-label={`${isFeatured(note) ? 'Remove featured' : 'Feature'} ${title}`}><StarIcon aria-hidden="true" />{isFeatured(note) ? 'Remove featured' : 'Feature'}</button>
+        <button className={isFeatured(note) ? 'original-feature-action is-featured' : 'original-feature-action'} onClick={() => handleFeature(note)} disabled={pending !== null || !canFeature(note)} aria-label={`${isFeatured(note) ? 'Unpin' : 'Pin'} ${title}`}><BookmarkIcon aria-hidden="true" />{isFeatured(note) ? 'Unpin' : 'Pin'}</button>
         <button onClick={() => handleToggleArchive(note)} disabled={pending !== null || !canArchive(note)} aria-label={`${isArchived(note) ? 'Restore' : 'Archive'} ${title}`}>{isArchived(note) ? <ArrowUturnLeftIcon aria-hidden="true" /> : <ArchiveBoxIcon aria-hidden="true" />}{pending === note.id ? 'Saving…' : isArchived(note) ? 'Restore' : 'Archive'}</button>
         <button className="original-delete" onClick={() => { setDeleteError(null); setDeleteTarget(note); }} disabled={pending !== null || !canDelete(note)} aria-label={`Delete ${title}`}><TrashIcon aria-hidden="true" />{canDelete(note) ? 'Delete' : 'Delete unavailable'}</button>
       </div>
@@ -199,7 +196,7 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
     workspace: ['Start with a rough idea', 'Press the mic above to capture a thought. Your original stays here; develop it when you’re ready.'],
     captures: ['No raw captures here', 'Record a thought or write a note. It doesn’t have to become a project.'],
     ideas: ['Ideas take shape here', 'Choose Develop idea on a capture when you want a structured report.'],
-    featured: ['Keep a few ideas close', 'Use Feature on a capture or developed idea to keep it in this view.'],
+    featured: ['Keep a few ideas close', 'Use Pin on a capture or developed idea to keep it in this view.'],
     archived: ['Nothing archived', 'Archive keeps a note for later. Restore brings supported notes back.'],
   };
   return (

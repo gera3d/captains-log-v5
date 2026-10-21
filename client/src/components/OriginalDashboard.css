@@ -185,3 +185,8 @@
 @media(prefers-reduced-motion:reduce) {
   .original-dashboard *,.original-dashboard *::before,.original-dashboard *::after { animation:none!important; scroll-behavior:auto!important; transition:none!important; }
 }
+
+/* Captures remain paper-like; developed content has a report header edge. */
+.original-note.is-capture { border-left:2px solid #94a3b8; background:#f8fafc; box-shadow:none; }
+.original-note.is-developed { border-top:3px solid #4f46e5; }
+.original-note.is-capture h3 { font-weight:600; }

@@ -39,3 +39,8 @@
  .active-idea-reading { font-size:15px; line-height:26px; }
  .active-ideas-state { padding:24px; }
 }
+
+/* The edge orientation stays legible without color or the interest marker. */
+.active-idea-card.is-capture { border-left:2px solid #94a3b8; background:#f8fafc; box-shadow:none; }
+.active-idea-card.is-developed { border-top:3px solid #4f46e5; }
+.active-idea-card.is-capture .active-idea-heading h3 { font-weight:600; }

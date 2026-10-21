@@ -1,0 +1,10 @@
+/* Two independent signals: paper/report stage and a separate interest tab. */
+.idea-identity-row { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px 16px; margin-bottom:16px; }
+.idea-stage { display:inline-flex; align-items:center; gap:9px; color:#475569; font-size:14px; line-height:22px; font-weight:600; }
+.idea-stage-icon { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; flex-shrink:0; }
+.idea-stage-icon svg { width:23px; height:23px; }
+.idea-stage.is-developed { color:#4338ca; }
+.idea-stage.is-developed .idea-stage-icon { background:#eef2ff; border:1px solid #c7d2fe; border-radius:9px; }
+.idea-stage.is-capture .idea-stage-icon { border-bottom:2px solid #cbd5e1; }
+.idea-pin { display:inline-flex; align-items:center; gap:5px; margin-left:auto; padding:5px 8px 6px; background:#eef2ff; color:#4338ca; border-bottom:2px solid #c7d2fe; border-radius:7px 7px 0 7px; font-size:13px; line-height:20px; font-weight:600; white-space:nowrap; }
+.idea-pin svg { width:15px; height:17px; }

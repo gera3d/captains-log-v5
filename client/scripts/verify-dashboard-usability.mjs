@@ -78,7 +78,7 @@ const note=(page,title)=>page.locator('article').filter({has:page.locator('h3').
 const writes=page=>page.evaluate(()=>window.__mutations);
 const saved=page=>page.evaluate(()=>JSON.parse(localStorage.getItem('goodidea.mock-staging.v4')));
 const selectView = async (page, view) => {
- const label = view === 'workspace' ? 'All notes' : view[0].toUpperCase()+view.slice(1);
+ const label = view === 'workspace' ? 'All notes' : view === 'featured' ? 'Pinned' : view[0].toUpperCase()+view.slice(1);
  await page.getByRole('navigation',{name:'Filter notes'}).getByRole('button',{name:new RegExp('^'+label)}).click();
 };
 const clearSearch=page=>page.getByRole('searchbox',{name:'Search ideas'}).fill('');
@@ -97,7 +97,7 @@ try {
    const nextPage = await page.evaluate(() => fetch('/api/v1/ideas?limit=1&offset=1').then(response => response.json()));
    assert.deepEqual(nextPage.ideas, []);
    assert.equal(nextPage.total, 1, 'total is current-account scoped before pagination');
-   for (const action of ['Feature', 'Archive', 'Delete']) {
+   for (const action of ['Pin', 'Archive', 'Delete']) {
     await expect(note(page, own.title).getByRole('button', { name: `${action} ${own.title}`, exact: true })).toBeEnabled();
     await expect(note(page, knownNote.title).getByRole('button', { name: `${action} ${knownNote.title}`, exact: true })).toBeDisabled();
    }
@@ -123,7 +123,7 @@ try {
    await context.close();
    record(`${hiddenOwner ? 'foreign-owner' : 'ownerless'} mirror is hidden by account-scoped list/total; exact owned note-row removal retains all ambient copies and explicit retained-copy wording`);
    const incomplete = await contextFor(data, { incomplete: true });
-   for (const action of ['Feature', 'Archive', 'Delete']) await expect(note(incomplete.page, own.title).getByRole('button', { name: `${action} ${own.title}`, exact: true })).toBeDisabled();
+   for (const action of ['Pin', 'Archive', 'Delete']) await expect(note(incomplete.page, own.title).getByRole('button', { name: `${action} ${own.title}`, exact: true })).toBeDisabled();
    assert.deepEqual(await writes(incomplete.page), []);
    await incomplete.context.close();
   }
@@ -183,7 +183,7 @@ try {
  {
   const developed=fixture.voice_notes.find(row=>row.title==='A developed idea');
   for(const data of [{voice_notes:[],ideas:[]},{voice_notes:[developed],ideas:[]}]){
-   const {context,page}=await contextFor(data);const active=page.getByRole('region',{name:'Active ideas',exact:true});await expect(active.locator('a[href^="/idea/"]')).toHaveCount(0);await expect(active).toContainText('Use Feature in your library');if(data.voice_notes.length){await expect(note(page,'A developed idea')).toBeVisible();await active.getByRole('button',{name:'Choose from your library',exact:true}).click();await expect(page.getByRole('heading',{name:'Your captured notes & ideas',exact:true})).toBeFocused();await selectView(page,'ideas');await expect(note(page,'A developed idea')).toBeVisible()}assert.deepEqual(await writes(page),[]);await expect(active.locator('a[href^="/idea/"]')).toHaveCount(0);
+   const {context,page}=await contextFor(data);const active=page.getByRole('region',{name:'Active ideas',exact:true});await expect(active.locator('a[href^="/idea/"]')).toHaveCount(0);await expect(active).toContainText('Use Pin in your library');if(data.voice_notes.length){await expect(note(page,'A developed idea')).toBeVisible();await active.getByRole('button',{name:'Choose from your library',exact:true}).click();await expect(page.getByRole('heading',{name:'Your captured notes & ideas',exact:true})).toBeFocused();await selectView(page,'ideas');await expect(note(page,'A developed idea')).toBeVisible()}assert.deepEqual(await writes(page),[]);await expect(active.locator('a[href^="/idea/"]')).toHaveCount(0);
    await page.screenshot({path:resolve(evidence,data.voice_notes.length?'final-returning-developed.png':'final-empty.png'),fullPage:true});await context.close();
   }
  }
@@ -193,7 +193,7 @@ try {
   await page.getByRole('searchbox',{name:'Search ideas'}).fill('meeting');await expect(page.getByRole('article')).toHaveCount(1);
   await page.getByRole('searchbox',{name:'Search ideas'}).fill('does not exist');await expect(page.getByRole('heading',{name:'No matching ideas'})).toBeVisible();await page.getByRole('button',{name:'Clear search'}).click();
   for(const title of ['A shared reference','Legacy unknown owner','Other person ambient note','Unknown ambient owner'])await expect(note(page,title)).toHaveCount(0);
-  for(const title of ['A connected idea','An idea from another tool'])for(const action of ['Feature','Archive','Delete'])await expect(note(page,title).getByRole('button',{name:`${action} ${title}`,exact:true})).toBeDisabled();
+  for(const title of ['A connected idea','An idea from another tool'])for(const action of ['Pin','Archive','Delete'])await expect(note(page,title).getByRole('button',{name:`${action} ${title}`,exact:true})).toBeDisabled();
   const reads=await page.evaluate(()=>window.__reads.filter(read=>read.table==='voice_notes'));assert.ok(reads.length&&reads.every(read=>read.filters.some(([key,value])=>key==='user_id'&&value==='mock-staging-user')));
   await page.getByRole('button',{name:`Delete ${own.title}`,exact:true}).click();await page.getByRole('button',{name:'Cancel',exact:true}).click();assert.deepEqual(await saved(page),before);assert.deepEqual(await writes(page),[]);
   await page.evaluate(()=>window.__mutationDelay=800);
@@ -208,10 +208,10 @@ try {
  }
  record('delete denied/zero/wrong-row/FK/transport failure retains original and retryable dialog; retry succeeds');
  for(const kind of ['error','zero','mismatch','incomplete'])for(const action of ['archive','feature']){
-  const {context,page}=await contextFor();const before=await saved(page);await page.evaluate(kind=>window.__fault={operation:'update',kind},kind);await page.getByRole('button',{name:`${action==='archive'?'Archive':'Feature'} ${own.title}`,exact:true}).click();await expect(page.getByRole('alert')).toContainText('could not be confirmed');assert.deepEqual(await saved(page),before);await expect(note(page,own.title)).toBeVisible();await page.evaluate(()=>window.__fault=null);await page.getByRole('button',{name:`${action==='archive'?'Archive':'Feature'} ${own.title}`,exact:true}).click();await expect(page.locator('.library-feedback[role="status"]')).toContainText(action==='archive'?'archived':'added to Featured');await context.close();
+  const {context,page}=await contextFor();const before=await saved(page);await page.evaluate(kind=>window.__fault={operation:'update',kind},kind);await page.getByRole('button',{name:`${action==='archive'?'Archive':'Pin'} ${own.title}`,exact:true}).click();await expect(page.getByRole('alert')).toContainText('could not be confirmed');assert.deepEqual(await saved(page),before);await expect(note(page,own.title)).toBeVisible();await page.evaluate(()=>window.__fault=null);await page.getByRole('button',{name:`${action==='archive'?'Archive':'Pin'} ${own.title}`,exact:true}).click();await expect(page.locator('.library-feedback[role="status"]')).toContainText(action==='archive'?'archived':'pinned');await context.close();
  }
  {
-  const {context,page}=await contextFor();await page.evaluate(()=>window.__mutationDelay=1000);await page.getByRole('button',{name:`Feature ${own.title}`,exact:true}).evaluate(button=>{button.click();button.click()});await expect(page.getByRole('button',{name:`Feature ${own.title}`,exact:true})).toBeDisabled();await expect(page.locator('.library-feedback[role="status"]')).toContainText('added to Featured');assert.equal((await writes(page)).length,1);assert.deepEqual((await writes(page))[0].values,{is_featured:true});await page.reload({waitUntil:'networkidle'});await selectView(page,'featured');await expect(note(page,own.title)).toBeVisible();await page.getByRole('button',{name:`Remove featured ${own.title}`,exact:true}).click();await expect(note(page,own.title)).toHaveCount(0);assert.equal((await saved(page)).voice_notes.find(row=>row.id===ids.own).is_featured,false);await context.close();
+  const {context,page}=await contextFor();await page.evaluate(()=>window.__mutationDelay=1000);await page.getByRole('button',{name:`Pin ${own.title}`,exact:true}).evaluate(button=>{button.click();button.click()});await expect(page.getByRole('button',{name:`Pin ${own.title}`,exact:true})).toBeDisabled();await expect(page.locator('.library-feedback[role="status"]')).toContainText('pinned');assert.equal((await writes(page)).length,1);assert.deepEqual((await writes(page))[0].values,{is_featured:true});await page.reload({waitUntil:'networkidle'});await selectView(page,'featured');await expect(note(page,own.title)).toBeVisible();await page.getByRole('button',{name:`Unpin ${own.title}`,exact:true}).click();await expect(note(page,own.title)).toHaveCount(0);assert.equal((await saved(page)).voice_notes.find(row=>row.id===ids.own).is_featured,false);await context.close();
  }
  record('manual Feature independent of development: strict owner/result, denied/zero/malformed retry, duplicate/pending guard, persistence after reload and explicit removal');
  for(const id of [ids.own,'99999999-9999-4999-8999-999999999999']){
@@ -227,7 +227,7 @@ try {
   assert.deepEqual(await writes(page),[]);await page.screenshot({path:resolve(evidence,'final-detail-read-only.png'),fullPage:true});await context.close();
  }
  for(const options of [{incomplete:true},{apiFailure:true},{readFault:true}]){
-  const {context,page}=await contextFor(fixture,options);if(!options.readFault)for(const action of ['Feature','Archive','Delete'])await expect(page.getByRole('button',{name:`${action} ${own.title}`,exact:true})).toBeDisabled();if(options.apiFailure||options.readFault)await expect(page.getByRole('region',{name:'Your captured notes & ideas',exact:true}).getByRole('button',{name:'Retry loading',exact:true})).toBeVisible();assert.deepEqual(await writes(page),[]);await context.close();
+  const {context,page}=await contextFor(fixture,options);if(!options.readFault)for(const action of ['Pin','Archive','Delete'])await expect(page.getByRole('button',{name:`${action} ${own.title}`,exact:true})).toBeDisabled();if(options.apiFailure||options.readFault)await expect(page.getByRole('region',{name:'Your captured notes & ideas',exact:true}).getByRole('button',{name:'Retry loading',exact:true})).toBeVisible();assert.deepEqual(await writes(page),[]);await context.close();
  }
  record('public/ambient detail readable with mutation controls closed; incomplete/error metadata closes all cross-store management actions');
  for(const mode of ['recording','preparing','saving']){
