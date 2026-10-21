@@ -4,12 +4,13 @@ import { parseIdeaReportSummary } from '../utils/parseIdeaReport';
 
 export function savedText(value) {
   if (typeof value !== 'string') return '';
+  let text = value;
   try {
     const parsed = JSON.parse(value);
-    if (typeof parsed === 'string') return parsed;
-    if (parsed && typeof parsed === 'object') return [parsed.idea, parsed.data, parsed.text, parsed.business_idea].find(item => typeof item === 'string') || '';
+    if (typeof parsed === 'string') text = parsed;
+    else if (parsed && typeof parsed === 'object') text = [parsed.idea, parsed.data, parsed.text, parsed.transcript, parsed.business_idea].find(item => typeof item === 'string') || value;
   } catch { /* Saved plain text needs no conversion. */ }
-  return value;
+  return text.replace(/\\n/g, '\n');
 }
 
 export function formatDuration(value) {
@@ -36,6 +37,6 @@ export function RecordingPlayer({ note, title }) {
   if (!note.audio_url) return null;
   return <div className="original-audio"><div><MicrophoneIcon aria-hidden="true" /><span>Original recording</span>{formatDuration(note.duration) && <span>{formatDuration(note.duration)}</span>}</div>
     <audio controls preload="none" src={note.audio_url} aria-label={`Original recording of ${title}`} onError={() => setFailed(true)} />
-    {failed && <p role="alert">This recording couldn’t be loaded. You can still read the saved note below or open its full view.</p>}
+    {failed && <p role="alert">This recording couldn’t be loaded. The saved note is still available in its full view.</p>}
   </div>;
 }

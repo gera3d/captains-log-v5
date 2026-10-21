@@ -3,14 +3,20 @@ import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createServer } from 'vite';
+import { createServer as createPortProbe } from 'node:net';
+import representativeFixture from '../src/fixtures/dashboard-preview.json' with { type: 'json' };
 import { chromium, expect } from '@playwright/test';
 const scopeOnly = process.env.DASHBOARD_SCOPE_ONLY === 'true';
 const evidence = resolve(process.env.DASHBOARD_EVIDENCE_DIR || 'artifacts/dashboard-usability');
 mkdirSync(evidence, { recursive: true });
-const server = await createServer({ mode: 'staging', server: { host: '127.0.0.1', port: 0, strictPort: true } });
+const portProbe = createPortProbe();
+await new Promise(resolve => portProbe.listen(0, '127.0.0.1', resolve));
+const freePort = portProbe.address().port;
+await new Promise(resolve => portProbe.close(resolve));
+const server = await createServer({ mode: 'staging', server: { host: '127.0.0.1', port: freePort, strictPort: true } });
 await server.listen();
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
-const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', args: ['--disable-gpu', '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1'] });
+const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', args: ['--disable-gpu', '--mute-audio', '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1'] });
 const user = 'mock-staging-user';
 const ids = { own:'11111111-1111-4111-8111-111111111111', raw:'22222222-2222-4222-8222-222222222222', other:'33333333-3333-4333-8333-333333333333', archived:'44444444-4444-4444-8444-444444444444', mirrored:'55555555-5555-4555-8555-555555555555' };
 const own = { id:ids.own, user_id:user, title:'A neighborhood tool library', summary:'Borrow the tools you only need once. A shared place for neighbors to lend, reserve and return equipment.', business_idea:'',transcript:'Borrow the tools you only need once.',duration:42,created_at:'2026-10-20T12:00:00Z' };
@@ -64,19 +70,18 @@ async function contextFor(data=fixture, options={}) {
  },{data,seen:options.seen,readFault:options.readFault||false});
  const page=await context.newPage();page.on('pageerror',error=>errors.push(error.message));
  await page.goto(origin,{waitUntil:'networkidle'});
- await expect(page.getByRole('heading',{name:'Workspace',exact:true})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Your captured notes & ideas',exact:true})).toBeVisible();
  return {context,page};
 }
 const note=(page,title)=>page.locator('article').filter({has:page.locator('h3').filter({hasText:title})});
 const writes=page=>page.evaluate(()=>window.__mutations);
 const saved=page=>page.evaluate(()=>JSON.parse(localStorage.getItem('goodidea.mock-staging.v4')));
 const selectView = async (page, view) => {
- const mobile=page.getByRole('combobox',{name:'Workspace view'});
- if(await mobile.isVisible())await mobile.selectOption(view);
- else await page.locator('.desk-rail nav').getByRole('button',{name:new RegExp('^'+view[0].toUpperCase()+view.slice(1))}).click();
+ const label = view === 'workspace' ? 'All notes' : view[0].toUpperCase()+view.slice(1);
+ await page.getByRole('navigation',{name:'Filter notes'}).getByRole('button',{name:new RegExp('^'+label)}).click();
 };
 const clearSearch=page=>page.getByRole('searchbox',{name:'Search ideas'}).fill('');
-const openRecord=async page=>{await page.getByRole('button',{name:'Record idea',exact:true}).first().click();await expect(page.getByRole('button',{name:'Voice Memo',exact:true})).toHaveAttribute('aria-pressed','true')};
+const openRecord=async page=>{await page.getByRole('button',{name:'Voice Memo',exact:true}).click();await expect(page.getByRole('button',{name:'Start recording',exact:true})).toBeVisible()};
 try {
  if (scopeOnly) {
   const knownNote = { ...own, id: ids.raw, title: 'Owned note with a known owned mirror' };
@@ -123,6 +128,33 @@ try {
   }
   record('known account-visible mirrors and incomplete metadata retain existing closed guards; no global mirror-absence inference');
  } else {
+ // Compare with the same truthful synthetic content used by the original baseline.
+ for (const width of [1440,818,390,320]) {
+  const {context,page}=await contextFor(representativeFixture);await page.setViewportSize({width,height:1000});
+  const mic=page.getByRole('button',{name:'Start recording',exact:true});await expect(mic).toBeVisible();const bounds=await mic.boundingBox();assert.equal(bounds.width,128);assert.equal(bounds.height,128);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  await page.screenshot({path:resolve(evidence,`restored-dashboard-top-${width}.png`)});
+  await page.screenshot({path:resolve(evidence,`restored-dashboard-full-${width}.png`),fullPage:true});
+  const first=note(page,'A tool library for the neighborhood');await first.scrollIntoViewIfNeeded();await expect(first.getByLabel('Saved report contents')).toHaveText('3 keywords');
+  await expect(first.getByLabel('Saved report contents')).not.toContainText('sources');await expect(first.getByLabel('Saved report contents')).not.toContainText('metrics');await expect(page.locator('audio')).toHaveCount(0);
+  await page.screenshot({path:resolve(evidence,`restored-recognition-${width}.png`)});
+  const report=first.locator('details.original-report');await report.locator('summary').focus();await page.keyboard.press('Enter');await expect(report).toHaveAttribute('open','');await expect(report.getByRole('heading',{name:'Blue team: What could work'})).toBeVisible();
+  const original=first.locator('details.original-transcript');await original.locator('summary').click();await expect(original).toContainText('I only use my drill a few times a year.');await expect(page.getByText('Strong Market Pull',{exact:true})).toHaveCount(0);
+  await page.screenshot({path:resolve(evidence,`restored-expanded-${width}.png`)});
+  await report.locator('summary').click();await expect(report).not.toHaveAttribute('open');
+  assert.deepEqual(await writes(page),[]);assert.equal(await page.evaluate(()=>window.__micCalls),0);await context.close();
+ }
+ for (const [value,expected] of [['Plain original words','Plain original words'],[JSON.stringify({data:'Data wrapper words'}),'Data wrapper words'],[JSON.stringify({transcript:'Transcript wrapper words'}),'Transcript wrapper words'],[JSON.stringify('String wrapper words'),'String wrapper words'],[JSON.stringify({legacy:'Unrecognized saved wrapper'}),'{"legacy":"Unrecognized saved wrapper"}']]) {
+  const {context,page}=await contextFor({voice_notes:[{...own,title:'Original content preservation',transcript:value}],ideas:[]});const original=note(page,'Original content preservation').locator('details.original-transcript');await original.locator('summary').click();await expect(original.locator('p')).toHaveText(expected);assert.deepEqual(await writes(page),[]);await context.close();
+ }
+ record('original comparison at four widths: inline128pxmic, truthful report counts, readable summaries, keyboard report/transcript disclosures, no fabricated metrics/audio, saved wrapper/plain content preserved');
+ {
+  // Real playable bytes generated solely for this local fixture: one second of silence.
+  const wav=Buffer.alloc(44+16000);wav.write('RIFF',0);wav.writeUInt32LE(wav.length-8,4);wav.write('WAVEfmt ',8);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);wav.writeUInt32LE(8000,24);wav.writeUInt32LE(16000,28);wav.writeUInt16LE(2,32);wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(16000,40);
+  const {context,page}=await contextFor({voice_notes:[{...own,audio_url:`data:audio/wav;base64,${wav.toString('base64')}`,duration:1}],ideas:[]});
+  const audio=page.getByLabel(`Original recording of ${own.title}`,{exact:true});await expect(audio).toHaveAttribute('preload','none');assert.equal(await audio.evaluate(element=>element.paused),true);await audio.evaluate(element=>element.play());await expect.poll(()=>audio.evaluate(element=>element.duration)).toBe(1);await audio.evaluate(element=>{element.pause();element.dispatchEvent(new Event('error'))});await expect(page.getByRole('alert')).toContainText('recording couldn’t be loaded');await note(page,own.title).locator('details.original-transcript>summary').click();await expect(note(page,own.title)).toContainText(own.transcript);assert.deepEqual(await writes(page),[]);await context.close();
+ }
+ record('recording player uses actual local WAV fixture bytes, never autoplays or requests microphone, reports media error without losing transcript; no audio player for missing URL');
  for(const seen of [undefined,true,false])for(const empty of [false,true]){
   const {context,page}=await contextFor(empty?{voice_notes:[],ideas:[]}:fixture,{seen});
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -131,10 +163,10 @@ try {
   assert.equal(await page.evaluate(()=>window.__micCalls),0);
   await page.getByRole('button',{name:'Text',exact:true}).click();await expect(page.getByLabel('Your idea',{exact:true})).toBeVisible();
   await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);
-  await openRecord(page);await page.getByRole('button',{name:'Close capture'}).click();
+  await openRecord(page);await expect(page.getByRole('dialog')).toHaveCount(0);
   assert.deepEqual(await writes(page),[]);assert.equal(await page.evaluate(()=>window.__micCalls),0);await context.close();
  }
- record('fresh/new/returning origins: direct workspace, no welcome, Record opens voice only, Text explicit, zero automatic microphone calls');
+ record('fresh/new/returning origins: direct workspace, no welcome, inline large microphone, voice selected, Text explicit, zero automatic microphone calls');
  for(const width of [1440,818,390,320]){
   const {context,page}=await contextFor();await page.setViewportSize({width,height:1000});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.equal(await page.locator('a[href="#"]').count(),0);
@@ -146,11 +178,11 @@ try {
   await page.screenshot({path:resolve(evidence,`final-delete-${width}.png`),fullPage:true});await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);assert.deepEqual(await writes(page),[]);
   await context.close();
  }
- record('1440/818/390/320 at1x: hierarchy, active navigation, readable actions, persona, no overflow, named deletion confirmation and safe focus');
+ record('1440/818/390/320 at1x: hierarchy, active filters, readable actions, persona, no overflow, named deletion confirmation and safe focus');
  {
   const developed=fixture.voice_notes.find(row=>row.title==='A developed idea');
   for(const data of [{voice_notes:[],ideas:[]},{voice_notes:[developed],ideas:[]}]){
-   const {context,page}=await contextFor(data);if(data.voice_notes.length){await expect(page.getByRole('heading',{name:'Recent ideas'})).toBeVisible();await expect(note(page,'A developed idea')).toBeVisible();await page.getByRole('button',{name:'View ideas',exact:true}).click();await expect(page.locator('h1')).toHaveText('Ideas')}
+   const {context,page}=await contextFor(data);if(data.voice_notes.length){await expect(page.getByRole('heading',{name:'Your ideas',exact:true})).toBeVisible();await expect(note(page,'A developed idea')).toBeVisible();await page.getByRole('button',{name:'View all ideas',exact:true}).click();await expect(page.getByRole('heading',{name:'Ideas',exact:true})).toBeVisible()}
    await page.screenshot({path:resolve(evidence,data.voice_notes.length?'final-returning-developed.png':'final-empty.png'),fullPage:true});await context.close();
   }
  }
@@ -207,8 +239,8 @@ try {
   if(mode==='preparing')await expect(page.getByRole('button',{name:'Preparing microphone',exact:true})).toBeDisabled();else await expect(page.getByRole('button',{name:'Stop recording',exact:true})).toBeVisible();
   if(mode==='recording'){await page.clock.runFor(1100);await expect(page.getByText('0:01',{exact:true})).toBeVisible();await page.clock.runFor(1000);await expect(page.getByText('0:02',{exact:true})).toBeVisible()}
   if(mode==='saving')await page.getByRole('button',{name:'Stop recording',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Text',exact:true})).toBeDisabled();await expect(page.getByRole('button',{name:'Close capture'})).toBeDisabled();await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(1);
-  if(mode==='saving'){await expect(page.getByRole('button',{name:'Try again',exact:true})).toBeVisible();assert.ok(await page.evaluate(()=>window.__tracksStopped)>0);await page.getByRole('button',{name:'Close capture'}).click()}
+  await expect(page.getByRole('button',{name:'Text',exact:true})).toBeDisabled();await page.keyboard.press('Escape');await expect(page.getByRole('button',{name:'Text',exact:true})).toBeDisabled();await expect(page.getByRole('dialog')).toHaveCount(0);
+  if(mode==='saving'){await expect(page.getByRole('button',{name:'Try again',exact:true})).toBeVisible();assert.ok(await page.evaluate(()=>window.__tracksStopped)>0);await page.getByRole('button',{name:'Text',exact:true}).click()}
   else{await page.evaluate(()=>{history.pushState({},'', '/idea/88888888-8888-4888-8888-888888888888');dispatchEvent(new PopStateEvent('popstate'))});await expect(page.getByRole('dialog')).toHaveCount(0);if(mode==='preparing')await page.evaluate(()=>window.__resolveMedia(window.__syntheticStream));await expect.poll(()=>page.evaluate(()=>window.__tracksStopped)).toBeGreaterThan(0);assert.equal(await page.evaluate(()=>window.__uploads),0)}
   assert.deepEqual(await writes(page),[]);await context.close();
  }
@@ -223,9 +255,9 @@ try {
   },failure);await openRecord(page);await page.getByRole('button',{name:'Start recording',exact:true}).click();await expect(page.getByRole('button',{name:'Stop recording',exact:true})).toBeVisible();await page.getByRole('button',{name:'Stop recording',exact:true}).click();
   if(failure==='success'){await expect.poll(async()=> (await saved(page)).voice_notes.length).toBe(before.voice_notes.length+1);const row=(await saved(page)).voice_notes.find(row=>!before.voice_notes.some(old=>old.id===row.id));assert.equal(row.is_featured,false)}
   else{await expect(page.getByRole('button',{name:'Try again',exact:true})).toBeVisible();assert.deepEqual(await saved(page),before)}
-  await expect(page.getByRole('button',{name:'Text',exact:true})).toBeEnabled();await expect(page.getByRole('button',{name:'Close capture'})).toBeEnabled();assert.ok(await page.evaluate(()=>window.__tracksStopped)>0);await page.getByRole('button',{name:'Close capture'}).click();await expect(page.getByRole('dialog')).toHaveCount(0);await context.close();
+  await expect(page.getByRole('button',{name:'Text',exact:true})).toBeEnabled();await expect(page.getByRole('dialog')).toHaveCount(0);assert.ok(await page.evaluate(()=>window.__tracksStopped)>0);await page.getByRole('button',{name:'Text',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);await context.close();
  }
- record('synthetic microphone lifecycle only: keyboard Start/Stop, close/Escape/Text blocked while preparing/recording/saving, tracks stopped and no upload on unmount or late permission');
+ record('synthetic microphone lifecycle only: keyboard Start/Stop, Text switching blocked while preparing/recording/saving, tracks stopped and no upload on unmount or late permission');
  {
   const {context,page}=await contextFor();await page.evaluate(()=>{window.__emitStaging('INSERT',{id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',user_id:'another-person',title:'Foreign realtime insert'});window.__emitStaging('INSERT',{id:'cccccccc-cccc-4ccc-8ccc-cccccccccccc',title:'Unknown realtime insert'});window.__emitStaging('INSERT',{id:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',user_id:'mock-staging-user',title:'Own realtime capture'})});await selectView(page,'captures');await expect(note(page,'Own realtime capture')).toBeVisible();await expect(note(page,'Foreign realtime insert')).toHaveCount(0);await expect(note(page,'Unknown realtime insert')).toHaveCount(0);await page.evaluate(()=>window.__emitStaging('UPDATE',{id:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',user_id:'another-person',title:'Own realtime capture'}));await expect(note(page,'Own realtime capture')).toHaveCount(0);await context.close();
  }

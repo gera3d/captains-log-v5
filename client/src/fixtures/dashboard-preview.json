@@ -1,0 +1,64 @@
+{
+  "voice_notes": [
+    {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "user_id": "mock-staging-user",
+      "title": "A tool library for the neighborhood",
+      "summary": "Borrow the tools you only need once. Neighbors can list, request and return equipment without buying it for a single job.",
+      "transcript": "I only use my drill a few times a year. Could neighbors share tools instead of buying them?",
+      "business_idea": "{\"text\":\"# A tool library for the neighborhood\\n\\n> **Nearby tool borrowers — working hypothesis**\\n> _Find a tool for an occasional job without buying it._\\n\\n> **Elevator Pitch:** A small neighborhood tool library where people list, request and return tools.\\n\\n### Blue team: What could work\\n- Local availability: Find a drill or ladder within walking distance instead of buying one for a single job.\\n- A small first group: Start with people who know each other and learn which tools actually get used.\\n\\n### Red team: What needs checking\\n- Trust and damage: Agree on responsibility before a valuable tool changes hands.\\n- Reliable returns: Test pickup, return dates and owner confirmation with a small group first.\\n\\n### Sources and limits\\nIllustrative fixture only. No market research, interviews or measured demand.\\n\\n### What this customer might search\\nIllustrative terms only, not measured demand.\\n- **tool library**\\n- **borrow tools nearby**\\n- **neighborhood tool sharing**\",\"report\":{\"marketPosition\":\"Illustrative tool-library example\"}}",
+      "prd_content": "# Neighborhood tool library\n\n> **Illustrative product spec**\n> Synthetic example. Start with a small group and a simple borrowing flow.\n\n## First version\n\n| Step | What the user does | What needs to happen |\n| --- | --- | --- |\n| Find | Browse nearby tools | Show the owner and availability |\n| Request | Ask to borrow a tool | Include the dates and intended use |\n| Confirm | Owner accepts the request | Agree on pickup and return |\n| Return | Mark the tool as returned | Make the tool available again |\n\n## Scope\n\n- [x] A tool list with availability\n- [x] Requests and owner confirmation\n- [x] An agreed return date\n- [ ] Payments and deposits\n- [ ] Delivery\n\n## Check the first version\n\nA neighbor can find an available drill, request it, see confirmation and record the return.",
+      "tags": [
+        "synthetic-example",
+        "tool-sharing"
+      ],
+      "author": "Synthetic example",
+      "is_featured": true,
+      "archived": false,
+      "created_at": "2026-10-20T12:00:00Z"
+    },
+    {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "user_id": "mock-staging-user",
+      "title": "Meeting follow-ups from a rough note",
+      "summary": "Turn messy notes into a clear list of decisions and next steps.",
+      "transcript": "After each meeting I have a page of rough notes. I want to keep the original words, then choose when to turn them into decisions and next steps.",
+      "tags": [
+        "synthetic-example",
+        "meetings"
+      ],
+      "author": "Synthetic example",
+      "is_featured": false,
+      "archived": false,
+      "created_at": "2026-10-19T12:00:00Z"
+    },
+    {
+      "id": "33333333-3333-4333-8333-333333333333",
+      "user_id": "mock-staging-user",
+      "title": "A quiet place to plan the week",
+      "summary": "A simple weekly planner that starts with what matters and leaves room for the unexpected.",
+      "transcript": "I want to plan a week around what matters instead of filling every empty hour. Keep space for unexpected work.",
+      "business_idea": "# A quiet place to plan the week\n\n## Summary\nA simple weekly planner that starts with what matters and leaves room for the unexpected.\n\n### Blue team: What could work\n- Start with a few meaningful priorities and a view of the whole week.\n\n### Red team: What needs checking\n- Test whether the plan stays useful when the week changes.\n\n### What this customer might search\nIllustrative terms only, not measured demand.\n- **weekly planning**\n- **flexible schedule**\n\n### Sources and limits\nSynthetic example only. No research, interviews or measured demand.",
+      "tags": [
+        "synthetic-example",
+        "planning"
+      ],
+      "author": "Synthetic example",
+      "is_featured": false,
+      "archived": false,
+      "created_at": "2026-10-18T12:00:00Z"
+    },
+    {
+      "id": "44444444-4444-4444-8444-444444444444",
+      "user_id": "mock-staging-user",
+      "title": "An earlier experiment",
+      "summary": "A saved idea to revisit later.",
+      "transcript": "Keep this rough experiment for later.",
+      "is_featured": false,
+      "archived": true,
+      "status": "archived",
+      "created_at": "2026-10-17T12:00:00Z"
+    }
+  ],
+  "ideas": []
+}
