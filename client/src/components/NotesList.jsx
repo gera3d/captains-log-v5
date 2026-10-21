@@ -7,7 +7,7 @@ import { ideaMarkdownComponents } from '../utils/ideaMarkdownComponents';
 import { savedText, formatDuration, ReportBadges, RecordingPlayer } from './NotePreview';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogPanel, DialogTitle, Description } from '@headlessui/react';
-import { MagnifyingGlassIcon, ArchiveBoxIcon, ArrowUturnLeftIcon, TrashIcon, SparklesIcon, MicrophoneIcon, LightBulbIcon, BookmarkIcon, Squares2X2Icon, DocumentTextIcon, DocumentCheckIcon, BookOpenIcon, ChevronRightIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, ArchiveBoxIcon, ArrowUturnLeftIcon, TrashIcon, SparklesIcon, MicrophoneIcon, LightBulbIcon, BookmarkIcon, Squares2X2Icon, DocumentTextIcon, DocumentCheckIcon, BookOpenIcon, ChevronRightIcon, PencilSquareIcon } from '@heroicons/react/16/solid';
 import { supabase } from '../supabaseClient';
 import { workflowUrl } from '../runtimeConfig';
 import { useAuth } from '../contexts/AuthContext';

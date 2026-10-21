@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { BookmarkIcon, DocumentTextIcon, BookOpenIcon, DocumentCheckIcon, ChevronRightIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
+import { BookmarkIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, BookOpenIcon, DocumentCheckIcon, ChevronRightIcon, MicrophoneIcon } from '@heroicons/react/16/solid';
 import { savedText, formatDuration } from './NotePreview';
 import { extractTitle, extractSummary } from '../utils/extractTitle';
 import IdeaIdentity from './IdeaIdentity';

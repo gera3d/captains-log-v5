@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpenIcon, ChartBarIcon, MagnifyingGlassIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
+import { BookOpenIcon, ChartBarIcon, MagnifyingGlassIcon, MicrophoneIcon } from '@heroicons/react/16/solid';
 import { parseIdeaReportSummary } from '../utils/parseIdeaReport';
 
 export function savedText(value) {

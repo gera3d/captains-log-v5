@@ -1,5 +1,5 @@
 import { DocumentTextIcon, MicrophoneIcon, LightBulbIcon } from '@heroicons/react/24/outline';
-import { BookmarkIcon } from '@heroicons/react/24/solid';
+import { BookmarkIcon } from '@heroicons/react/16/solid';
 import './IdeaIdentity.css';
 
 // Content stage and personal interest are independent, presentation-only signals.
