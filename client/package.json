@@ -12,6 +12,7 @@
     "dev:staging": "vite --mode staging --host 127.0.0.1 --port 5176 --strictPort",
     "build:staging": "vite build --mode staging --outDir dist-staging",
     "preview:staging": "vite preview --mode staging --host 127.0.0.1 --port 5176 --strictPort --outDir dist-staging",
+    "check:dashboard": "node scripts/verify-dashboard-usability.mjs",
     "check:staging": "node scripts/verify-staging-isolation.mjs",
     "dev:live": "vite --mode live --host 127.0.0.1 --port 5177 --strictPort",
     "build:live": "vite build --mode live --outDir dist-live",

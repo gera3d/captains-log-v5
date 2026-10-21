@@ -3,14 +3,22 @@ import { isMockStaging } from './runtimeConfig';
 
 // A reloadable public-page fixture, confined to the existing synthetic build.
 const previewSignedOut = isMockStaging && new URLSearchParams(window.location.search).get('preview') === 'homepage';
-const STORAGE_KEY = 'goodidea.mock-staging.v1';
+const STORAGE_KEY = 'goodidea.mock-staging.v2';
 const user = { id: 'mock-staging-user', email: 'preview@example.invalid', user_metadata: { full_name: 'Staging Preview', username: 'preview' } };
 const session = { user, access_token: 'mock-staging-only-not-a-real-token' };
 const listeners = new Set();
 const channels = new Set();
 function load() {
   const saved = localStorage.getItem(STORAGE_KEY);
-  return saved ? JSON.parse(saved) : { voice_notes: [{ id: 'mock-note-1', user_id: user.id, title: 'Synthetic staging idea', transcript: 'A local project notebook for testing the Good Idea interface.', summary: 'Synthetic data for private preview only.', created_at: '2026-10-16T12:00:00.000Z', archived: false, is_featured: false }], ideas: [] };
+  return saved ? JSON.parse(saved) : {
+    voice_notes: [
+      { id: '11111111-1111-4111-8111-111111111111', user_id: user.id, title: 'A neighborhood tool library', summary: 'Borrow the tools you only need once. A shared place for neighbors to lend, reserve and return equipment.', transcript: 'What if neighbors could borrow tools from each other instead of buying something they will only use once?', business_idea: '# A neighborhood tool library\n\n## Summary\nBorrow the tools you only need once.\n\n## Problem\nUseful tools are expensive and often sit unused.\n\n## Solution\nA local lending library for neighbors.', created_at: '2026-10-20T12:00:00Z', archived: false },
+      { id: '22222222-2222-4222-8222-222222222222', user_id: user.id, title: 'Make meeting follow-ups easier', transcript: 'Turn messy meeting notes into a clear list of decisions and next steps.', summary: 'Turn messy meeting notes into a clear list of decisions and next steps.', created_at: '2026-10-19T12:00:00Z', archived: false },
+      { id: '33333333-3333-4333-8333-333333333333', user_id: user.id, title: 'A quiet place to plan the week', summary: 'A simple weekly planner that starts with what matters, then leaves room for the unexpected.', business_idea: '# A quiet place to plan the week\n\n## Summary\nA simple weekly planner that starts with what matters.', created_at: '2026-10-18T12:00:00Z', archived: false },
+      { id: '44444444-4444-4444-8444-444444444444', user_id: user.id, title: 'An earlier experiment', summary: 'A saved idea to revisit later.', archived: true, status: 'archived', created_at: '2026-10-17T12:00:00Z' },
+    ],
+    ideas: [{ id: 'idea_connected_example', userId: user.id, title: 'Example from a connected tool', summary: 'A synthetic example of an idea you can open, with management actions that are not supported yet.', transcript: 'A shared reading list for a small study group.', createdAt: '2026-10-16T12:00:00Z' }],
+  };
 }
 function save(store) { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); }
 function emit(event, row, old = {}) {
@@ -87,7 +95,11 @@ export function installStagingFetch() {
     if (!url.pathname.startsWith('/api/')) return realFetch(input, options);
     const method = options.method || (input instanceof Request ? input.method : 'GET');
     const store = load();
-    if (url.pathname === '/api/v1/ideas' && method === 'GET') return json({ ideas: store.ideas });
+    if (url.pathname === '/api/v1/ideas' && method === 'GET') {
+      const limit = Math.min(Number(url.searchParams.get('limit')) || 20, 100);
+      const offset = Number(url.searchParams.get('offset')) || 0;
+      return json({ ideas: store.ideas.slice(offset, offset + limit), total: store.ideas.length, limit, offset });
+    }
     if (url.pathname === '/api/v1/ideas/ingest' && method === 'POST') {
       const body = JSON.parse(options.body || '{}');
       const idea = { id: `idea_${crypto.randomUUID()}`, userId: user.id, title: body.title || 'Synthetic local idea', transcript: body.transcript, summary: 'Local preview only', businessIdeaMarkdown: body.synthesize ? mockIdea : '', createdAt: new Date().toISOString(), tags: ['mock-staging'] };

@@ -6,7 +6,7 @@ import { supabase } from '../supabaseClient';
 
 console.log('[VoiceRecorder][DEBUG] VoiceRecorder component loaded');
 
-export default function VoiceRecorder({ onNoteSaved }) {
+export default function VoiceRecorder({ onNoteSaved, compact = false }) {
   const [status, setStatus] = useState('idle');
   const [audioUrl, setAudioUrl] = useState(null);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -237,7 +237,7 @@ export default function VoiceRecorder({ onNoteSaved }) {
 
   // --- UI ---
   return (
-    <div className="flex flex-col items-center w-full max-w-md mx-auto relative">
+    <div className={`flex flex-col items-center w-full max-w-md mx-auto relative ${compact ? "voice-recorder-compact" : ""}`}>
       {/* Premium mic button with depth and animation */}
       <div className="relative group">
         {/* Pulsing ring animation when idle */}

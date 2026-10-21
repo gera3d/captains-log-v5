@@ -9,11 +9,11 @@ import { workflowUrl } from './runtimeConfig';
 // TODO[progress-md][P1][App] See progress.md for all open UI polish, loading, error, and browser test tasks
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import WelcomeDialog from './components/WelcomeDialog';
 import LoadingSpinner from './components/LoadingSpinner';
 import { supabase } from './supabaseClient';
 import { Routes, Route, useNavigate, Link } from 'react-router-dom';
 import NotesList from './components/NotesList';
+import './components/Dashboard.css';
 import VoiceRecorder from './components/VoiceRecorder';
 import VoiceRecorderCard from './components/VoiceRecorderCard';
 import { CheckIcon, MicrophoneIcon, DocumentTextIcon, ShareIcon, RocketLaunchIcon, SparklesIcon, BoltIcon, CheckBadgeIcon, ShieldCheckIcon, ArrowRightIcon, ArrowPathIcon, LightBulbIcon, DocumentCheckIcon, BookOpenIcon } from '@heroicons/react/24/outline';
@@ -44,16 +44,12 @@ import DomainBlueprintShowcase from './components/DomainBlueprintShowcase';
   - UI: Consider a dismissible banner or modal for onboarding.
 */
 
-function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loadingNotes = false }) {
-  const navigate = useNavigate();
+function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loadingNotes = false, notesError = null, onReloadNotes }) {
   const { runGeneration } = useGeneration();
   const [showIntegrationsModal, setShowIntegrationsModal] = useState(initialOpenIntegrations);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [onboardingFocus, setOnboardingFocus] = useState(null);
   const voiceCaptureRef = useRef(null);
   const textCaptureRef = useRef(null);
   const ideaComposerRef = useRef(null);
-  const [activeIdeas, setActiveIdeas] = useState([]);
   const [selectedPersona, setSelectedPersona] = useState(() => {
     // Try to load saved persona from localStorage
     const savedPersona = localStorage.getItem('userPersona');
@@ -144,156 +140,14 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
   };
   const effectiveUser = isDevUser ? devMockUser : user;
 
-  // Format date to be more compact
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    try {
-      const d = new Date(dateString);
-      if (isNaN(d.getTime())) return '';
-      const options = { month: 'short', day: 'numeric' };
-      return d.toLocaleDateString(undefined, options);
-    } catch {
-      return '';
-    }
-  };
-
-  // Handle idea generation completion - promote to active idea
-  const handleIdeaGenerated = async (noteId) => {
-    // Find the updated note in our notes list
-    const updatedNote = notes.find(note => note.id === noteId);
-    // Don't promote archived notes to active ideas
-    if (!updatedNote || !updatedNote.business_idea || updatedNote.archived) return;
-    
-    try {
-      // Update the note in the database to be featured/active
-      const { data, error } = await supabase
-        .from('voice_notes')
-        .update({ is_featured: true, status: 'active' })
-        .eq('id', noteId);
-        
-      if (error) throw error;
-      
-      // Update local state
-      setNotes(prev => prev.map(note => 
-        note.id === noteId ? {...note, status: 'active', is_featured: true} : note
-      ));
-      
-      // Update active ideas list
-      setActiveIdeas(prev => {
-        if (prev.some(idea => idea.id === noteId)) {
-          // Already in active ideas, just update it
-          return prev.map(idea => 
-            idea.id === noteId ? {...updatedNote, status: 'active', is_featured: true} : idea
-          );
-        } else {
-          // Add to active ideas
-          return [{...updatedNote, status: 'active', is_featured: true}, ...prev];
-        }
-      });
-      
-      console.log(`Note ${noteId} promoted to active idea after generation`);
-    } catch (err) {
-      console.error("Error promoting generated idea:", err);
-    }
-  };
-
-  useEffect(() => {
-    if (!user?.id) return;
-    try {
-      setShowOnboarding(!localStorage.getItem('dashboardOnboardingSeen'));
-    } catch {
-      setShowOnboarding(true);
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (showOnboarding || !onboardingFocus) return;
-    const frame = requestAnimationFrame(() => {
-      const target = onboardingFocus === 'composer'
-        ? ideaComposerRef.current
-        : captureTab === 'voice' ? voiceCaptureRef.current : textCaptureRef.current;
-      target?.focus({ preventScroll: true });
-      target?.scrollIntoView({ block: 'center', behavior: 'instant' });
-      setOnboardingFocus(null);
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [showOnboarding, onboardingFocus, captureTab]);
-
-  // Improved active ideas selection logic - show all ideas with content except archived ones, sorted strictly newest first
-  useEffect(() => {
-    const isArchived = (note) => note.archived === true || note.archived === 'true' || note.status === 'archived';
-
-    const getNoteTimestamp = (item) => {
-      if (!item) return 0;
-      const d = item.created_at || item.createdAt || item.updated_at || item.updatedAt;
-      if (!d) return 0;
-      const t = new Date(d).getTime();
-      return Number.isFinite(t) ? t : 0;
-    };
-
-    if (notes && notes.length > 0) {
-      // Select all non-archived notes with business_idea content, sorted strictly newest first
-      const contentNotes = notes
-        .filter(note => 
-          note.business_idea && 
-          note.business_idea.trim().length > 0 && 
-          !isArchived(note)
-        )
-        .sort((a, b) => getNoteTimestamp(b) - getNoteTimestamp(a));
-
-      setActiveIdeas(contentNotes);
-      
-      console.log(`Active ideas updated: ${contentNotes.length} ideas found`);
-    } else {
-      setActiveIdeas([]);
-    }
-  }, [notes]);
-
-  // Listen for idea generation events
-  useEffect(() => {
-    // Set up listener for custom events when ideas are generated
-    const handleIdeaGenerationComplete = (event) => {
-      if (event.detail && event.detail.noteId) {
-        handleIdeaGenerated(event.detail.noteId);
-      }
-    };
-    
-    window.addEventListener('ideaGenerated', handleIdeaGenerationComplete);
-    
-    return () => {
-      window.removeEventListener('ideaGenerated', handleIdeaGenerationComplete);
-    };
-  }, [notes]); // Depend on notes so we always have latest state
-
-  const handleDismissOnboarding = () => {
-    try {
-      localStorage.setItem('dashboardOnboardingSeen', 'true');
-    } catch {
-      console.warn('Welcome dismissal could not be saved in this browser.');
-    }
-    setShowOnboarding(false);
-    setOnboardingFocus('capture');
-  };
-
-  const handleStartOnboarding = () => {
-    handleDismissOnboarding();
-    setCaptureTab('text');
-    setOnboardingFocus('composer');
-  };
-
   const onNoteSaved = (newNote) => {
     const markedNote = newNote.business_idea 
       ? { ...newNote, is_featured: true } 
       : newNote;
     
-    setNotes(prev => [markedNote, ...prev]);
-    
-    if (newNote.business_idea) {
-      setActiveIdeas(prev => {
-        const updated = [markedNote, ...prev];
-        return updated;
-      });
-    }
+    const recordSource = String(newNote.id).startsWith('idea_') ? 'ambient' : 'voice_notes';
+    setNotes(prev => [{ ...markedNote, recordSource, mirrorCheck: 'unverified' }, ...prev.filter(note => note.id !== markedNote.id)]);
+
   };
 
   const handleMonologueSubmit = async (synthesizeIdea = false) => {
@@ -379,49 +233,6 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
     }
   };
 
-  const promoteToActiveIdea = async (noteId) => {
-    const noteToPromote = notes.find(note => note.id === noteId);
-    if (!noteToPromote) return;
-    
-    if (String(noteId).startsWith('idea_')) {
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData?.session?.access_token;
-        const headers = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-        await fetch(`/api/v1/ideas/${noteId}`, {
-          method: 'PATCH',
-          headers,
-          body: JSON.stringify({ is_featured: true, status: 'active' })
-        });
-      } catch (err) {
-        console.error("Error promoting ambient idea:", err);
-      }
-    } else {
-      try {
-        const { data, error } = await supabase
-          .from('voice_notes')
-          .update({ is_featured: true, status: 'active' })
-          .eq('id', noteId);
-          
-        if (error) throw error;
-      } catch (err) {
-        console.error("Error promoting idea:", err);
-      }
-    }
-    
-    setNotes(prev => prev.map(note => 
-      note.id === noteId ? {...note, status: 'active', is_featured: true} : note
-    ));
-    
-    setActiveIdeas(prev => {
-      if (prev.some(idea => idea.id === noteId)) return prev;
-      
-      const updatedNote = {...noteToPromote, status: 'active', is_featured: true};
-      return [updatedNote, ...prev];
-    });
-  };
-
   const addCustomPersona = () => {
     if (customPersonaName.trim()) {
       const newPersona = {
@@ -449,7 +260,6 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
     }
   };
 
-  const onboardingModal = <WelcomeDialog onDismiss={handleDismissOnboarding} onStart={handleStartOnboarding} />;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -458,7 +268,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.8)_0%,_rgba(255,255,255,0)_60%)]"></div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
+          <div className="dashboard-header-row flex justify-between items-center h-20">
             <Link to="/" className="flex items-center group transition">
               <img 
                 src="/goodideas.png" 
@@ -468,7 +278,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
             </Link>
             
             {effectiveUser && (
-              <div className="flex items-center space-x-4">
+              <div className="dashboard-account flex items-center space-x-4">
                 <div className="relative flex items-center text-white/90 text-sm">
                   <svg className="h-3.5 w-3.5 mr-1.5 text-white/60" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
@@ -632,246 +442,45 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
 
       {effectiveUser && (
         <>
-          {showOnboarding && onboardingModal}
           <IntegrationsModal
             isOpen={showIntegrationsModal}
             onClose={() => setShowIntegrationsModal(false)}
             onIdeaCreated={(newIdea) => setNotes(prev => [newIdea, ...prev])}
           />
           
-          <main className="relative pt-10 pb-16 bg-gradient-to-b from-slate-100 to-white min-h-[calc(100vh-5rem)]">
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex flex-col lg:flex-row gap-8 mb-16">
-                {/* First container - Capture Your Idea (Voice or Text) */}
-                <div className="lg:w-1/2 order-1">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                    <h2 className="text-2xl font-bold font-display text-slate-900 tracking-tight">Capture Your Idea</h2>
-                    
-                    {/* Clean Pill Segmented Tabs matching toolbar palette */}
-                    <div className="inline-flex items-center gap-1.5 p-1 bg-slate-100 border border-slate-200 rounded-full shadow-inner">
-                      <button
-                        type="button"
-                        onClick={() => setCaptureTab('voice')}
-                        ref={voiceCaptureRef}
-                        className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                          captureTab === 'voice'
-                            ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent'
-                        }`}
-                        aria-pressed={captureTab === 'voice'}
-                      >
-                        <MicrophoneIcon className={`w-3.5 h-3.5 mr-1.5 ${captureTab === 'voice' ? 'text-white' : 'text-slate-500'}`} />
-                        <span>Voice Memo</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCaptureTab('text')}
-                        ref={textCaptureRef}
-                        className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                          captureTab === 'text'
-                            ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent'
-                        }`}
-                        aria-pressed={captureTab === 'text'}
-                      >
-                        <DocumentTextIcon className={`w-3.5 h-3.5 mr-1.5 ${captureTab === 'text' ? 'text-white' : 'text-slate-500'}`} />
-                        <span>Text Monologue</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="h-[600px]">
-                    {captureTab === 'voice' ? (
-                      <VoiceRecorderCard 
-                        onNoteSaved={onNoteSaved} 
-                        className="shadow-xl border border-indigo-100 h-full !mt-0 !mb-0" 
-                      />
-                    ) : (
-                      <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 sm:p-7 h-full flex flex-col justify-between">
-                        <div className="flex flex-col flex-1 min-h-0">
-                          <div className="flex items-center justify-between mb-3">
-                            <div>
-                              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                                <DocumentTextIcon className="w-5 h-5 text-indigo-600" />
-                                <span>Text Monologue</span>
-                              </h3>
-                              <p className="text-xs text-slate-500 mt-0.5">
-                                Type or paste your raw monologue, transcript, or startup brainstorm.
-                              </p>
-                            </div>
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                              Instant Capture
-                            </span>
-                          </div>
-
-                          {monologueStatus && (
-                            <div className={`mb-3 p-3 rounded-xl text-xs font-semibold border flex items-center justify-between ${
-                              monologueStatus.type === 'success'
-                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                : 'bg-rose-50 text-rose-800 border-rose-200'
-                            }`}>
-                              <span>{monologueStatus.message}</span>
-                              <button 
-                                onClick={() => setMonologueStatus(null)}
-                                className="text-slate-400 hover:text-slate-600 ml-2 text-base leading-none cursor-pointer"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          )}
-
-                          <div className="mb-3">
-                            <input
-                              type="text"
-                              placeholder="Idea Title (Optional, e.g. Shorts Story Builder)"
-                              value={monologueTitle}
-                              onChange={(e) => setMonologueTitle(e.target.value)}
-                              className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
-                              disabled={isSubmittingMonologue}
-                            />
-                          </div>
-
-                          <div className="flex-1 min-h-0 flex flex-col mb-3">
-                            <textarea
-                              ref={ideaComposerRef}
-                              aria-label="Your idea"
-                              placeholder="Dump your stream of consciousness, transcript, or startup thoughts here...
-
-e.g. In this idea, I want to explore how to use shorts as a way of telling an interesting story, and you build that story in a story builder..."
-                              value={monologueText}
-                              onChange={(e) => setMonologueText(e.target.value)}
-                              disabled={isSubmittingMonologue}
-                              className="w-full flex-1 p-3.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white resize-none font-sans leading-relaxed transition"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="pt-3 border-t border-slate-100 mt-auto">
-                          <div className="flex flex-col sm:flex-row items-center gap-2.5">
-                            <button
-                              type="button"
-                              onClick={() => handleMonologueSubmit(false)}
-                              disabled={isSubmittingMonologue || !monologueText.trim()}
-                              className="inline-flex items-center justify-center px-4 py-2 rounded-full border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer w-full sm:w-auto"
-                            >
-                              <DocumentTextIcon className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
-                              <span>Save Transcript</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleMonologueSubmit(true)}
-                              disabled={isSubmittingMonologue || !monologueText.trim()}
-                              className="inline-flex items-center justify-center px-5 py-2 rounded-full border border-indigo-500 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white shadow-sm transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer w-full sm:flex-1"
-                            >
-                              {isSubmittingMonologue ? (
-                                <>
-                                  <svg className="animate-spin h-3.5 w-3.5 mr-1.5 text-white" viewBox="0 0 24 24" fill="none">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                  </svg>
-                                  <span>Generating Idea...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <SparklesIcon className="w-3.5 h-3.5 mr-1.5 text-white" />
-                                  <span>Generate Business Idea</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
-                          <p className="text-[11px] text-slate-400 mt-2 text-center">
-                            You can also ingest ambiently from your IDE using the Antigravity skill or curl.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+          <main className="dashboard-main">
+            <div className="dashboard-heading">
+              <div><h1>Your ideas</h1><p>Capture a thought. Come back when you’re ready to take it further.</p></div>
+              <a className="dashboard-jump" href="#idea-library">Browse your library <ArrowRightIcon aria-hidden="true" /></a>
+            </div>
+            <div className="dashboard-workspace">
+              <section className="dashboard-capture" aria-labelledby="capture-title">
+                <h2 id="capture-title">Capture an idea</h2>
+                <p className="dashboard-hint">Start with a voice memo or a few words.</p>
+                <div className="capture-tabs" aria-label="Capture method">
+                  <button type="button" ref={voiceCaptureRef} onClick={() => setCaptureTab('voice')} aria-pressed={captureTab === 'voice'}><MicrophoneIcon aria-hidden="true" />Voice Memo</button>
+                  <button type="button" ref={textCaptureRef} onClick={() => setCaptureTab('text')} aria-pressed={captureTab === 'text'}><DocumentTextIcon aria-hidden="true" />Text</button>
                 </div>
-                
-                {/* Second container - Active Ideas */}
-                <div className="lg:w-1/2 order-2">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-2xl font-bold font-display text-slate-900 tracking-tight">Active Ideas</h2>
-                    <button 
-                      className="inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-semibold border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition shadow-sm cursor-pointer"
-                      onClick={() => document.getElementById('all-notes-section').scrollIntoView({ behavior: 'smooth' })}
-                    >
-                      View All Notes
-                    </button>
+                {captureTab === 'voice' ? (
+                  <div className="dashboard-voice">
+                    <VoiceRecorder onNoteSaved={onNoteSaved} compact />
+                    <p>Record your thought, then open the saved note to explore it.</p>
                   </div>
-                  
-                  {/* Set exact same height as Record Your Idea container */}
-                  <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-4 h-[600px] overflow-y-auto">
-                    {activeIdeas.length > 0 ? (
-                      <div className="overflow-y-auto pr-1 flex-grow">
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 auto-rows-max">
-                          {activeIdeas.map(idea => (
-                            <div 
-                              key={idea.id} 
-                              className="p-2.5 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border border-blue-100 hover:bg-gradient-to-r hover:from-indigo-100 hover:to-blue-100 hover:shadow-md transition-all cursor-pointer group"
-                              onClick={() => navigate(`/idea/${idea.id}`)}
-                            >
-                              <div className="flex flex-col h-full">
-                                <h3 className="font-medium text-sm text-gray-900 leading-tight mb-0.5 line-clamp-2">
-                                  {extractTitle(idea)}
-                                </h3>
-                                <div className="flex justify-between items-center mt-auto pt-1">
-                                  <span className="text-xs text-gray-400">
-                                    {formatDate(idea.created_at || idea.createdAt)}
-                                  </span>
-                                  <span className="text-xs font-medium text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    View
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                          
-                          <div 
-                            className="p-2.5 rounded-lg border border-dashed border-gray-300 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all flex flex-col items-center justify-center cursor-pointer h-full text-center"
-                            onClick={() => document.querySelector('.voice-recorder-trigger')?.click()}
-                          >
-                            <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center mb-0.5">
-                              <svg className="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                              </svg>
-                            </div>
-                            <span className="text-xs font-medium text-gray-600">New</span>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-full text-center p-6">
-                        <div className="bg-indigo-50 p-3 rounded-full mb-3">
-                          <svg className="w-6 h-6 text-indigo-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <h3 className="text-base font-medium text-gray-900 mb-1">No Active Ideas Yet</h3>
-                        <p className="text-sm text-gray-500 mb-3">Record an idea to get started!</p>
-                        <button 
-                          className="inline-flex items-center px-4 py-2 rounded-full text-xs font-bold border border-indigo-500 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-colors cursor-pointer"
-                          onClick={() => document.querySelector('.voice-recorder-trigger')?.click()}
-                        >
-                          Record Your First Idea
-                        </button>
-                      </div>
-                    )}
+                ) : (
+                  <div className="dashboard-text">
+                    <label htmlFor="capture-title-input">Title <span>(optional)</span></label>
+                    <input id="capture-title-input" value={monologueTitle} onChange={e => setMonologueTitle(e.target.value)} disabled={isSubmittingMonologue} placeholder="Give your idea a name" />
+                    <label htmlFor="capture-idea-input">Your idea</label>
+                    <textarea id="capture-idea-input" ref={ideaComposerRef} value={monologueText} onChange={e => setMonologueText(e.target.value)} disabled={isSubmittingMonologue} placeholder="What are you thinking about?" rows={5} />
+                    <button className="dashboard-primary" onClick={() => handleMonologueSubmit(false)} disabled={isSubmittingMonologue || !monologueText.trim()}>{isSubmittingMonologue ? 'Saving…' : 'Save note'}</button>
+                    <button className="dashboard-secondary" onClick={() => handleMonologueSubmit(true)} disabled={isSubmittingMonologue || !monologueText.trim()}><SparklesIcon aria-hidden="true" />Generate business idea</button>
+                    <p className="dashboard-hint">Save the thought now, or use AI to structure it.</p>
                   </div>
-                </div>
-              </div>
-              
-              <section id="all-notes-section">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-2xl font-semibold text-gray-800">All Notes</h2>
-                </div>
-                <NotesList 
-                  notes={notes} 
-                  setNotes={setNotes} 
-                  loadingNotes={loadingNotes}
-                  onPromoteToActive={promoteToActiveIdea} 
-                />
+                )}
+                {monologueStatus && <p role={monologueStatus.type === 'error' ? 'alert' : 'status'} className={`capture-feedback ${monologueStatus.type}`}>{monologueStatus.message}</p>}
+              </section>
+              <section id="idea-library" className="dashboard-library" aria-labelledby="library-title">
+                <NotesList notes={notes} setNotes={setNotes} loadingNotes={loadingNotes} notesError={notesError} onReloadNotes={onReloadNotes} />
               </section>
             </div>
           </main>
@@ -973,20 +582,7 @@ e.g. In this idea, I want to explore how to use shorts as a way of telling an in
       <footer className="bg-slate-900 text-white py-8 px-4 md:px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm text-slate-400">&copy; {new Date().getFullYear()} GoodIdea. All rights reserved.</p>
-          <div className="mt-4 md:mt-0 flex space-x-6">
-            <a href="#" className="text-[#81D4FA] hover:underline">
-              <span className="sr-only">Facebook</span>
-              <svg className="h-6 w-6" fill="#FFD600" viewBox="0 0 24 24">
-                <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54v-2.89h2.54V9.845c0-2.507 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562v1.875h2.773l-.443 2.89h-2.33v6.987C18.343 21.128 22 16.991 22 12z" />
-              </svg>
-            </a>
-            <a href="#" className="text-[#81D4FA] hover:underline">
-              <span className="sr-only">Twitter</span>
-              <svg className="h-6 w-6" fill="#FFD600" viewBox="0 0 24 24">
-                <path d="M8 19c7.732 0 11.946-6.41 11.946-11.946 0-.182 0-.364-.012-.545A8.548 8.548 0 0022 4.309a8.19 8.19 0 01-2.357.646A4.118 4.118 0 0021.448 3a8.224 8.224 0 01-2.605.996A4.107 4.107 0 0015.448 3c-2.266 0-4.104 1.838-4.104 4.104 0 .322.036.636.106.936A11.65 11.65 0 013 4.15a4.104 4.104 0 001.27 5.475 a4.073 4.073 0 01-1.858-.513v.052c0 2.042 1.453 3.746 3.379 4.132a4.095 4.095 0 01-1.853.07c.522 1.63 2.037 2.816 3.833 2.85A8.233 8.233 0 012 19.54a11.616 11.616 0 006.29 1.84" />
-              </svg>
-            </a>
-          </div>
+
         </div>
       </footer>
 
@@ -1002,6 +598,7 @@ e.g. In this idea, I want to explore how to use shorts as a way of telling an in
 function FullIdeaPage({ user, session }) {
   const { id } = useParams();
   const [note, setNote] = useState(null);
+  const canDevelopNote = Boolean(user?.id && note?.user_id === user.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(note.id));
   const [copied, setCopied] = useState('');
   const [generatingPRD, setGeneratingPRD] = useState(false);
   const [generatingIdea, setGeneratingIdea] = useState(false);
@@ -1202,7 +799,7 @@ function FullIdeaPage({ user, session }) {
   };
 
   const handleGenerateIdea = async () => {
-    if (!note || generatingIdea) return;
+    if (!canDevelopNote || generatingIdea) return;
     const transcriptText = (() => {
       const raw = note.transcript || note.transcription || '';
       if (!raw) return note.business_idea || '';
@@ -1276,7 +873,7 @@ function FullIdeaPage({ user, session }) {
             await supabase
               .from('voice_notes')
               .update({ business_idea: idea })
-              .eq('id', note.id);
+              .eq('id', note.id).eq('user_id', user.id);
           }
           setActiveTab('cockpit');
 
@@ -1297,7 +894,7 @@ function FullIdeaPage({ user, session }) {
   };
 
   const handleCreatePRD = async () => {
-    if (!note || generatingPRD) return;
+    if (!canDevelopNote || generatingPRD) return;
     
     try {
       setGeneratingPRD(true);
@@ -1363,16 +960,12 @@ function FullIdeaPage({ user, session }) {
         generatedPRD = data.text || data.prd || data.output || `# PRD for ${title}\n\nUnable to generate PRD content.`;
         
         // Save PRD to database
-        const { error: updateError } = await supabase
+        const { data: savedPRD, error: updateError } = await supabase
           .from('voice_notes')
           .update({ prd_content: generatedPRD })
-          .eq('id', note.id);
+          .eq('id', note.id).eq('user_id', user.id).select('id').single();
           
-        if (updateError) {
-          console.error('Error saving PRD to database:', updateError);
-        } else {
-          console.log('PRD saved to database successfully');
-        }
+        if (updateError || savedPRD?.id !== note.id) throw new Error('The product document could not be saved. Please retry.');
       }
       
       setPrdContent(generatedPRD);
@@ -1442,7 +1035,7 @@ function FullIdeaPage({ user, session }) {
               {(note?.transcript || note?.transcription || note?.business_idea) && (
                 <button
                   onClick={handleGenerateIdea}
-                  disabled={generatingIdea}
+                  disabled={!canDevelopNote || generatingIdea}
                   className="inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-bold border border-white/20 bg-white/10 hover:bg-white/20 text-white transition shadow-sm cursor-pointer disabled:opacity-50"
                   title={note?.business_idea ? 'Regenerate idea' : 'Generate idea'}
                 >
@@ -1457,7 +1050,7 @@ function FullIdeaPage({ user, session }) {
                   ) : (
                     <>
                       <ArrowPathIcon className="h-3.5 w-3.5 mr-1 text-white" />
-                      <span>Regenerate</span>
+                      <span>{note?.business_idea ? 'Regenerate' : 'Generate idea'}</span>
                     </>
                   )}
                 </button>
@@ -1487,6 +1080,8 @@ function FullIdeaPage({ user, session }) {
                   onClick={() => setShowMoreActions(prev => !prev)}
                   className="inline-flex items-center px-3 py-1.5 rounded-full border border-white/20 bg-white/10 text-xs font-semibold text-white hover:bg-white/20 transition shadow-sm cursor-pointer"
                   title="More actions"
+                  aria-label="More actions"
+                  aria-expanded={showMoreActions}
                 >
                   <svg className="h-3.5 w-3.5 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
@@ -1501,7 +1096,7 @@ function FullIdeaPage({ user, session }) {
                           handleCreatePRD();
                           setShowMoreActions(false);
                         }}
-                        disabled={generatingPRD}
+                        disabled={!canDevelopNote || generatingPRD}
                         className="w-full flex items-center px-3.5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
                       >
                         Create Product Requirement Document
@@ -1517,6 +1112,7 @@ function FullIdeaPage({ user, session }) {
 
       {/* Main Page Canvas with Dashboard Gradient */}
       <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-slate-100 to-white min-h-[calc(100vh-5rem)]">
+        {note && !canDevelopNote && <p className="max-w-7xl mx-auto mb-5 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">You can read this idea. Generating an idea or product document isn’t available for this note here.</p>}
         <div className="max-w-6xl mx-auto space-y-6">
           {/* Main Hero Card in clean White with subtle border & shadow */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 space-y-5">
@@ -1756,7 +1352,7 @@ function FullIdeaPage({ user, session }) {
                 )}
                 <button
                   onClick={handleCreatePRD}
-                  disabled={generatingPRD}
+                  disabled={!canDevelopNote || generatingPRD}
                   className="inline-flex items-center px-6 py-2.5 rounded-full text-xs font-bold shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 transition cursor-pointer disabled:opacity-50"
                 >
                   {generatingPRD ? (
@@ -1795,7 +1391,7 @@ function FullIdeaPage({ user, session }) {
                   </div>
                   <button
                     onClick={handleGenerateIdea}
-                    disabled={generatingIdea}
+                    disabled={!canDevelopNote || generatingIdea}
                     className="inline-flex items-center px-4 py-2 rounded-full text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition flex-shrink-0 cursor-pointer disabled:opacity-50"
                   >
                     <SparklesIcon className="h-3.5 w-3.5 mr-1.5 text-white" />
@@ -1846,23 +1442,36 @@ function FullIdeaPage({ user, session }) {
 function App() {
   const [notes, setNotes] = useState([]);
   const [loadingNotes, setLoadingNotes] = useState(true);
+  const [notesError, setNotesError] = useState(null);
+  const [notesRevision, setNotesRevision] = useState(0);
   const { user, session, logout, authError, loading } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
+  const visibleNotes = notes.filter(note => note.user_id === user?.id);
 
   useEffect(() => {
+    if (!user?.id) {
+      setNotes([]);
+      setLoadingNotes(false);
+      setNotesError(null);
+      return;
+    }
     let active = true;
     const fetchNotes = async () => {
       setLoadingNotes(true);
+      setNotesError(null);
+      const loadErrors = [];
       try {
         let rawSupabaseNotes = [];
         const { data, error } = await supabase
           .from('voice_notes')
-          .select('*')
+.select('*')
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false });
         if (error) {
           console.error('Fetch notes error:', error);
+          loadErrors.push('Saved voice notes could not be loaded.');
         } else if (data) {
-          rawSupabaseNotes = [...data];
+          rawSupabaseNotes = data.filter(note => note.user_id === user.id);
         }
 
         const seenIds = new Set();
@@ -1874,7 +1483,7 @@ function App() {
           const idStr = String(n.id);
           if (seenIds.has(idStr)) continue;
           seenIds.add(idStr);
-          deduplicated.push(n);
+          deduplicated.push({ ...n, recordSource: 'voice_notes', mirrorCheck: 'unverified' });
         }
 
         // 2. Also merge any ideas ingested via the GoodIdea harness API
@@ -1885,13 +1494,20 @@ function App() {
           const res = await fetch('/api/v1/ideas?limit=100', { headers });
           if (res.ok) {
             const apiData = await res.json();
-            const ideasList = apiData.ideas || [];
+            if (!Array.isArray(apiData.ideas)) throw new Error('Invalid idea list.');
+            const ideasList = apiData.ideas;
+            // A bounded first page proves absence of a mirror only when its total is complete.
+            const completeList = Number.isInteger(apiData.total) && apiData.total >= 0 && apiData.total === ideasList.length && (apiData.offset === 0 || apiData.offset === undefined);
+            for (const note of deduplicated) {
+              const mirror = ideasList.find(idea => idea.supabaseId && String(idea.supabaseId) === String(note.id));
+              note.mirrorCheck = mirror ? 'mirrored' : completeList ? 'standalone' : 'unverified';
+            }
 
             for (const i of ideasList) {
               if (!i || !i.id) continue;
               // Filter out seed/initial welcome mock ideas
               if (i.id === 'idea_initial_welcome') continue;
-              if (i.author && i.author.toLowerCase() === 'alex') continue;
+              if (i.userId !== user.id) continue;
 
               const idStr = String(i.id);
               const supaIdStr = i.supabaseId ? String(i.supabaseId) : null;
@@ -1904,6 +1520,8 @@ function App() {
 
               deduplicated.push({
                 id: i.id,
+                recordSource: 'ambient',
+                mirrorCheck: 'unverified',
                 user_id: i.userId,
                 title: i.title,
                 author: i.author,
@@ -1913,14 +1531,18 @@ function App() {
                 business_idea: i.businessIdeaMarkdown || '',
                 prd_content: i.prdContent || null,
                 audio_url: i.audio_url || i.audioUrl || null,
-                archived: i.status === 'archived',
+                archived: i.archived === true || i.archived === 'true' || i.status === 'archived',
+                status: i.status,
                 is_featured: i.isFeatured,
                 created_at: i.createdAt,
                 updated_at: i.updatedAt
               });
             }
+          } else {
+            throw new Error('Idea library request failed.');
           }
         } catch (err) {
+          loadErrors.push('Some ideas could not be loaded.');
           console.warn('Harness ideas fetch error:', err);
         }
 
@@ -1937,9 +1559,11 @@ function App() {
 
         if (active) {
           setNotes(deduplicated);
+          setNotesError(loadErrors.length ? loadErrors.join(' ') : null);
         }
       } catch (err) {
         console.error('fetchNotes error:', err);
+        if (active) setNotesError('Your library could not be loaded. Please retry.');
       } finally {
         if (active) {
           setLoadingNotes(false);
@@ -1953,22 +1577,25 @@ function App() {
       .channel('public:voice_notes')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'voice_notes' },
+        { event: 'INSERT', schema: 'public', table: 'voice_notes', filter: `user_id=eq.${user.id}` },
         (payload) => {
-          console.log('🔥🔥🔥 REALTIME INSERT EVENT:', payload);
+          if (payload.new?.user_id !== user.id) return;
           setNotes((prev) => {
             const filtered = prev.filter(note => !(note.id && note.id.toString().startsWith('temp-')) && note.id !== payload.new.id);
-            return [payload.new, ...filtered];
+            return [{ ...payload.new, recordSource: 'voice_notes', mirrorCheck: 'unverified' }, ...filtered];
           });
         }
       )
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'voice_notes' },
+        { event: 'UPDATE', schema: 'public', table: 'voice_notes', filter: `user_id=eq.${user.id}` },
         (payload) => {
-          console.log('Note updated:', payload.new);
+          if (payload.new?.user_id !== user.id) {
+            setNotes(previous => previous.filter(note => note.id !== payload.new?.id));
+            return;
+          }
           setNotes((prev) =>
-            prev.map((note) => (note.id === payload.new.id ? payload.new : note))
+            prev.map((note) => (note.id === payload.new.id ? { ...note, ...payload.new } : note))
           );
         }
       )
@@ -1976,7 +1603,7 @@ function App() {
         'postgres_changes',
         { event: 'DELETE', schema: 'public', table: 'voice_notes' },
         (payload) => {
-          console.log('Note deleted:', payload.old);
+
           setNotes((prev) => prev.filter((note) => note.id !== payload.old.id));
         }
       )
@@ -1986,7 +1613,7 @@ function App() {
       active = false;
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, notesRevision]);
 
   const signOut = async () => {
     setSigningOut(true);
@@ -2014,7 +1641,7 @@ function App() {
           path="/"
           element={
             user ? (
-              <Dashboard notes={notes} setNotes={setNotes} user={user} loadingNotes={loadingNotes} />
+              <Dashboard notes={visibleNotes} setNotes={setNotes} user={user} loadingNotes={loadingNotes} notesError={notesError} onReloadNotes={() => setNotesRevision(value => value + 1)} />
             ) : (
               <LandingPage />
             )
@@ -2024,7 +1651,7 @@ function App() {
           path="/integrations"
           element={
             user ? (
-              <Dashboard notes={notes} setNotes={setNotes} user={user} initialOpenIntegrations={true} loadingNotes={loadingNotes} />
+              <Dashboard notes={visibleNotes} setNotes={setNotes} user={user} initialOpenIntegrations={true} loadingNotes={loadingNotes} notesError={notesError} onReloadNotes={() => setNotesRevision(value => value + 1)} />
             ) : (
               <LandingPage />
             )

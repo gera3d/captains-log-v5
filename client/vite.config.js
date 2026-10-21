@@ -1,4 +1,5 @@
 import { defineConfig, loadEnv } from 'vite'
+import { realpathSync } from 'node:fs'
 import react from '@vitejs/plugin-react-swc'
 import { betaConfig } from './config/beta.mjs'
 
@@ -69,7 +70,7 @@ export default defineConfig(({ mode }) => {
   const proxy = live ? livePreviewConfig(loadEnv(mode, process.cwd(), '')) : undefined;
   return {
     plugins: [react(), ...(mode === 'staging' ? [mockStagingPlugin()] : []), ...(live ? [livePreviewPlugin()] : [])],
-    server: { host: '127.0.0.1', port: live ? 5177 : mode === 'staging' ? 5176 : 5174, strictPort: true, ...(live ? { proxy } : mode === 'staging' ? {} : { allowedHosts: ['idea.why57.com'] }) },
+    server: { fs: { allow: [process.cwd(), realpathSync(new URL('./node_modules', import.meta.url))] }, host: '127.0.0.1', port: live ? 5177 : mode === 'staging' ? 5176 : 5174, strictPort: true, ...(live ? { proxy } : mode === 'staging' ? {} : { allowedHosts: ['idea.why57.com'] }) },
     preview: { host: '127.0.0.1', port: live ? 5177 : 5176, strictPort: true, ...(live ? { proxy } : {}) },
     ...(live ? { build: { outDir: 'dist-live' } } : {}),
   };
