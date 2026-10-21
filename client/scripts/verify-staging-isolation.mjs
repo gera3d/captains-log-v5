@@ -26,6 +26,10 @@ await context.route('**/*', async route => {
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/__mock/')) apiRequests.push(url.pathname);
   await route.continue();
 });
+await context.addInitScript(() => {
+  window.__stagingSmokeMicCalls = 0;
+  Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia: () => { window.__stagingSmokeMicCalls++; throw new Error('Real microphone blocked in synthetic smoke check'); } } });
+});
 const page = await context.newPage();
 page.on('pageerror', error => pageErrors.push(error.message));
 try {
@@ -36,7 +40,7 @@ try {
   assert.doesNotMatch(csp, /https:/, 'Staging CSP must not allow remote integrations');
   await expect(page.locator('[data-staging-banner="true"]')).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Record idea', exact: true }).first().click();
+  await expect(page.getByRole('button', { name: 'Start recording', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Voice Memo', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.evaluate(() => {
     window.__stagingSmokeCalls = [];
@@ -53,7 +57,8 @@ try {
   await page.getByLabel('Your idea', { exact: true }).fill('Synthetic test only: a local garden planning app with shared seasonal planting reminders.');
   await page.getByRole('button', { name: 'Generate business idea', exact: true }).first().click();
   await expect(page.getByText('Idea captured and structured!', { exact: false })).toBeVisible({ timeout: 15000 });
-  await page.getByRole('button', { name: 'Close capture', exact: true }).click();
+  await page.getByTitle('Close', { exact: true }).click();
+  await page.getByRole('button', { name: 'Voice Memo', exact: true }).click();
   await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
   const appCalls = await page.evaluate(() => window.__stagingSmokeCalls);
   assert.ok(appCalls.includes('/api/v1/ideas/ingest'), 'Exercise application ingestion rather than only a static page');
@@ -63,6 +68,7 @@ try {
   await page.screenshot({ path: new URL('../artifacts/mock-staging.png', import.meta.url).pathname, fullPage: true });
   assert.deepEqual(externalAttempts, [], 'Application attempted outbound requests; intercepted before transmission');
   assert.deepEqual(pageErrors, [], 'Browser application exceptions');
+  assert.equal(await page.evaluate(() => window.__stagingSmokeMicCalls), 0, 'No microphone activation');
   console.log(JSON.stringify({ passed: true, origin: target.origin, checks: ['mock staging banner', 'CSP network isolation', 'synthetic ingestion and mock generation', 'synthetic persistence after reload', 'zero outbound request attempts', 'zero browser application exceptions'], appCalls, apiRequests }, null, 2));
 } finally {
   await browser.close();
