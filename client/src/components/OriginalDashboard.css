@@ -8,7 +8,7 @@
 .original-dashboard-content { max-width:1152px; margin:auto; }
 .original-dashboard button,.original-dashboard a { cursor:pointer; }
 .original-dashboard button:disabled { cursor:not-allowed; opacity:.48; }
-.original-dashboard :is(button,a,input,textarea,summary):focus-visible { outline:3px solid #818cf8; outline-offset:4px; }
+.original-dashboard :is(button,a,input,textarea,summary):focus-visible { outline:3px solid #4f46e5; outline-offset:4px; }
 .original-dashboard :is(button,a,summary) { -webkit-tap-highlight-color:transparent; }
 .original-top-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:32px; align-items:start; margin-bottom:40px; }
 .original-top-grid>*,.original-note-heading>div { min-width:0; }
