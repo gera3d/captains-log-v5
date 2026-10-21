@@ -165,7 +165,8 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
   };
   const renderNote = note => {
     const title = extractTitle(note);
-    const report = savedText(note.business_idea);
+    const reportText = savedText(note.business_idea);
+    const report = reportText.trim() ? reportText : '';
     const transcript = savedText(note.transcript || note.transcription);
     const summary = extractSummary({ ...note, business_idea: report }) || transcript;
     return <article key={note.id} className={`original-note ${report.trim() ? 'is-developed' : 'is-capture'}`} aria-labelledby={`note-${note.id}`}>
