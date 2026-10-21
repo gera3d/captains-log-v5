@@ -4,6 +4,7 @@ Keep this short: record an observed problem, the change it led to, and evidence.
 
 | What happened | Rule applied now | Evidence |
 | --- | --- | --- |
+| A homepage capture helper selected text and saved 1x images while the dashboard default was voice. | Capture the real default state at 2x, assert selected mode/idle controls and served image density, and guard against microphone actions. | AIW-546 captures/checks: Voice Memo selected, text secondary, zero microphone calls. |
 | A homepage reused the colors but still felt generic and did not sound like Gera. | Read the design skill and Voice Kit; draft from real owner samples, compare composition with the brief, then show rendered desktop/mobile candidates early. | Revised homepage c9d2f38 passes technical checks; user design/copy acceptance remains pending. |
 | A fresh welcome layout introduced a different palette and logo from the dashboard. | A layout redesign preserves the existing brand unless Gera asks for a rebrand. Inspect the rendered adjacent screen and compare logo, typography, surfaces and accents before visual acceptance. | Gera rejected the green/cream welcome; corrected9717a42 passed independent comparison and Gera approved it. |
 | Similar repository names obscured the actual app. | Every task names the canonical source, baseline and exact input revision. | App is captains-log-v5 / Ideahub; setup snapshot 8f3d2c8. |

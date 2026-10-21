@@ -75,9 +75,9 @@ export default function LandingPage() {
             </h1>
             <div className="home-intro-copy">
               <p>
-                Record what you’re thinking or just type it out. Good Idea keeps
-                the original note and helps you work through the idea, so you
-                can decide what to do next.
+                Record what you’re thinking. You can type it out, too. Good Idea
+                keeps the original note and helps you work through the idea, so
+                you can decide what to do next.
               </p>
               <button
                 className="home-primary"
@@ -108,16 +108,16 @@ export default function LandingPage() {
                 />
                 <img
                   src="/images/homepage-workspace-desktop.png"
-                  alt="GoodIdea dashboard showing a typed idea for a neighborhood tool library, alongside Active Ideas. The original thought asks whether neighbors could borrow tools they rarely use."
+                  alt="Actual GoodIdea dashboard with Voice Memo selected and the microphone idle, ready to record. Text Monologue is available as a secondary option; a synthetic tool-library idea is shown alongside."
                   width="1088"
-                  height="648"
+                  height="656"
                 />
               </picture>
               <figcaption>
-                <span className="home-example-label">Example content</span>
+                <span className="home-example-label">Voice Memo example</span>
                 <span>
-                  Actual product screen with a synthetic note and mock result.
-                  No real account or AI output is shown.
+                  Actual dashboard, ready to record. Synthetic example idea; no
+                  recording was made.
                 </span>
               </figcaption>
             </figure>

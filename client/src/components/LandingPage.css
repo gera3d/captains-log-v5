@@ -160,6 +160,8 @@
   overflow: hidden;
 }
 .home-demo img {
+  max-width: 1088px;
+  margin-inline: auto;
   width: 100%;
   height: auto;
   display: block;
@@ -516,9 +518,7 @@
     background: transparent;
   }
   .home-demo img {
-    aspect-ratio: 358/688;
-    object-fit: cover;
-    object-position: top;
+    height: auto;
   }
   .home-demo figcaption {
     gap: 8px;
