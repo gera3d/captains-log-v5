@@ -67,6 +67,7 @@
 .original-search { display:flex; align-items:center; gap:10px; background:#fff; border:1px solid #cbd5e1; border-radius:11px; min-height:46px; padding:10px 14px; flex:1; }
 .original-search svg { width:19px; height:19px; color:#64748b; flex-shrink:0; }
 .original-search input { width:100%; min-width:0; background:transparent; font-size:14px; }
+.original-search input::placeholder { color:#64748b; opacity:1; }
 .original-filter-band { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; margin-bottom:20px; }
 .original-filters { display:flex; flex-wrap:wrap; gap:4px; }
 .original-filters button { display:flex; align-items:center; gap:5px; min-height:44px; padding:8px 10px; border:1px solid transparent; border-radius:999px; color:#475569; font-size:13px; font-weight:600; }
