@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import ActiveIdeas from './ActiveIdeas';
 import remarkGfm from 'remark-gfm';
 import { ideaMarkdownComponents } from '../utils/ideaMarkdownComponents';
 import { savedText, formatDuration, ReportBadges, RecordingPlayer } from './NotePreview';
@@ -190,7 +191,6 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
       {!canArchive(note) && <p className="original-unavailable">Management isn’t available for this idea here yet. You can still open and read it.</p>}
     </article>;
   };
-  const overviewNotes = ideas.length ? ideas : captures;
   const showLibrary = nextView => {
     setView(nextView); setSearch('');
     requestAnimationFrame(() => { libraryTitleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); libraryTitleRef.current?.focus(); });
@@ -206,12 +206,7 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
     <div className="original-dashboard-content">
       <div className="original-top-grid">
         {capture}
-        <section className="original-overview" aria-labelledby="overview-title">
-          <div className="original-section-heading"><h2 id="overview-title">{ideas.length ? 'Your ideas' : 'Recent captures'}</h2><button onClick={() => showLibrary(ideas.length ? 'ideas' : 'captures')}>{ideas.length ? 'View all ideas' : 'View all notes'}<ChevronRightIcon aria-hidden="true" /></button></div>
-          <div className="original-overview-panel">
-            {loadingNotes ? <p role="status">Loading your ideas…</p> : overviewNotes.length ? <ul>{overviewNotes.slice(0,4).map(note => <li key={note.id}><Link className="original-overview-link" to={`/idea/${note.id}`}><div className="original-overview-title">{noteIdentity(note)}<h3>{extractTitle(note)}</h3><ChevronRightIcon className="original-overview-arrow" aria-hidden="true" /></div><p>{extractSummary(note)}</p><div className="original-overview-footer">{noteMeta(note)}<ReportBadges text={savedText(note.business_idea)} /></div></Link></li>)}</ul> : <div className="original-overview-empty"><LightBulbIcon aria-hidden="true" /><h3>{notesError ? 'Your ideas couldn’t be loaded' : 'Your ideas will appear here'}</h3><p>{notesError ? 'Retry loading below to see your saved work.' : 'Saved captures stay in your library below.'}</p></div>}
-          </div>
-        </section>
+        <ActiveIdeas notes={notes} userId={user?.id} loading={loadingNotes} error={notesError} onChoose={() => showLibrary('workspace')} onViewAll={() => showLibrary('featured')} onRetry={onReloadNotes} />
       </div>
       <section id="all-notes-section" className="original-library" aria-labelledby="library-title">
         <div className="original-library-heading"><div><h1 id="library-title" ref={libraryTitleRef} tabIndex={-1}>Your captured notes &amp; ideas</h1></div><button className="original-write" onClick={onWrite}><PencilSquareIcon aria-hidden="true" />Write a note</button></div>
