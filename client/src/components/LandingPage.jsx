@@ -143,9 +143,9 @@ export default function LandingPage() {
                   you might have.
                 </h2>
                 <p>
-                  Something else on your mind?
+                  Want to know about beta access?
                   <br />
-                  <Link to="/contact">Get in touch.</Link>
+                  <Link to="/privacy">Read about the waiting list.</Link>
                 </p>
               </div>
               <div className="home-questions">
@@ -197,9 +197,8 @@ export default function LandingPage() {
                 />
               </a>
               <nav aria-label="Footer navigation">
-                <Link to="/privacy">Privacy</Link>
-                <Link to="/terms">Terms</Link>
-                <Link to="/contact">Contact</Link>
+                <Link to="/privacy">Beta access &amp; privacy</Link>
+                <a href="#faq">Questions</a>
               </nav>
             </div>
             <p>© {new Date().getFullYear()} <GoodIdeaWord /></p>

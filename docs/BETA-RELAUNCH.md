@@ -48,3 +48,11 @@ Default evidence is ignored `client/artifacts/beta-relaunch`. Set `BETA_EVIDENCE
 The composition check uses the running5193 mock source preview and checks15 widths, including both sides of the960/650px transitions and818px. To capture the corrected818/1440/390px header, hero and dialog views, run `BETA_CAPTURE_DESIGN=true BETA_EVIDENCE_DIR=<output-folder> node scripts/capture-beta-relaunch.mjs`. These are CSS-sized screenshots; the product dashboard imagery retains its original2x density.
 
 AIW-550 independently verifies the exact committed candidate with the verified responder configuration. AIW-551 must confirm the final public URL and exact build settings before publishing. Successful collection requires separate agreed submission/Sheet-row evidence from AIW-549; UI tests cannot establish it.
+
+## Homepage completion — AIW-556 / AIW-557
+
+The footer and FAQ now link to `/privacy`, labelled **Beta access & privacy**. It states the verified waiting-list purpose and distinguishes joining the hosted form from creating an account. It explicitly limits its scope; unsupported Terms and Contact offers are removed rather than supplied with invented content. The page supports direct loading, reload and homepage/back navigation.
+
+AuthModal uses the installed Headless UI dialog with an accessible title, input focus on entry, contained Tab/Shift-Tab, Escape/outside/close dismissal and trigger focus restoration. Required labels are associated by unique IDs and the password visibility control has a changing accessible name. Authentication handlers and beta routing are unchanged.
+
+`npm run check:homepage-access` checks a production beta build at `artifacts/homepage-access/production-beta` by default. Set `BETA_BUILD_DIR` to another build, `BETA_EVIDENCE_DIR` for output, or `ACCESS_ORIGIN` to an already running synthetic dev server. `ACCESS_BETA=false` checks normal account creation on a separately configured synthetic nonbeta server. All backend/font requests are intercepted before transmission; screenshots and JSON cover1440/818/390/320. No auth request, microphone call, form submission or AI action is performed. This focused check supplements unchanged prior config/missing-URL/matrix evidence; it does not establish live admission or collector behavior.

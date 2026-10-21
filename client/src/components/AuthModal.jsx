@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
+import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { useAuth } from '../contexts/AuthContext';
 import { isBetaMode } from '../runtimeConfig';
 import BetaWaitlistDialog from './BetaWaitlist';
@@ -14,7 +15,8 @@ import {
   ExclamationCircleIcon
 } from '@heroicons/react/24/outline';
 
-export function AuthCard({ initialMode = 'signin', onAuthSuccess, className = '', allowSignup: signupEnabled = true, onRequestWaitlist }) {
+export function AuthCard({ initialMode = 'signin', onAuthSuccess, className = '', allowSignup: signupEnabled = true, onRequestWaitlist, initialFocusRef }) {
+  const fieldId = useId();
   const allowSignup = signupEnabled && !isBetaMode;
   const [showWaitlist, setShowWaitlist] = useState(false);
   const requestWaitlist = () => onRequestWaitlist ? onRequestWaitlist() : setShowWaitlist(true);
@@ -101,14 +103,14 @@ export function AuthCard({ initialMode = 'signin', onAuthSuccess, className = ''
       </div>
 
       {errorMsg && (
-        <div className="mb-4 p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl flex items-start gap-2 animate-fade-in">
+        <div role="alert" className="mb-4 p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl flex items-start gap-2 animate-fade-in">
           <ExclamationCircleIcon className="h-4 w-4 text-rose-500 flex-shrink-0 mt-0.5" />
           <span>{errorMsg}</span>
         </div>
       )}
 
       {successMsg && (
-        <div className="mb-4 p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-start gap-2 animate-fade-in">
+        <div role="status" className="mb-4 p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-start gap-2 animate-fade-in">
           <CheckCircleIcon className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
           <span>{successMsg}</span>
         </div>
@@ -117,7 +119,7 @@ export function AuthCard({ initialMode = 'signin', onAuthSuccess, className = ''
       <form onSubmit={handleSubmit} className="space-y-4">
         {mode === 'signup' && (
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">
+            <label htmlFor={`${fieldId}-username`} className="block text-xs font-semibold text-gray-700 mb-1">
               Username
             </label>
             <div className="relative">
@@ -125,6 +127,9 @@ export function AuthCard({ initialMode = 'signin', onAuthSuccess, className = ''
                 <UserIcon className="h-4 w-4" />
               </div>
               <input
+                ref={initialFocusRef}
+                id={`${fieldId}-username`}
+                autoComplete="username"
                 type="text"
                 placeholder="e.g. alex or gera"
                 value={username}
@@ -139,7 +144,7 @@ export function AuthCard({ initialMode = 'signin', onAuthSuccess, className = ''
 
         {mode === 'signin' ? (
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">
+            <label htmlFor={`${fieldId}-identity`} className="block text-xs font-semibold text-gray-700 mb-1">
               Username or Email
             </label>
             <div className="relative">
@@ -147,6 +152,10 @@ export function AuthCard({ initialMode = 'signin', onAuthSuccess, className = ''
                 <EnvelopeIcon className="h-4 w-4" />
               </div>
               <input
+                ref={initialFocusRef}
+                id={`${fieldId}-identity`}
+                autoComplete="username"
+                data-autofocus
                 type="text"
                 placeholder="Username or your@email.com"
                 value={emailOrUser}
@@ -158,7 +167,7 @@ export function AuthCard({ initialMode = 'signin', onAuthSuccess, className = ''
           </div>
         ) : (
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">
+            <label htmlFor={`${fieldId}-email`} className="block text-xs font-semibold text-gray-700 mb-1">
               Email Address
             </label>
             <div className="relative">
@@ -166,6 +175,8 @@ export function AuthCard({ initialMode = 'signin', onAuthSuccess, className = ''
                 <EnvelopeIcon className="h-4 w-4" />
               </div>
               <input
+                id={`${fieldId}-email`}
+                autoComplete="email"
                 type="email"
                 placeholder="your@email.com"
                 value={email}
@@ -178,7 +189,7 @@ export function AuthCard({ initialMode = 'signin', onAuthSuccess, className = ''
         )}
 
         <div>
-          <label className="block text-xs font-semibold text-gray-700 mb-1">
+          <label htmlFor={`${fieldId}-password`} className="block text-xs font-semibold text-gray-700 mb-1">
             Password
           </label>
           <div className="relative">
@@ -186,6 +197,8 @@ export function AuthCard({ initialMode = 'signin', onAuthSuccess, className = ''
               <LockClosedIcon className="h-4 w-4" />
             </div>
             <input
+              id={`${fieldId}-password`}
+              autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
               type={showPassword ? 'text' : 'password'}
               placeholder="••••••••"
               value={password}
@@ -197,7 +210,10 @@ export function AuthCard({ initialMode = 'signin', onAuthSuccess, className = ''
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-controls={`${fieldId}-password`}
+              aria-pressed={showPassword}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
             >
               {showPassword ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
             </button>
@@ -291,23 +307,26 @@ export function AuthCard({ initialMode = 'signin', onAuthSuccess, className = ''
 }
 
 export default function AuthModal({ isOpen, onClose, initialMode = 'signin', allowSignup = true, onRequestWaitlist }) {
-  if (!isOpen) return null;
-
+  const inputRef = useRef(null);
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div className="relative max-w-md w-full animate-dropdown">
-        <button
-          onClick={onClose}
-          className="absolute -top-3 -right-3 z-10 p-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-full shadow-lg border border-slate-600 transition"
-          aria-label="Close"
-        >
-          <XMarkIcon className="h-5 w-5" />
-        </button>
-        <AuthCard initialMode={initialMode} onAuthSuccess={onClose} allowSignup={allowSignup} onRequestWaitlist={onRequestWaitlist} />
+    <Dialog open={isOpen} onClose={onClose} initialFocus={inputRef} className="fixed inset-0 z-50">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" />
+      <div className="fixed inset-0 overflow-y-auto">
+        <div className="flex min-h-full items-center justify-center p-4">
+          <DialogPanel className="relative max-w-md w-full outline-none">
+            <DialogTitle className="sr-only">{allowSignup && !isBetaMode ? 'GoodIdea account access' : 'Sign in to GoodIdea'}</DialogTitle>
+            <button
+              type="button"
+              onClick={onClose}
+              className="absolute -top-3 -right-3 z-10 p-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-full shadow-lg border border-slate-600 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+              aria-label="Close sign-in dialog"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+            <AuthCard initialFocusRef={inputRef} initialMode={initialMode} onAuthSuccess={onClose} allowSignup={allowSignup} onRequestWaitlist={onRequestWaitlist} />
+          </DialogPanel>
+        </div>
       </div>
-    </div>
+    </Dialog>
   );
 }
