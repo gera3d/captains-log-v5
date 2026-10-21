@@ -460,7 +460,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                     <button type="button" ref={textCaptureRef} onClick={() => { if (!isVoiceBusy()) setCaptureTab('text'); }} disabled={voiceBusy || isSubmittingMonologue} aria-pressed={captureTab === 'text'}><DocumentTextIcon aria-hidden="true" />Text</button>
                   </div>
                 </div>
-                {captureTab === 'voice' ? <VoiceRecorderCard onNoteSaved={onNoteSaved} className="original-voice-card !mt-0 !mb-0" onStatusChange={status => { voiceStatusRef.current = status; setVoiceStatus(status); }} /> :
+                {captureTab === 'voice' ? <VoiceRecorderCard onNoteSaved={onNoteSaved} footerText="Your original stays saved. Develop it when you’re ready." className="original-voice-card !mt-0 !mb-0" onStatusChange={status => { voiceStatusRef.current = status; setVoiceStatus(status); }} /> :
                   <div className="original-text-card dashboard-text">
                     <h3>Write a note</h3><p className="dashboard-hint">Type or paste the rough thought. Develop it when you’re ready.</p>
                     <label htmlFor="capture-title-input">Title <span>(optional)</span></label>

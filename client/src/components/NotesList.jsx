@@ -5,7 +5,7 @@ import { ideaMarkdownComponents } from '../utils/ideaMarkdownComponents';
 import { savedText, formatDuration, ReportBadges, RecordingPlayer } from './NotePreview';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogPanel, DialogTitle, Description } from '@headlessui/react';
-import { MagnifyingGlassIcon, ArchiveBoxIcon, ArrowUturnLeftIcon, TrashIcon, SparklesIcon, MicrophoneIcon, LightBulbIcon, StarIcon, Squares2X2Icon, DocumentTextIcon, DocumentCheckIcon, ChevronRightIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, ArchiveBoxIcon, ArrowUturnLeftIcon, TrashIcon, SparklesIcon, MicrophoneIcon, LightBulbIcon, StarIcon, Squares2X2Icon, DocumentTextIcon, DocumentCheckIcon, BookOpenIcon, ChevronRightIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
 import { supabase } from '../supabaseClient';
 import { workflowUrl } from '../runtimeConfig';
 import { useAuth } from '../contexts/AuthContext';
@@ -152,10 +152,15 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
     }
   };
 
+  const noteIdentity = note => {
+    const developed = Boolean(savedText(note.business_idea).trim());
+    const Icon = developed ? LightBulbIcon : note.audio_url || formatDuration(note.duration) ? MicrophoneIcon : DocumentTextIcon;
+    return <span className={`original-identity ${developed ? 'is-developed' : ''}`}><Icon aria-hidden="true" /><span className="sr-only">{developed ? 'Developed idea' : 'Original capture'}: </span></span>;
+  };
   const noteMeta = note => {
     const date = new Date(note.created_at || note.createdAt);
     const voice = Boolean(note.audio_url || formatDuration(note.duration));
-    return <div className="original-note-meta"><span>{voice ? <MicrophoneIcon aria-hidden="true" /> : <DocumentTextIcon aria-hidden="true" />}{voice ? 'Voice capture' : 'Text capture'}</span>
+    return <div className="original-note-meta"><span className="original-source-label">{voice ? <MicrophoneIcon aria-hidden="true" /> : <DocumentTextIcon aria-hidden="true" />}{voice ? 'Voice capture' : 'Text capture'}</span>
       {Number.isFinite(date.getTime()) && <time dateTime={date.toISOString()}>{date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</time>}
       {formatDuration(note.duration) && <span>{formatDuration(note.duration)}</span>}
       {isFeatured(note) && <span className="original-featured-mark"><StarIcon aria-hidden="true" />Featured</span>}
@@ -167,13 +172,12 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
     const transcript = savedText(note.transcript || note.transcription);
     const summary = extractSummary({ ...note, business_idea: report }) || transcript;
     return <article key={note.id} className="original-note" aria-labelledby={`note-${note.id}`}>
-      <div className="original-note-heading"><div><h3 id={`note-${note.id}`}><Link to={`/idea/${note.id}`}>{title}</Link></h3>{noteMeta(note)}</div><Link className="original-open" to={`/idea/${note.id}`} aria-label={`Open ${title}`}>Open note<ChevronRightIcon aria-hidden="true" /></Link></div>
-      <ReportBadges text={report} />
+      <div className="original-note-heading"><div><div className="original-note-title">{noteIdentity(note)}<h3 id={`note-${note.id}`}><Link to={`/idea/${note.id}`}>{title}</Link></h3></div>{noteMeta(note)}</div><Link className="original-open" to={`/idea/${note.id}`} aria-label={`Open ${title}`}>Open note<ChevronRightIcon aria-hidden="true" /></Link></div>
       {summary && <p className="original-note-summary">{summary}</p>}
-      <div className="original-artifacts">{report && <span><DocumentTextIcon aria-hidden="true" />Report saved</span>}{note.prd_content?.trim() && <span><DocumentCheckIcon aria-hidden="true" />Product spec saved</span>}</div>
+      <div className="original-report-context"><ReportBadges text={report} />{note.prd_content?.trim() && <span className="original-artifact"><DocumentCheckIcon aria-hidden="true" />Product spec saved</span>}</div>
       <div className="original-disclosures">
-        {report && <details className="original-report"><summary>Read full report</summary><div className="prose prose-sm prose-slate max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]} components={ideaMarkdownComponents}>{report}</ReactMarkdown></div></details>}
-        {transcript && <details className="original-transcript"><summary>{note.audio_url || formatDuration(note.duration) ? 'Read transcript' : 'Read original note'}</summary><p>{transcript}</p></details>}
+        {report && <details className="original-report"><summary><BookOpenIcon aria-hidden="true" />Read report<ChevronRightIcon className="original-disclosure-arrow" aria-hidden="true" /></summary><div className="prose prose-sm prose-slate max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]} components={ideaMarkdownComponents}>{report}</ReactMarkdown></div></details>}
+        {transcript && <details className="original-transcript"><summary><DocumentTextIcon aria-hidden="true" />{note.audio_url || formatDuration(note.duration) ? 'Transcript' : 'Original note'}<ChevronRightIcon className="original-disclosure-arrow" aria-hidden="true" /></summary><p>{transcript}</p></details>}
       </div>
       <RecordingPlayer note={note} title={title} />
       {!report && transcript && <p className="original-next-step">Keep this as a note, or develop it into a structured idea when you’re ready.</p>}
@@ -205,18 +209,17 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
         <section className="original-overview" aria-labelledby="overview-title">
           <div className="original-section-heading"><h2 id="overview-title">{ideas.length ? 'Your ideas' : 'Recent captures'}</h2><button onClick={() => showLibrary(ideas.length ? 'ideas' : 'captures')}>{ideas.length ? 'View all ideas' : 'View all notes'}<ChevronRightIcon aria-hidden="true" /></button></div>
           <div className="original-overview-panel">
-            <p className="original-overview-intro">{ideas.length ? 'Pick up an idea and take it further.' : 'Your original thoughts, ready when you are.'}</p>
-            {loadingNotes ? <p role="status">Loading your ideas…</p> : overviewNotes.length ? <ul>{overviewNotes.slice(0,4).map(note => <li key={note.id}><Link to={`/idea/${note.id}`}><h3>{extractTitle(note)}</h3><p>{extractSummary(note)}</p></Link>{noteMeta(note)}<ReportBadges text={savedText(note.business_idea)} /></li>)}</ul> : <div className="original-overview-empty"><LightBulbIcon aria-hidden="true" /><h3>{notesError ? 'Your ideas couldn’t be loaded' : 'A thought is enough to start'}</h3><p>{notesError ? 'Retry loading below to see your saved work.' : 'Speak freely. You can keep a raw note, develop an idea, or feature it for later.'}</p></div>}
+            {loadingNotes ? <p role="status">Loading your ideas…</p> : overviewNotes.length ? <ul>{overviewNotes.slice(0,4).map(note => <li key={note.id}><Link className="original-overview-link" to={`/idea/${note.id}`}><div className="original-overview-title">{noteIdentity(note)}<h3>{extractTitle(note)}</h3><ChevronRightIcon className="original-overview-arrow" aria-hidden="true" /></div><p>{extractSummary(note)}</p><div className="original-overview-footer">{noteMeta(note)}<ReportBadges text={savedText(note.business_idea)} /></div></Link></li>)}</ul> : <div className="original-overview-empty"><LightBulbIcon aria-hidden="true" /><h3>{notesError ? 'Your ideas couldn’t be loaded' : 'Your ideas will appear here'}</h3><p>{notesError ? 'Retry loading below to see your saved work.' : 'Saved captures stay in your library below.'}</p></div>}
           </div>
         </section>
       </div>
       <section id="all-notes-section" className="original-library" aria-labelledby="library-title">
-        <div className="original-library-heading"><div><h1 id="library-title" ref={libraryTitleRef} tabIndex={-1}>Your captured notes &amp; ideas</h1><p>Original thoughts and developed ideas, in one place.</p></div><button className="original-write" onClick={onWrite}><PencilSquareIcon aria-hidden="true" />Write a note</button></div>
+        <div className="original-library-heading"><div><h1 id="library-title" ref={libraryTitleRef} tabIndex={-1}>Your captured notes &amp; ideas</h1></div><button className="original-write" onClick={onWrite}><PencilSquareIcon aria-hidden="true" />Write a note</button></div>
         <div className="original-library-tools"><label className="original-search"><MagnifyingGlassIcon aria-hidden="true" /><span className="sr-only">Search ideas</span><input type="search" placeholder="Search your notes and ideas" value={search} onChange={event => setSearch(event.target.value)} /></label><button className="original-refresh" onClick={onReloadNotes} disabled={loadingNotes}>Refresh</button></div>
-        <nav className="original-filters" aria-label="Filter notes">{views.map(item => <button key={item.id} className={view === item.id ? 'is-active' : ''} onClick={() => { setView(item.id); setSearch(''); }} aria-pressed={view === item.id}><item.icon aria-hidden="true" />{item.label}<span>{item.count}</span></button>)}</nav>
+        <div className="original-filter-band"><nav className="original-filters" aria-label="Filter notes">{views.map(item => <button key={item.id} className={view === item.id ? 'is-active' : ''} onClick={() => { setView(item.id); setSearch(''); }} aria-pressed={view === item.id}><item.icon aria-hidden="true" />{item.label}<span>{item.count}</span></button>)}</nav><span className="original-result-count" role="status">{displayedNotes.length} {displayedNotes.length === 1 ? 'note' : 'notes'}</span></div>
         {notesError && <div className="library-feedback error" role="alert"><p>{notesError} The library may be incomplete.</p><button onClick={onReloadNotes} disabled={loadingNotes}>Retry loading</button></div>}
         {feedback && <p className={`library-feedback ${feedback.type}`} role={feedback.type === 'error' ? 'alert' : 'status'}>{feedback.text}</p>}
-        <div className="original-results-heading"><h2>{query ? 'Search results' : selectedView.label}</h2><span>{displayedNotes.length} {displayedNotes.length === 1 ? 'note' : 'notes'}</span></div>
+        <h2 className="sr-only">{query ? 'Search results' : selectedView.label}</h2>
         {loadingNotes ? <p className="original-empty" role="status">Loading your ideas…</p> : displayedNotes.length ? <div className="original-note-list">{displayedNotes.map(renderNote)}</div> : <div className="original-empty"><h3>{query ? 'No matching ideas' : notesError ? 'Your library is unavailable' : emptyCopy[view][0]}</h3><p>{query ? 'Try a different word or clear your search.' : notesError ? 'Retry loading to see your saved notes.' : emptyCopy[view][1]}</p>{query ? <button onClick={() => setSearch('')}>Clear search</button> : ['workspace','captures'].includes(view) && <button onClick={onRecord}>Go to voice capture</button>}</div>}
       </section>
       <Dialog open={Boolean(deleteTarget)} onClose={() => { if (!pendingRef.current) setDeleteTarget(null); }} initialFocus={cancelRef} className="note-dialog">
