@@ -71,6 +71,8 @@ try {
     const signup = page.getByRole('button', { name: 'Create an account', exact: true });
     await expect(enabled ? waitlist : signup).toHaveCount(3);
     await expect(enabled ? signup : waitlist).toHaveCount(0);
+    await expect(page.locator('.capture-story-stage h3')).toHaveText(['Capture', 'Refine', 'Use in your tools']);
+    await expect(page.locator('.capture-story-artifact img')).toHaveCount(2);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await expect(page.locator('img[src="/images/homepage-workspace-desktop.png"]')).toHaveAttribute('alt', /Voice Memo selected and the microphone idle/);
     if (enabled) {

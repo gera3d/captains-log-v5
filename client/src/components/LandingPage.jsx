@@ -6,6 +6,7 @@ import BetaWaitlistDialog from "./BetaWaitlist";
 import HomepageOutputs from "./HomepageOutputs";
 import CodingTools from "./CodingTools";
 import GoodIdeaWord from "./GoodIdeaWord";
+import CaptureStory from "./CaptureStory";
 import "./LandingPage.css";
 
 const questions = [
@@ -77,16 +78,14 @@ export default function LandingPage() {
             aria-labelledby="home-title"
           >
             <h1 id="home-title" className="font-display">
-              Have an idea?
+              Turn your idea
               <br />
-              Let’s figure out what
-              <br className="home-desktop-break" /> to do with it.
+              into a plan to build.
             </h1>
             <div className="home-intro-copy">
               <p>
-                Record what you’re thinking. You can type it out, too.{" "}
-                <GoodIdeaWord /> keeps your original note and helps you decide
-                what to do next.
+                Record a thought or type it out. <GoodIdeaWord /> helps you work
+                it into a spec and a build brief you can use in your coding tool.
               </p>
               <div className="home-intro-actions">
                 <button className="home-primary" onClick={requestAccess}>
@@ -97,6 +96,7 @@ export default function LandingPage() {
               {isBetaMode && <p className="beta-public-note"><GoodIdeaWord /> is in beta.</p>}
             </div>
           </section>
+          <CaptureStory />
           <CodingTools />
           <section
             id="workspace"

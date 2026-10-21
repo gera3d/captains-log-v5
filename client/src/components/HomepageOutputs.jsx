@@ -127,7 +127,6 @@ export default function HomepageOutputs() {
         id="outputs"
         aria-labelledby="home-outputs-title"
       >
-        <div id="how-it-works" className="home-output-anchor" />
         <div className="home-outputs-heading">
           <h2 id="home-outputs-title" className="font-display">
             See what your note
@@ -148,6 +147,7 @@ export default function HomepageOutputs() {
           {outputs.map((item) => (
             <figure
               key={item.id}
+              id={`output-${item.id}`}
               data-output={item.id}
               className="home-output-scene"
             >

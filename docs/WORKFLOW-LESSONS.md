@@ -4,6 +4,7 @@ Keep this short: record an observed problem, the change it led to, and evidence.
 
 | What happened | Rule applied now | Evidence |
 | --- | --- | --- |
+| A fixed-height overview box severed a spec heading even though the full gallery remained below. | Show artifact excerpts at their complete natural aspect ratio and check both image ratio and container bounds; page overflow checks alone cannot detect internal content crops. | AIW-555 corrected overview and9-width full-artifact checks. |
 | An818px hero kept squeezed bottom-aligned columns while navigation wrapped at850px. | Test the owner's actual CSS viewport and adjacent breakpoints; change the reading order when columns stop working and keep the header compact until controls need another row. | AIW-553 measured composition checks at15 widths and corrected818px header/hero screenshot. |
 | Beta navigation was coupled to mock mode and an email submit only changed local state. | Gate beta UX with an explicit build setting; use the verified hosted responder and keep unavailable state closed when its URL is missing. Opening a form never establishes a saved entry. | AIW-548 config contract and offline production/staging browser matrix; real collection evidence remains with AIW-549. |
 | A homepage capture helper selected text and saved 1x images while the dashboard default was voice. | Capture the real default state at 2x, assert selected mode/idle controls and served image density, and guard against microphone actions. | AIW-546 captures/checks: Voice Memo selected, text secondary, zero microphone calls. |
