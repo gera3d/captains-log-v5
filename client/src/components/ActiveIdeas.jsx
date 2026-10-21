@@ -20,7 +20,7 @@ function savedPreview(note) {
   if (!report) return { label: 'Original capture', text: excerpt(original || (typeof note.summary === 'string' ? note.summary.trim() : '')), report: false };
   const pitch = report.match(/\*\*Elevator Pitch:\*\*\s*([^\n]+)/i)?.[1] || report.match(/\*{0,2}Elevator Pitch\*{0,2}\s*:\s*([^\n]+)/i)?.[1];
   if (pitch) return { label: 'From the report', text: excerpt(pitch.trim()), report: true };
-  const summary = extractSummary({ ...note, business_idea: report, transcript: original });
+  const summary = extractSummary({ business_idea: report });
   return { label: 'From the report', text: excerpt(summary), report: true };
 }
 function documentSection(note, summary) {
