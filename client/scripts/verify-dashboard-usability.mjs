@@ -4,6 +4,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createServer } from 'vite';
 import { chromium, expect } from '@playwright/test';
+const scopeOnly = process.env.DASHBOARD_SCOPE_ONLY === 'true';
 const evidence = resolve(process.env.DASHBOARD_EVIDENCE_DIR || 'artifacts/dashboard-usability');
 mkdirSync(evidence, { recursive: true });
 const server = await createServer({ mode: 'staging', server: { host: '127.0.0.1', port: 0, strictPort: true } });
@@ -44,7 +45,7 @@ async function contextFor(data=fixture, options={}) {
        }
      } else { window.__reads.push({table,filters:recordedFilters}); if(window.__readFault) return {data:null,error:{message:'Synthetic read failure'}}; }
    `);
-   if(options.incomplete) source=source.replace('total: store.ideas.length, limit, offset','total: 101, limit, offset');
+   if(options.incomplete) source=source.replace('total: ownedIdeas.length, limit, offset','total: 101, limit, offset');
    if(options.apiFailure) source=source.replace("if (url.pathname === '/api/v1/ideas' && method === 'GET') {", "if (url.pathname === '/api/v1/ideas' && method === 'GET') return json({error:'Synthetic list failure'}, 500); if(false) {");
    source=source.replace("getUser: async () => ({ data: { user: previewSignedOut ? null : user }, error: null })", "getUser: async () => { window.__getUserCalls=(window.__getUserCalls||0)+1; if(window.__rejectUserAfter && window.__getUserCalls>=window.__rejectUserAfter)throw new Error('Synthetic auth transport rejection'); return { data: { user: previewSignedOut ? null : user }, error: null }; }");
    source=source.replace('upload: disabled', `upload: async () => { window.__uploads=(window.__uploads||0)+1; if(window.__rejectUpload)throw new Error('Synthetic upload transport rejection'); if(window.__uploadDelay) await new Promise(resolve=>setTimeout(resolve,window.__uploadDelay)); return window.__completeSave?{data:{path:'synthetic'},error:null}:{data:null,error:{message:'Synthetic upload failure'}}; }`);
@@ -77,6 +78,51 @@ const selectView = async (page, view) => {
 const clearSearch=page=>page.getByRole('searchbox',{name:'Search ideas'}).fill('');
 const openRecord=async page=>{await page.getByRole('button',{name:'Record idea',exact:true}).first().click();await expect(page.getByRole('button',{name:'Voice Memo',exact:true})).toHaveAttribute('aria-pressed','true')};
 try {
+ if (scopeOnly) {
+  const knownNote = { ...own, id: ids.raw, title: 'Owned note with a known owned mirror' };
+  const knownMirror = { id: 'idea_known_owned_mirror', userId: user, supabaseId: ids.raw, title: knownNote.title };
+  for (const hiddenOwner of ['another-person', null]) {
+   const hiddenMirror = { id: hiddenOwner ? 'idea_foreign_legacy_copy' : 'idea_ownerless_legacy_copy', supabaseId: ids.own, title: 'Hidden legacy ambient copy', ...(hiddenOwner ? { userId: hiddenOwner } : {}) };
+   const data = { voice_notes: [{ ...own, is_featured: false }, knownNote], ideas: [hiddenMirror, knownMirror] };
+   const { context, page } = await contextFor(data);
+   const visibleList = await page.evaluate(() => fetch('/api/v1/ideas?limit=100').then(response => response.json()));
+   assert.deepEqual(visibleList.ideas.map(row => row.id), [knownMirror.id]);
+   assert.equal(visibleList.total, 1);
+   const nextPage = await page.evaluate(() => fetch('/api/v1/ideas?limit=1&offset=1').then(response => response.json()));
+   assert.deepEqual(nextPage.ideas, []);
+   assert.equal(nextPage.total, 1, 'total is current-account scoped before pagination');
+   for (const action of ['Feature', 'Archive', 'Delete']) {
+    await expect(note(page, own.title).getByRole('button', { name: `${action} ${own.title}`, exact: true })).toBeEnabled();
+    await expect(note(page, knownNote.title).getByRole('button', { name: `${action} ${knownNote.title}`, exact: true })).toBeDisabled();
+   }
+   const before = await saved(page);
+   await page.getByRole('button', { name: `Delete ${own.title}`, exact: true }).click();
+   await expect(page.getByRole('dialog')).toContainText('This permanently removes the note, its transcript and any report saved in it.');
+   await expect(page.getByRole('dialog')).toContainText('Stored audio files and copies saved elsewhere are kept.');
+   await expect(page.getByRole('button', { name: 'Delete note', exact: true })).toBeVisible();
+   await page.screenshot({ path: resolve(evidence, `note-row-${hiddenOwner ? 'foreign' : 'ownerless'}-copy-confirmation.png`), fullPage: true });
+   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+   assert.deepEqual(await saved(page), before);
+   assert.deepEqual(await writes(page), []);
+   await page.getByRole('button', { name: `Delete ${own.title}`, exact: true }).click();
+   await page.getByRole('button', { name: 'Delete note', exact: true }).click();
+   await expect(page.getByRole('dialog')).toHaveCount(0);
+   await expect(page.locator('.library-feedback[role="status"]')).toContainText('Stored audio files and other saved copies are kept.');
+   const after = await saved(page);
+   assert.deepEqual(after.voice_notes.map(row => row.id), [knownNote.id]);
+   assert.deepEqual(after.ideas, before.ideas, 'all hidden and known-owned ambient copies are retained');
+   assert.equal((await writes(page)).length, 1);
+   assert.deepEqual((await writes(page))[0].filters, [['id', ids.own], ['user_id', user]]);
+   assert.equal(await page.evaluate(() => window.__micCalls), 0);
+   await context.close();
+   record(`${hiddenOwner ? 'foreign-owner' : 'ownerless'} mirror is hidden by account-scoped list/total; exact owned note-row removal retains all ambient copies and explicit retained-copy wording`);
+   const incomplete = await contextFor(data, { incomplete: true });
+   for (const action of ['Feature', 'Archive', 'Delete']) await expect(note(incomplete.page, own.title).getByRole('button', { name: `${action} ${own.title}`, exact: true })).toBeDisabled();
+   assert.deepEqual(await writes(incomplete.page), []);
+   await incomplete.context.close();
+  }
+  record('known account-visible mirrors and incomplete metadata retain existing closed guards; no global mirror-absence inference');
+ } else {
  for(const seen of [undefined,true,false])for(const empty of [false,true]){
   const {context,page}=await contextFor(empty?{voice_notes:[],ideas:[]}:fixture,{seen});
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -184,6 +230,7 @@ try {
   const {context,page}=await contextFor();await page.evaluate(()=>{window.__emitStaging('INSERT',{id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',user_id:'another-person',title:'Foreign realtime insert'});window.__emitStaging('INSERT',{id:'cccccccc-cccc-4ccc-8ccc-cccccccccccc',title:'Unknown realtime insert'});window.__emitStaging('INSERT',{id:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',user_id:'mock-staging-user',title:'Own realtime capture'})});await selectView(page,'captures');await expect(note(page,'Own realtime capture')).toBeVisible();await expect(note(page,'Foreign realtime insert')).toHaveCount(0);await expect(note(page,'Unknown realtime insert')).toHaveCount(0);await page.evaluate(()=>window.__emitStaging('UPDATE',{id:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',user_id:'another-person',title:'Own realtime capture'}));await expect(note(page,'Own realtime capture')).toHaveCount(0);await context.close();
  }
  record('foreign/unknown realtime insert/update handling stays outside Your workspace');
+ }
  assert.deepEqual(errors,[]);assert.deepEqual(rejected,[]);
- const report={passed:true,checks,pageErrors:errors,rejectedRequests:rejected,externalRequestsTransmitted:0,realMutations:0,realMicrophoneCalls:0,syntheticMediaLifecycleCases:11,syntheticExplicitMicrophoneCalls:11,screenshotDeviceScaleFactor:1,limitations:'Synthetic UI/adapter verification only. No real auth, recording, storage, database, AI or API mutation qualification. Complete cross-store deletion awaits separately reviewed/installed backend566.'};writeFileSync(resolve(evidence,'checks.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
+ const report={passed:true,scopeOnly,listScope:scopeOnly?'current-account':undefined,globalMirrorAbsenceProven:false,completeIdeaErasureQualified:false,checks,pageErrors:errors,rejectedRequests:rejected,externalRequestsTransmitted:0,realMutations:0,realMicrophoneCalls:0,syntheticMediaLifecycleCases:scopeOnly?0:11,syntheticExplicitMicrophoneCalls:scopeOnly?0:11,screenshotDeviceScaleFactor:1,limitations:'Synthetic UI/adapter verification only. No real auth, recording, storage, database, AI or API mutation qualification. Complete cross-store deletion awaits separately reviewed/installed backend566.'};writeFileSync(resolve(evidence,'checks.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
 }finally{await browser.close();await server.close()}

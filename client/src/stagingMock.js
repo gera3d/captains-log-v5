@@ -101,7 +101,10 @@ export function installStagingFetch() {
     if (url.pathname === '/api/v1/ideas' && method === 'GET') {
       const limit = Math.min(Number(url.searchParams.get('limit')) || 20, 100);
       const offset = Number(url.searchParams.get('offset')) || 0;
-      return json({ ideas: store.ideas.slice(offset, offset + limit), total: store.ideas.length, limit, offset });
+      // Match the real authenticated list: another account's and ownerless
+      // ambient copies are outside this caller's visible list and total.
+      const ownedIdeas = store.ideas.filter(idea => idea.userId === user.id);
+      return json({ ideas: ownedIdeas.slice(offset, offset + limit), total: ownedIdeas.length, limit, offset });
     }
     if (url.pathname === '/api/v1/ideas/ingest' && method === 'POST') {
       const body = JSON.parse(options.body || '{}');

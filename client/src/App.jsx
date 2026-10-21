@@ -1478,11 +1478,12 @@ function App() {
             const apiData = await res.json();
             if (!Array.isArray(apiData.ideas)) throw new Error('Invalid idea list.');
             const ideasList = apiData.ideas;
-            // A bounded first page proves absence of a mirror only when its total is complete.
-            const completeList = Number.isInteger(apiData.total) && apiData.total >= 0 && apiData.total === ideasList.length && (apiData.offset === 0 || apiData.offset === undefined);
+            // This list is scoped to the current account. Completeness only excludes known
+            // account-visible mirrors; foreign or ownerless copies may still exist.
+            const completeAccountList = Number.isInteger(apiData.total) && apiData.total >= 0 && apiData.total === ideasList.length && (apiData.offset === 0 || apiData.offset === undefined);
             for (const note of deduplicated) {
               const mirror = ideasList.find(idea => idea.supabaseId && String(idea.supabaseId) === String(note.id));
-              note.mirrorCheck = mirror ? 'mirrored' : completeList ? 'standalone' : 'unverified';
+              note.mirrorCheck = mirror ? 'mirrored' : completeAccountList ? 'no-owned-mirror-seen' : 'unverified';
             }
 
             for (const i of ideasList) {

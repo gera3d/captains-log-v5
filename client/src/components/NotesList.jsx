@@ -32,8 +32,8 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
   const [deleteError, setDeleteError] = useState(null);
   const { user } = useAuth();
   const ownsNote = note => note?.recordSource === 'voice_notes' && note.user_id === user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(note.id);
-  const canDelete = note => ownsNote(note) && note.mirrorCheck === 'standalone';
-  const canArchive = note => ownsNote(note) && note.mirrorCheck === 'standalone';
+  const canDelete = note => ownsNote(note) && note.mirrorCheck === 'no-owned-mirror-seen';
+  const canArchive = note => ownsNote(note) && note.mirrorCheck === 'no-owned-mirror-seen';
   const canFeature = canArchive;
   const { runGeneration } = useGeneration();
   const query = search.trim().toLocaleLowerCase();
