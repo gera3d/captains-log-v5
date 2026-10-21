@@ -1,4 +1,8 @@
 // Browser-only synthetic preview. This is not Supabase, OAuth, or API qualification.
+import { isMockStaging } from './runtimeConfig';
+
+// A reloadable public-page fixture, confined to the existing synthetic build.
+const previewSignedOut = isMockStaging && new URLSearchParams(window.location.search).get('preview') === 'homepage';
 const STORAGE_KEY = 'goodidea.mock-staging.v1';
 const user = { id: 'mock-staging-user', email: 'preview@example.invalid', user_metadata: { full_name: 'Staging Preview', username: 'preview' } };
 const session = { user, access_token: 'mock-staging-only-not-a-real-token' };
@@ -54,8 +58,8 @@ function query(table) {
 const disabled = async () => ({ data: null, error: { message: 'Unavailable in mock staging. No real authentication, storage, or integrations are connected.' } });
 export const mockSupabase = {
   auth: {
-    getSession: async () => ({ data: { session }, error: null }),
-    getUser: async () => ({ data: { user }, error: null }),
+    getSession: async () => ({ data: { session: previewSignedOut ? null : session }, error: null }),
+    getUser: async () => ({ data: { user: previewSignedOut ? null : user }, error: null }),
     onAuthStateChange(callback) { listeners.add(callback); return { data: { subscription: { unsubscribe() { listeners.delete(callback); } } } }; },
     signInWithOAuth: disabled, signInWithPassword: disabled, signUp: disabled,
     async signOut() { listeners.forEach(fn => fn('SIGNED_OUT', null)); return { error: null }; },
