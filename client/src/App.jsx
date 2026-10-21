@@ -14,9 +14,7 @@ import { supabase } from './supabaseClient';
 import { Routes, Route, useNavigate, Link } from 'react-router-dom';
 import NotesList from './components/NotesList';
 import './components/Dashboard.css';
-import './components/IdeaDesk.css';
-import { Dialog, DialogPanel, DialogTitle, Description } from '@headlessui/react';
-import VoiceRecorder from './components/VoiceRecorder';
+import './components/OriginalDashboard.css';
 import VoiceRecorderCard from './components/VoiceRecorderCard';
 import { CheckIcon, MicrophoneIcon, DocumentTextIcon, ShareIcon, RocketLaunchIcon, SparklesIcon, BoltIcon, CheckBadgeIcon, ShieldCheckIcon, ArrowRightIcon, ArrowPathIcon, LightBulbIcon, DocumentCheckIcon, BookOpenIcon } from '@heroicons/react/24/outline';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -64,7 +62,6 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
   const [customPersonaIcon, setCustomPersonaIcon] = useState('🔮');
 
   // Text Monologue & Fast Ingestion State
-  const [captureOpen, setCaptureOpen] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState('idle');
   const voiceStatusRef = useRef('idle');
   const voiceBusy = ['preparing', 'recording', 'saving'].includes(voiceStatus);
@@ -452,38 +449,30 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
             onIdeaCreated={(newIdea) => setNotes(prev => [newIdea, ...prev])}
           />
           
-          <main className="idea-desk">
-            <NotesList notes={notes} setNotes={setNotes} loadingNotes={loadingNotes} notesError={notesError} onReloadNotes={onReloadNotes} onRecord={() => { setCaptureTab('voice'); setCaptureOpen(true); }} onWrite={() => { setCaptureTab('text'); setCaptureOpen(true); }} />
-            <Dialog open={captureOpen} onClose={() => { if (!isSubmittingMonologue && !isVoiceBusy()) setCaptureOpen(false); }} initialFocus={captureTab === 'voice' ? voiceCaptureRef : ideaComposerRef} className="note-dialog desk-capture-dialog">
-              <div className="note-dialog-backdrop" aria-hidden="true" /><div className="note-dialog-viewport"><DialogPanel className="desk-capture-panel">
-                <button className="desk-capture-close" onClick={() => setCaptureOpen(false)} disabled={isSubmittingMonologue || voiceBusy} aria-label="Close capture">×</button>
-              <section className="dashboard-capture" aria-labelledby="capture-title">
-                <DialogTitle as="h2" id="capture-title">Capture an idea</DialogTitle>
-                <Description className="dashboard-hint">Speak the rough thought. You can develop it later.</Description>
-                <div className="capture-tabs" aria-label="Capture method">
-                  <button type="button" ref={voiceCaptureRef} onClick={() => setCaptureTab('voice')} disabled={voiceBusy} aria-pressed={captureTab === 'voice'}><MicrophoneIcon aria-hidden="true" />Voice Memo</button>
-                  <button type="button" ref={textCaptureRef} onClick={() => setCaptureTab('text')} disabled={voiceBusy} aria-pressed={captureTab === 'text'}><DocumentTextIcon aria-hidden="true" />Text</button>
-                </div>
-                {captureTab === 'voice' ? (
-                  <div className="dashboard-voice">
-                    <VoiceRecorder onNoteSaved={onNoteSaved} compact onStatusChange={status => { voiceStatusRef.current = status; setVoiceStatus(status); }} />
-                    <p>{voiceStatus === 'recording' ? 'Recording. Press Stop recording to finish and save.' : voiceStatus === 'saving' ? 'Saving your recording. Keep this window open.' : 'Record your thought, then open the saved note to explore it.'}</p>
+          <main className="original-dashboard">
+            <NotesList notes={notes} setNotes={setNotes} loadingNotes={loadingNotes} notesError={notesError} onReloadNotes={onReloadNotes}
+              onRecord={() => { if (isVoiceBusy() || isSubmittingMonologue) return; setCaptureTab('voice'); requestAnimationFrame(() => { voiceCaptureRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); voiceCaptureRef.current?.focus(); }); }}
+              onWrite={() => { if (isVoiceBusy() || isSubmittingMonologue) return; setCaptureTab('text'); requestAnimationFrame(() => { ideaComposerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); ideaComposerRef.current?.focus(); }); }}
+              capture={<section className="original-capture" aria-labelledby="capture-title">
+                <div className="original-section-heading"><h2 id="capture-title">Capture your idea</h2>
+                  <div className="capture-tabs" aria-label="Capture method">
+                    <button type="button" ref={voiceCaptureRef} onClick={() => { if (!isVoiceBusy()) setCaptureTab('voice'); }} disabled={voiceBusy || isSubmittingMonologue} aria-pressed={captureTab === 'voice'}><MicrophoneIcon aria-hidden="true" />Voice Memo</button>
+                    <button type="button" ref={textCaptureRef} onClick={() => { if (!isVoiceBusy()) setCaptureTab('text'); }} disabled={voiceBusy || isSubmittingMonologue} aria-pressed={captureTab === 'text'}><DocumentTextIcon aria-hidden="true" />Text</button>
                   </div>
-                ) : (
-                  <div className="dashboard-text">
+                </div>
+                {captureTab === 'voice' ? <VoiceRecorderCard onNoteSaved={onNoteSaved} className="original-voice-card !mt-0 !mb-0" onStatusChange={status => { voiceStatusRef.current = status; setVoiceStatus(status); }} /> :
+                  <div className="original-text-card dashboard-text">
+                    <h3>Write a note</h3><p className="dashboard-hint">Type or paste the rough thought. Develop it when you’re ready.</p>
                     <label htmlFor="capture-title-input">Title <span>(optional)</span></label>
                     <input id="capture-title-input" value={monologueTitle} onChange={e => setMonologueTitle(e.target.value)} disabled={isSubmittingMonologue} placeholder="Give your idea a name" />
                     <label htmlFor="capture-idea-input">Your idea</label>
-                    <textarea id="capture-idea-input" ref={ideaComposerRef} value={monologueText} onChange={e => setMonologueText(e.target.value)} disabled={isSubmittingMonologue} placeholder="What are you thinking about?" rows={5} />
-                    <button className="dashboard-primary" onClick={() => handleMonologueSubmit(false)} disabled={isSubmittingMonologue || !monologueText.trim()}>{isSubmittingMonologue ? 'Saving…' : 'Save note'}</button>
-                    <button className="dashboard-secondary" onClick={() => handleMonologueSubmit(true)} disabled={isSubmittingMonologue || !monologueText.trim()}><SparklesIcon aria-hidden="true" />Generate business idea</button>
-                    <p className="dashboard-hint">Save the thought now, or use AI to structure it.</p>
-                  </div>
-                )}
+                    <textarea id="capture-idea-input" ref={ideaComposerRef} value={monologueText} onChange={e => setMonologueText(e.target.value)} disabled={isSubmittingMonologue} placeholder="What are you thinking about?" rows={6} />
+                    <div className="original-text-actions"><button className="dashboard-primary" onClick={() => handleMonologueSubmit(false)} disabled={isSubmittingMonologue || !monologueText.trim()}>{isSubmittingMonologue ? 'Saving…' : 'Save note'}</button>
+                    <button className="dashboard-secondary" onClick={() => handleMonologueSubmit(true)} disabled={isSubmittingMonologue || !monologueText.trim()}><SparklesIcon aria-hidden="true" />Generate business idea</button></div>
+                    <p className="dashboard-hint">Saving and developing never feature an idea automatically.</p>
+                  </div>}
                 {monologueStatus && <p role={monologueStatus.type === 'error' ? 'alert' : 'status'} className={`capture-feedback ${monologueStatus.type}`}>{monologueStatus.message}</p>}
-              </section>
-              </DialogPanel></div>
-            </Dialog>
+              </section>} />
           </main>
         </>
       )}

@@ -7,7 +7,7 @@ import VoiceRecorder from "./VoiceRecorder";
  * - Visual depth and dimension
  * - Optimized for engagement and delight
  */
-const VoiceRecorderCard = ({ onNoteSaved, className = "", demoMode = false, hideGoogleSignIn = false }) => {
+const VoiceRecorderCard = ({ onNoteSaved, onStatusChange, className = "", demoMode = false, hideGoogleSignIn = false }) => {
   return (
     <section
       className={`relative max-w-2xl w-full mx-auto ${className.includes('mt-') ? '' : 'mt-4'} ${className.includes('mb-') ? '' : 'mb-8'} rounded-3xl overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] group ${className}`}
@@ -30,20 +30,20 @@ const VoiceRecorderCard = ({ onNoteSaved, className = "", demoMode = false, hide
       {/* Card content container */}
       <div className="relative flex flex-col items-center py-12 px-8 z-10">
         {/* Heading with premium typography */}
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white text-center mb-3 drop-shadow-lg">
+        <h3 className="text-3xl md:text-4xl font-bold tracking-tight text-white text-center mb-3 drop-shadow-lg">
           <span className="inline-block bg-gradient-to-r from-blue-200 via-white to-blue-200 bg-clip-text text-transparent">
-            Speak Your Next Big Idea
+            Speak your next idea
           </span>
-        </h1>
+        </h3>
         
         {/* Subtitle with refined styling */}
         <p className="text-blue-100 text-center max-w-lg mb-10 font-medium text-lg opacity-90">
-          Press the mic and share your thoughts — we'll analyze your idea instantly.
+          Press the mic and say it while it’s fresh.
         </p>
         
         {/* Voice recorder component with clear placement */}
         <div className="w-full flex justify-center my-3 relative">
-          <VoiceRecorder onNoteSaved={onNoteSaved} />
+          <VoiceRecorder onNoteSaved={onNoteSaved} onStatusChange={onStatusChange} />
         </div>
 
         {/* Only show Google sign-in if not explicitly hidden */}
@@ -59,7 +59,7 @@ const VoiceRecorderCard = ({ onNoteSaved, className = "", demoMode = false, hide
             <svg className="w-4 h-4 mr-2 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
             </svg>
-            Your recording will be transcribed, analyzed, and checked for market potential—instantly.
+            Your original recording is saved first. Open the note to develop your idea when you’re ready.
           </p>
         </div>
       </div>
