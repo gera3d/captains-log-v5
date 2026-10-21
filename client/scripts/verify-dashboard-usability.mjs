@@ -31,6 +31,7 @@ async function contextFor(data=fixture, options={}) {
  await context.route('**/*',async route=>{
   const url=new URL(route.request().url());
   if(url.origin!==origin){rejected.push(url.origin+url.pathname);return route.abort();}
+  if(url.pathname==='/__fixture__/silence.wav' && options.audioBytes)return route.fulfill({status:200,contentType:'audio/wav',body:options.audioBytes});
   if(url.pathname==='/src/stagingMock.js'){
    const response=await route.fetch();let source=await response.text();
    assert.ok(source.includes('return Promise.resolve().then(() => {'));
@@ -151,8 +152,8 @@ try {
  {
   // Real playable bytes generated solely for this local fixture: one second of silence.
   const wav=Buffer.alloc(44+16000);wav.write('RIFF',0);wav.writeUInt32LE(wav.length-8,4);wav.write('WAVEfmt ',8);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);wav.writeUInt32LE(8000,24);wav.writeUInt32LE(16000,28);wav.writeUInt16LE(2,32);wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(16000,40);
-  const {context,page}=await contextFor({voice_notes:[{...own,audio_url:`data:audio/wav;base64,${wav.toString('base64')}`,duration:1}],ideas:[]});
-  const audio=page.getByLabel(`Original recording of ${own.title}`,{exact:true});await expect(audio).toHaveAttribute('preload','none');assert.equal(await audio.evaluate(element=>element.paused),true);await audio.evaluate(element=>element.play());await expect.poll(()=>audio.evaluate(element=>element.duration)).toBe(1);await audio.evaluate(element=>{element.pause();element.dispatchEvent(new Event('error'))});await expect(page.getByRole('alert')).toContainText('recording couldn’t be loaded');await note(page,own.title).locator('details.original-transcript>summary').click();await expect(note(page,own.title)).toContainText(own.transcript);assert.deepEqual(await writes(page),[]);await context.close();
+  const {context,page}=await contextFor({voice_notes:[{...own,audio_url:`${origin}/__fixture__/silence.wav`,duration:1}],ideas:[]},{audioBytes:wav});
+  const audio=page.getByLabel(`Original recording of ${own.title}`,{exact:true});await expect(audio).toHaveAttribute('preload','none');assert.equal(await audio.evaluate(element=>element.paused),true);await audio.evaluate(element=>{void element.play().catch(()=>{});});await expect.poll(()=>audio.evaluate(element=>element.duration)).toBe(1);await expect.poll(()=>audio.evaluate(element=>element.currentTime)).toBeGreaterThan(0);await audio.evaluate(element=>{element.pause();element.dispatchEvent(new Event('error'))});await expect(page.getByRole('alert')).toContainText('recording couldn’t be loaded');await note(page,own.title).locator('details.original-transcript>summary').click();await expect(note(page,own.title)).toContainText(own.transcript);assert.deepEqual(await writes(page),[]);await context.close();
  }
  record('recording player uses actual local WAV fixture bytes, never autoplays or requests microphone, reports media error without losing transcript; no audio player for missing URL');
  for(const seen of [undefined,true,false])for(const empty of [false,true]){
