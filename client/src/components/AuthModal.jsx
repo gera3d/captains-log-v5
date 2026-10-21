@@ -12,9 +12,9 @@ import {
   ExclamationCircleIcon
 } from '@heroicons/react/24/outline';
 
-export function AuthCard({ initialMode = 'signin', onAuthSuccess, className = '' }) {
+export function AuthCard({ initialMode = 'signin', onAuthSuccess, className = '', allowSignup = true, onRequestWaitlist }) {
   const { signInWithPassword, signUpWithPassword, login, loginWithGitHub } = useAuth();
-  const [mode, setMode] = useState(initialMode); // 'signin' or 'signup'
+  const [mode, setMode] = useState(allowSignup ? initialMode : 'signin'); // 'signin' or 'signup'
   const [username, setUsername] = useState('');
   const [emailOrUser, setEmailOrUser] = useState('');
   const [email, setEmail] = useState('');
@@ -84,14 +84,14 @@ export function AuthCard({ initialMode = 'signin', onAuthSuccess, className = ''
         </button>
         <button
           type="button"
-          onClick={() => { setMode('signup'); setErrorMsg(null); setSuccessMsg(null); }}
+          onClick={() => { if (!allowSignup) { onRequestWaitlist?.(); return; } setMode('signup'); setErrorMsg(null); setSuccessMsg(null); }}
           className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${
             mode === 'signup'
               ? 'bg-white text-indigo-900 shadow-sm border border-slate-200/60'
               : 'text-gray-500 hover:text-gray-900'
           }`}
         >
-          Create Account
+          {allowSignup ? 'Create Account' : 'Join waiting list'}
         </button>
       </div>
 
@@ -261,10 +261,10 @@ export function AuthCard({ initialMode = 'signin', onAuthSuccess, className = ''
             Don't have an account?{' '}
             <button
               type="button"
-              onClick={() => { setMode('signup'); setErrorMsg(null); setSuccessMsg(null); }}
+              onClick={() => { if (!allowSignup) { onRequestWaitlist?.(); return; } setMode('signup'); setErrorMsg(null); setSuccessMsg(null); }}
               className="font-semibold text-indigo-600 hover:text-indigo-800 transition"
             >
-              Create one now
+              {allowSignup ? 'Create one now' : 'Join the waiting list'}
             </button>
           </p>
         ) : (
@@ -284,7 +284,7 @@ export function AuthCard({ initialMode = 'signin', onAuthSuccess, className = ''
   );
 }
 
-export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }) {
+export default function AuthModal({ isOpen, onClose, initialMode = 'signin', allowSignup = true, onRequestWaitlist }) {
   if (!isOpen) return null;
 
   return (
@@ -300,7 +300,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }) {
         >
           <XMarkIcon className="h-5 w-5" />
         </button>
-        <AuthCard initialMode={initialMode} onAuthSuccess={onClose} />
+        <AuthCard initialMode={initialMode} onAuthSuccess={onClose} allowSignup={allowSignup} onRequestWaitlist={onRequestWaitlist} />
       </div>
     </div>
   );

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import AuthModal from "./AuthModal";
+import { isMockStaging } from "../runtimeConfig";
+import { BetaWaitlistDialog } from "./BetaDraft";
 import HomepageOutputs from "./HomepageOutputs";
 import CodingTools from "./CodingTools";
 import "./LandingPage.css";
@@ -26,6 +28,15 @@ const questions = [
 
 export default function LandingPage() {
   const [authMode, setAuthMode] = useState(null);
+  const [showWaitlist, setShowWaitlist] = useState(false);
+  const requestAccess = () => {
+    if (isMockStaging) {
+      setAuthMode(null);
+      setShowWaitlist(true);
+    } else {
+      setAuthMode("signup");
+    }
+  };
   return (
     <>
       <div className="home-page font-sans">
@@ -53,11 +64,8 @@ export default function LandingPage() {
               >
                 Sign in
               </button>
-              <button
-                className="home-nav-create"
-                onClick={() => setAuthMode("signup")}
-              >
-                Create an account
+              <button className="home-nav-create" onClick={requestAccess}>
+                {isMockStaging ? "Join the waiting list" : "Create an account"}
               </button>
             </div>
           </nav>
@@ -74,16 +82,16 @@ export default function LandingPage() {
               <br className="home-desktop-break" /> to do with it.
             </h1>
             <div className="home-intro-copy">
+              {isMockStaging && (
+                <p className="beta-public-note">Good Idea is in beta.</p>
+              )}
               <p>
                 Record what you’re thinking. You can type it out, too. Good Idea
                 keeps the original note and helps you work through the idea, so
                 you can decide what to do next.
               </p>
-              <button
-                className="home-primary"
-                onClick={() => setAuthMode("signup")}
-              >
-                Create an account
+              <button className="home-primary" onClick={requestAccess}>
+                {isMockStaging ? "Join the waiting list" : "Create an account"}
               </button>
               <a className="home-secondary" href="#how-it-works">
                 See how it works
@@ -162,14 +170,15 @@ export default function LandingPage() {
               <h2 id="home-final-title" className="font-display">
                 Want to try it?
               </h2>
-              <p>Start with an idea you’ve been thinking about.</p>
+              <p>
+                {isMockStaging
+                  ? "Join the waiting list to hear when you can try it."
+                  : "Start with an idea you’ve been thinking about."}
+              </p>
             </div>
             <div className="home-final-actions">
-              <button
-                className="home-primary"
-                onClick={() => setAuthMode("signup")}
-              >
-                Create an account
+              <button className="home-primary" onClick={requestAccess}>
+                {isMockStaging ? "Join the waiting list" : "Create an account"}
               </button>
               <p>
                 Already have an account?{" "}
@@ -201,8 +210,16 @@ export default function LandingPage() {
       <AuthModal
         isOpen={authMode !== null}
         initialMode={authMode || "signin"}
+        allowSignup={!isMockStaging}
+        onRequestWaitlist={requestAccess}
         onClose={() => setAuthMode(null)}
       />
+      {isMockStaging && (
+        <BetaWaitlistDialog
+          open={showWaitlist}
+          onClose={() => setShowWaitlist(false)}
+        />
+      )}
     </>
   );
 }

@@ -1,4 +1,5 @@
-import { workflowUrl } from './runtimeConfig';
+import { workflowUrl, isMockStaging } from './runtimeConfig';
+import { BetaInvitationPage } from './components/BetaDraft';
 /*
   ROOT-TODO[HIGH]: App Structure & Release
   - Main entry point for Captain's Log app.
@@ -2008,6 +2009,7 @@ function App() {
   return (
     <div>
       <Routes>
+        {isMockStaging && <Route path="/friends-and-family" element={<BetaInvitationPage />} />}
         <Route
           path="/"
           element={
