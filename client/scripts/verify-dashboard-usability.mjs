@@ -183,11 +183,11 @@ try {
  {
   const developed=fixture.voice_notes.find(row=>row.title==='A developed idea');
   for(const data of [{voice_notes:[],ideas:[]},{voice_notes:[developed],ideas:[]}]){
-   const {context,page}=await contextFor(data);if(data.voice_notes.length){await expect(page.getByRole('heading',{name:'Your ideas',exact:true})).toBeVisible();await expect(note(page,'A developed idea')).toBeVisible();await page.getByRole('button',{name:'View all ideas',exact:true}).click();await expect(page.getByRole('heading',{name:'Ideas',exact:true})).toBeVisible()}
+   const {context,page}=await contextFor(data);const active=page.getByRole('region',{name:'Active ideas',exact:true});await expect(active.locator('a[href^="/idea/"]')).toHaveCount(0);await expect(active).toContainText('Use Feature in your library');if(data.voice_notes.length){await expect(note(page,'A developed idea')).toBeVisible();await active.getByRole('button',{name:'Choose from your library',exact:true}).click();await expect(page.getByRole('heading',{name:'Your captured notes & ideas',exact:true})).toBeFocused();await selectView(page,'ideas');await expect(note(page,'A developed idea')).toBeVisible()}assert.deepEqual(await writes(page),[]);await expect(active.locator('a[href^="/idea/"]')).toHaveCount(0);
    await page.screenshot({path:resolve(evidence,data.voice_notes.length?'final-returning-developed.png':'final-empty.png'),fullPage:true});await context.close();
   }
  }
- record('empty inline guidance and returning developed-only account expose saved work and View ideas without featuring or generating anything');
+ record('empty Active ideas does not auto-select unfeatured developed work; choose reaches full library and Ideas without mutation or generation');
  {
   const {context,page}=await contextFor();const before=await saved(page);
   await page.getByRole('searchbox',{name:'Search ideas'}).fill('meeting');await expect(page.getByRole('article')).toHaveCount(1);

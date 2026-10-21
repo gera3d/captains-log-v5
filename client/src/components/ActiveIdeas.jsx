@@ -15,7 +15,7 @@ const excerpt = text => {
 function savedPreview(note) {
   const report = savedText(note.business_idea).trim();
   const original = savedText(note.transcript || note.transcription).trim();
-  if (!report) return { label: 'Original capture', text: excerpt(original), report: false };
+  if (!report) return { label: 'Original capture', text: excerpt(original || (typeof note.summary === 'string' ? note.summary.trim() : '')), report: false };
   const pitch = report.match(/\*\*Elevator Pitch:\*\*\s*([^\n]+)/i)?.[1] || report.match(/\*{0,2}Elevator Pitch\*{0,2}\s*:\s*([^\n]+)/i)?.[1];
   if (pitch) return { label: 'From the report', text: excerpt(pitch.trim()), report: true };
   const summary = extractSummary({ ...note, business_idea: report, transcript: original });
@@ -45,7 +45,7 @@ export default function ActiveIdeas({ notes, userId, loading, error, onChoose, o
         return <Link className={`active-idea-card ${lead ? 'is-lead' : 'is-support'}`} key={note.id} to={`/idea/${note.id}`} aria-label={`Open active idea ${extractTitle(note)}`}>
           <div className="active-idea-heading"><LightBulbIcon aria-hidden="true" /><h3>{extractTitle(note)}</h3>{!lead && <ChevronRightIcon className="active-idea-arrow" aria-hidden="true" />}</div>
           {!lead && summary && <p className="active-idea-summary">{summary}</p>}
-          {lead && preview.text && <div className="active-idea-reading"><span>{preview.label}</span><ReactMarkdown allowedElements={['p','strong','em','ul','ol','li','blockquote']} unwrapDisallowed>{preview.text}</ReactMarkdown></div>}
+          {lead && (preview.text || !preview.report) && <div className="active-idea-reading"><span>{preview.label}</span><ReactMarkdown allowedElements={['p','strong','em','ul','ol','li','blockquote']} unwrapDisallowed>{preview.text}</ReactMarkdown></div>}
           <Availability note={note} />
           {lead && terms.length > 0 && <p className="active-idea-keywords"><span className="sr-only">Saved search terms: </span>{terms.join(' · ')}</p>}
           {lead && <span className="active-idea-open">Open idea<ChevronRightIcon aria-hidden="true" /></span>}
