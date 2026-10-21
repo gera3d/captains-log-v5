@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogPanel, DialogTitle, Description } from '@headlessui/react';
-import { MagnifyingGlassIcon, ArchiveBoxIcon, ArrowUturnLeftIcon, TrashIcon, ArrowTopRightOnSquareIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, ArchiveBoxIcon, ArrowUturnLeftIcon, TrashIcon, ArrowTopRightOnSquareIcon, SparklesIcon, MicrophoneIcon, LightBulbIcon, StarIcon, Squares2X2Icon, DocumentTextIcon, DocumentCheckIcon, ChevronRightIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
 import { supabase } from '../supabaseClient';
 import { workflowUrl } from '../runtimeConfig';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,8 +10,8 @@ import { extractTitle, extractSummary } from '../utils/extractTitle';
 
 const isArchived = note => note.archived === true || note.archived === 'true' || note.status === 'archived';
 
-export default function NotesList({ notes = [], setNotes, loadingNotes = false, notesError = null, onReloadNotes }) {
-  const [filter, setFilter] = useState('active');
+export default function NotesList({ notes = [], setNotes, loadingNotes = false, notesError = null, onReloadNotes, onRecord, onWrite }) {
+  const [view, setView] = useState('workspace');
   const [search, setSearch] = useState('');
   const [loadingIdea, setLoadingIdea] = useState({});
   const [pending, setPending] = useState(null);
@@ -36,8 +36,37 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
   const canArchive = ownsNote;
   const { runGeneration } = useGeneration();
   const query = search.trim().toLocaleLowerCase();
-  const displayedNotes = notes.filter(note => isArchived(note) === (filter === 'archived')).filter(note => !query || [extractTitle(note), extractSummary(note), note.transcript, note.business_idea, ...(note.tags || [])].filter(Boolean).join(' ').toLocaleLowerCase().includes(query));
-  const activeCount = notes.filter(note => !isArchived(note)).length;
+  const activeNotes = notes.filter(note => !isArchived(note));
+  const isFeatured = note => note.is_featured === true || note.is_featured === 'true';
+  const captures = activeNotes.filter(note => !note.business_idea?.trim());
+  const ideas = activeNotes.filter(note => note.business_idea?.trim());
+  const featuredNotes = activeNotes.filter(isFeatured);
+  const archivedNotes = notes.filter(isArchived);
+  const views = [
+    { id: 'workspace', label: 'Workspace', icon: Squares2X2Icon },
+    { id: 'captures', label: 'Captures', icon: MicrophoneIcon, count: captures.length },
+    { id: 'ideas', label: 'Ideas', icon: LightBulbIcon, count: ideas.length },
+    { id: 'featured', label: 'Featured', icon: StarIcon, count: featuredNotes.length },
+    { id: 'archived', label: 'Archived', icon: ArchiveBoxIcon, count: archivedNotes.length },
+  ];
+  const selectedView = views.find(item => item.id === view);
+  const matchesSearch = note => !query || [extractTitle(note), extractSummary(note), note.transcript, note.business_idea, ...(note.tags || [])].filter(Boolean).join(' ').toLocaleLowerCase().includes(query);
+  const sourceNotes = ({ captures, ideas, featured: featuredNotes, archived: archivedNotes })[view] || activeNotes;
+  const displayedNotes = sourceNotes.filter(matchesSearch);
+  const handleFeature = async note => {
+    if (!ownsNote(note) || pendingRef.current) return;
+    const featured = !isFeatured(note);
+    pendingRef.current = true;
+    setPending(note.id);
+    setFeedback(null);
+    try {
+      const { data, error } = await supabase.from('voice_notes').update({ is_featured: featured }).eq('id', note.id).eq('user_id', user.id).select('id,is_featured').single();
+      if (error || data?.id !== note.id || data.is_featured !== featured) throw new Error('The featured change could not be confirmed. Please retry.');
+      setNotes(previous => previous.map(row => row.id === note.id ? { ...row, is_featured: featured } : row));
+      setFeedback({ type: 'success', text: `“${extractTitle(note)}” ${featured ? 'added to Featured.' : 'removed from Featured.'}` });
+    } catch (error) { setFeedback({ type: 'error', text: error.message }); }
+    finally { setPending(null); pendingRef.current = false; }
+  };
 
   const handleToggleArchive = async note => {
     if (pendingRef.current) return;
@@ -101,11 +130,11 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
           const content = result.idea || result.text;
           if (typeof content !== 'string' || !content.trim()) throw new Error('No idea was returned. Please retry.');
           const idea = content.replace(/^[^\w#*]+/, '').trim();
-          const { data, error } = await supabase.from('voice_notes').update({ business_idea: idea, is_featured: true, status: 'active' }).eq('id', note.id).eq('user_id', user.id).select('id').single();
+          const { data, error } = await supabase.from('voice_notes').update({ business_idea: idea, status: 'active' }).eq('id', note.id).eq('user_id', user.id).select('id').single();
           if (error || data?.id !== note.id) throw new Error('The generated idea could not be saved. Please retry.');
           const title = extractTitle({ business_idea: idea });
           const summary = extractSummary({ business_idea: idea });
-          setNotes(previous => previous.map(row => row.id === note.id ? { ...row, business_idea: idea, title: title || row.title, summary: summary || row.summary, is_featured: true, status: 'active' } : row));
+          setNotes(previous => previous.map(row => row.id === note.id ? { ...row, business_idea: idea, title: title || row.title, summary: summary || row.summary, status: 'active' } : row));
           return { id: note.id, title: title || note.title, summary, url: `/idea/${note.id}` };
         },
       });
@@ -116,45 +145,55 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
     }
   };
 
-  return (
-    <>
-      <div className="library-heading"><div><h2 id="library-title" ref={libraryTitleRef} tabIndex={-1}>Idea library</h2><p>Open an idea to refine it and use it in your tools.</p></div><button className="library-refresh" onClick={onReloadNotes} disabled={loadingNotes} aria-label="Refresh library">Refresh</button></div>
-      <div className="library-controls">
-        <div className="library-filters" aria-label="Library filter">
-          <button aria-pressed={filter === 'active'} onClick={() => setFilter('active')}>Active <span>{activeCount}</span></button>
-          <button aria-pressed={filter === 'archived'} onClick={() => setFilter('archived')}>Archived <span>{notes.length - activeCount}</span></button>
-        </div>
-        <label className="library-search"><MagnifyingGlassIcon aria-hidden="true" /><span className="sr-only">Search ideas</span><input type="search" placeholder="Search ideas" value={search} onChange={event => setSearch(event.target.value)} /></label>
+  const renderNote = (note, rich = false) => {
+    const title = extractTitle(note);
+    const summary = extractSummary(note) || note.transcript || 'Open this note to see the details.';
+    const date = new Date(note.created_at || note.createdAt);
+    const voiceCapture = Boolean(note.audio_url || (Number.isFinite(note.duration) && note.duration > 0));
+    const originalType = voiceCapture ? 'Voice capture' : 'Text capture';
+    return <article key={note.id} className={`desk-note ${rich ? 'desk-featured-card' : 'desk-note-row'}`} aria-labelledby={`note-${note.id}`}>
+      <div className="desk-note-meta"><span>{voiceCapture ? <MicrophoneIcon aria-hidden="true" /> : <DocumentTextIcon aria-hidden="true" />}{originalType}</span>{Number.isFinite(date.getTime()) && <time dateTime={date.toISOString()}>{date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</time>}</div>
+      <div className="desk-note-content"><div><h3 id={`note-${note.id}`}><Link to={`/idea/${note.id}`}>{title}</Link></h3><p className="desk-note-summary">{summary}</p></div>{!rich && <Link className="desk-open" to={`/idea/${note.id}`} aria-label={`Open ${title}`}>Open<ChevronRightIcon aria-hidden="true" /></Link>}</div>
+      {rich && <div className="desk-artifact-preview"><span>{note.business_idea ? 'From the report' : 'Original thought'}</span><p>{summary}</p></div>}
+      <div className="desk-artifacts">{note.business_idea?.trim() ? <span><DocumentTextIcon aria-hidden="true" />Report ready</span> : <span>Original note</span>}{note.prd_content?.trim() && <span><DocumentCheckIcon aria-hidden="true" />Product spec ready</span>}</div>
+      <div className="desk-note-actions">
+        {rich && <Link className="desk-open" to={`/idea/${note.id}`} aria-label={`Open ${title}`}>Open<ChevronRightIcon aria-hidden="true" /></Link>}
+        <button className={`desk-feature-action ${isFeatured(note) ? 'is-featured' : ''}`} onClick={() => handleFeature(note)} disabled={pending !== null || !ownsNote(note)} aria-label={`${isFeatured(note) ? 'Remove featured' : 'Feature'} ${title}`} title={!ownsNote(note) ? 'Featuring isn’t available for this idea yet.' : undefined}><StarIcon aria-hidden="true" />{isFeatured(note) ? 'Remove featured' : 'Feature'}</button>
+        {!rich && ownsNote(note) && !note.business_idea && note.transcript && !isArchived(note) && <button onClick={() => handleGenerateIdea(note)} disabled={pending !== null || loadingIdea[note.id]}><SparklesIcon aria-hidden="true" />{loadingIdea[note.id] ? 'Generating…' : 'Develop idea'}</button>}
+        {!rich && <button onClick={() => handleToggleArchive(note)} disabled={pending !== null || !canArchive(note)} aria-label={`${isArchived(note) ? 'Restore' : 'Archive'} ${title}`}>{isArchived(note) ? <ArrowUturnLeftIcon aria-hidden="true" /> : <ArchiveBoxIcon aria-hidden="true" />}{pending === note.id ? 'Saving…' : isArchived(note) ? 'Restore' : 'Archive'}</button>}
+        {!rich && <button className="desk-delete" onClick={() => { setDeleteError(null); setDeleteTarget(note); }} disabled={pending !== null || !canDelete(note)} aria-label={`Delete ${title}`}><TrashIcon aria-hidden="true" />{canDelete(note) ? 'Delete' : 'Delete unavailable'}</button>}
       </div>
-      {notesError && <div className="library-feedback error" role="alert"><p>{notesError} The library may be incomplete.</p><button onClick={onReloadNotes} disabled={loadingNotes}>Retry loading</button></div>}
-      <p className="library-filter-hint">{filter === 'archived' ? 'Archived ideas stay saved. Restore brings supported notes back to Active.' : 'Archive keeps a note for later. Delete permanently removes supported notes.'}</p>
-      {feedback && <p className={`library-feedback ${feedback.type}`} role={feedback.type === 'error' ? 'alert' : 'status'}>{feedback.text}</p>}
-      {loadingNotes ? <p role="status" className="library-empty">Loading your ideas…</p> : displayedNotes.length === 0 ? <div className="library-empty"><h3>{query ? 'No matching ideas' : notesError ? 'Your library is unavailable' : filter === 'archived' ? 'No archived ideas' : 'Your next idea starts here'}</h3><p>{query ? 'Try a different word or clear your search.' : notesError ? 'Retry loading to see your saved ideas.' : filter === 'archived' ? 'Ideas you archive will appear here. You can restore them any time.' : 'Record a voice memo or write a note. It will appear in this library.'}</p>{query && <button onClick={() => setSearch('')}>Clear search</button>}</div> : <div className="library-list">{displayedNotes.map(note => {
-        const title = extractTitle(note);
-        const summary = extractSummary(note) || note.transcript || 'Open this note to see the details.';
-        const date = new Date(note.created_at || note.createdAt);
-        return <article key={note.id} className="library-note" aria-labelledby={`note-${note.id}`}>
-          <div className="library-note-main"><div><p className="library-note-meta">{note.business_idea ? 'Structured idea' : note.audio_url ? 'Voice memo' : 'Text note'}{Number.isFinite(date.getTime()) && <time dateTime={date.toISOString()}>{date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</time>}</p><h3 id={`note-${note.id}`}><Link to={`/idea/${note.id}`}>{title}</Link></h3><p className="library-note-summary">{summary}</p></div><Link className="library-open" to={`/idea/${note.id}`} aria-label={`Open ${title}`}>Open <ArrowTopRightOnSquareIcon aria-hidden="true" /></Link></div>
-          <div className="library-note-actions">
-            {ownsNote(note) && !note.business_idea && (note.transcript || note.transcription) && !isArchived(note) && <button onClick={() => handleGenerateIdea(note)} disabled={loadingIdea[note.id] || pending !== null}><SparklesIcon aria-hidden="true" />{loadingIdea[note.id] ? 'Generating…' : 'Generate idea'}</button>}
-            <button onClick={() => handleToggleArchive(note)} disabled={pending !== null || !canArchive(note)} title={!canArchive(note) ? 'Archive and Restore are not available for this idea yet.' : undefined} aria-label={`${isArchived(note) ? 'Restore' : 'Archive'} ${title}`}>{isArchived(note) ? <ArrowUturnLeftIcon aria-hidden="true" /> : <ArchiveBoxIcon aria-hidden="true" />}{pending === note.id ? 'Saving…' : isArchived(note) ? 'Restore' : 'Archive'}</button>
-            <button className="library-delete" onClick={() => { setDeleteError(null); setDeleteTarget(note); }} disabled={pending !== null || !canDelete(note)} title={!canDelete(note) ? 'Permanent deletion is not available for this idea yet.' : undefined} aria-label={`Delete ${title}`}><TrashIcon aria-hidden="true" />{canDelete(note) ? 'Delete' : 'Delete unavailable'}</button>
-          </div>
-          {!canArchive(note) ? <p className="library-unavailable">Archive, Restore and Delete aren’t available for this idea yet. You can still open it.</p> : !canDelete(note) && <p className="library-unavailable">{note.mirrorCheck === 'unverified' ? 'Refresh the library to check whether this note can be deleted.' : 'Permanent deletion isn’t available for this idea yet. You can still archive or restore this note.'}</p>}
-        </article>;
-      })}</div>}
+      {!rich && (!canArchive(note) ? <p className="desk-unavailable">Management isn’t available for this idea yet. You can still open it.</p> : !canDelete(note) && <p className="desk-unavailable">Permanent deletion isn’t available for this note here. Archive keeps it for later.</p>)}
+    </article>;
+  };
+  const emptyCopy = {
+    workspace: ['Start with a rough idea', 'Say it while it’s fresh. Your original note stays here; develop it when you’re ready.'],
+    captures: ['Room for a rough thought', 'Record a voice memo or write a note. It doesn’t have to become a project.'],
+    ideas: ['Ideas take shape here', 'Open a capture and choose Develop idea when you want a structured report.'],
+    featured: ['Keep a few ideas close', 'Use Feature on a capture or developed idea to keep it in this view.'],
+    archived: ['Nothing archived', 'Archive keeps a note for later. Restore brings supported notes back to your workspace.'],
+  };
+  return (
+    <div className="desk-layout">
+      <aside className="desk-rail" aria-label="Workspace navigation">
+        <p className="desk-rail-title">Your workspace</p>
+        <nav>{views.map(item => <button key={item.id} className={view === item.id ? 'is-active' : ''} onClick={() => { setView(item.id); setSearch(''); }} aria-current={view === item.id ? 'page' : undefined}><item.icon aria-hidden="true" /><span>{item.label}</span>{item.count !== undefined && <span className="desk-nav-count">{item.count}</span>}</button>)}</nav>
+        <button className="desk-write" onClick={onWrite}><PencilSquareIcon aria-hidden="true" />Write a note</button>
+        <p className="desk-rail-note">A capture can stay a capture.<br />You decide what grows.</p>
+      </aside>
+      <div className="desk-content">
+        <div className="desk-toolbar"><div><h1 ref={libraryTitleRef} tabIndex={-1}>{selectedView.label}</h1><p>{view === 'workspace' ? 'A place for passing thoughts and ideas worth pursuing.' : view === 'captures' ? 'Your original thoughts. Develop them when you’re ready.' : view === 'ideas' ? 'Ideas with a report to build on. Featuring is a separate choice.' : view === 'featured' ? 'Your existing featured marks. Add or remove them any time.' : 'Kept for later. Restore a note when you want it back.'}</p></div><button className="desk-record" onClick={onRecord}><MicrophoneIcon aria-hidden="true" />Record idea</button></div>
+        <div className="desk-utility-bar"><label className="desk-search"><MagnifyingGlassIcon aria-hidden="true" /><span className="sr-only">Search ideas</span><input type="search" placeholder={`Search ${selectedView.label.toLowerCase()}`} value={search} onChange={event => setSearch(event.target.value)} /></label><button className="desk-refresh" onClick={onReloadNotes} disabled={loadingNotes}>Refresh</button><label className="desk-mobile-nav"><span className="sr-only">Workspace view</span><select value={view} onChange={event => { setView(event.target.value); setSearch(''); }}>{views.map(item => <option key={item.id} value={item.id}>{item.label}{item.count !== undefined ? ` (${item.count})` : ''}</option>)}</select></label></div>
+        {notesError && <div className="library-feedback error" role="alert"><p>{notesError} The library may be incomplete.</p><button onClick={onReloadNotes} disabled={loadingNotes}>Retry loading</button></div>}
+        {feedback && <p className={`library-feedback ${feedback.type}`} role={feedback.type === 'error' ? 'alert' : 'status'}>{feedback.text}</p>}
+        {loadingNotes ? <p className="desk-empty" role="status">Loading your ideas…</p> : displayedNotes.length === 0 ? <div className="desk-empty"><MicrophoneIcon aria-hidden="true" /><h2>{query ? 'No matching ideas' : notesError ? 'Your library is unavailable' : emptyCopy[view][0]}</h2><p>{query ? 'Try a different word or clear your search.' : notesError ? 'Retry loading to see your saved notes.' : emptyCopy[view][1]}</p>{query ? <button onClick={() => setSearch('')}>Clear search</button> : ['workspace','captures'].includes(view) && <div><button className="desk-record" onClick={onRecord}>Record idea</button><button className="desk-empty-write" onClick={onWrite}>Write instead</button></div>}</div> : view === 'workspace' && !query ? <>
+          <section className="desk-featured-section" aria-labelledby="featured-title"><div className="desk-section-heading"><div><StarIcon aria-hidden="true" /><h2 id="featured-title">Featured</h2><span>{featuredNotes.length}</span></div><button onClick={() => setView('featured')}>Manage featured<ChevronRightIcon aria-hidden="true" /></button></div>{featuredNotes.length ? <div className="desk-featured-grid">{featuredNotes.slice(0,3).map(note => renderNote(note,true))}</div> : <div className="desk-featured-empty"><StarIcon aria-hidden="true" /><div><h3>Keep the promising ones in sight</h3><p>Feature a raw thought or a developed idea. Generating a report doesn’t feature it.</p></div></div>}</section>
+          <section className="desk-captures-section" aria-labelledby="recent-captures-title"><div className="desk-section-heading"><div><h2 id="recent-captures-title">Recent captures</h2><span>{captures.length}</span></div><button onClick={() => setView('captures')}>View captures<ChevronRightIcon aria-hidden="true" /></button></div><p className="desk-section-description">Original notes, ready when you are.</p><div className="desk-note-list">{captures.filter(note => !isFeatured(note)).slice(0,4).map(note => renderNote(note))}</div>{captures.filter(note => !isFeatured(note)).length === 0 && <p className="desk-quiet-empty">Your recent captures will appear here. Featured captures stay on the shelf above.</p>}</section>
+        </> : <section aria-label={`${selectedView.label} notes`}><div className="desk-list-heading"><h2>{query ? 'Search results' : selectedView.label}</h2><span>{displayedNotes.length} {displayedNotes.length === 1 ? 'note' : 'notes'}</span></div><div className={view === 'featured' ? 'desk-featured-grid desk-all-featured' : 'desk-note-list'}>{displayedNotes.map(note => renderNote(note,view === 'featured'))}</div></section>}
+      </div>
       <Dialog open={Boolean(deleteTarget)} onClose={() => { if (!pendingRef.current) setDeleteTarget(null); }} initialFocus={cancelRef} className="note-dialog">
-        <div className="note-dialog-backdrop" aria-hidden="true" /><div className="note-dialog-viewport"><DialogPanel className="note-dialog-panel" aria-busy={pending !== null}>
-          <TrashIcon className="note-dialog-icon" aria-hidden="true" />
-          <DialogTitle>{canDelete(deleteTarget) ? `Delete “${extractTitle(deleteTarget)}”?` : 'Delete isn’t available for this idea'}</DialogTitle>
-          <Description>{deleteTarget ? `“${extractTitle(deleteTarget)}”` : ''}</Description>
-          {canDelete(deleteTarget) ? <p>This permanently removes the note, its transcript and any report saved in it. Stored audio files and copies saved elsewhere are kept. This cannot be undone.</p> : <p>This idea can’t be permanently deleted here yet. It is still saved.{canArchive(deleteTarget) ? ' You can archive this note to keep it out of Active, then restore it later from Archived.' : ' You can still open it from your library.'}</p>}
-          {deleteError && <p role="alert" className="delete-error">{deleteError}</p>}
-          <div className="note-dialog-actions"><button ref={cancelRef} disabled={pending !== null} onClick={() => setDeleteTarget(null)}>Cancel</button>
-            {canDelete(deleteTarget) ? <button className="danger" disabled={pending !== null} onClick={handleDelete}>{pending !== null ? 'Deleting…' : deleteError ? 'Retry delete' : 'Delete note'}</button> : deleteTarget && !isArchived(deleteTarget) && canArchive(deleteTarget) && <button className="dashboard-primary" disabled={pending !== null} onClick={() => { const note = deleteTarget; setDeleteTarget(null); handleToggleArchive(note); }}>Archive instead</button>}
-          </div>
-        </DialogPanel></div>
+        <div className="note-dialog-backdrop" aria-hidden="true" /><div className="note-dialog-viewport"><DialogPanel className="note-dialog-panel" aria-busy={pending !== null}><TrashIcon className="note-dialog-icon" aria-hidden="true" /><DialogTitle>{deleteTarget ? `Delete “${extractTitle(deleteTarget)}”?` : 'Delete note?'}</DialogTitle><Description>{deleteTarget ? `“${extractTitle(deleteTarget)}”` : ''}</Description><p>This permanently removes the note, its transcript and any report saved in it. Stored audio files and copies saved elsewhere are kept. This cannot be undone.</p>{deleteError && <p role="alert" className="delete-error">{deleteError}</p>}<div className="note-dialog-actions"><button ref={cancelRef} disabled={pending !== null} onClick={() => setDeleteTarget(null)}>Cancel</button><button className="danger" disabled={pending !== null} onClick={handleDelete}>{pending !== null ? 'Deleting…' : deleteError ? 'Retry delete' : 'Delete note'}</button></div></DialogPanel></div>
       </Dialog>
-    </>
+    </div>
   );
 }

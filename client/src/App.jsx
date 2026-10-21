@@ -14,6 +14,8 @@ import { supabase } from './supabaseClient';
 import { Routes, Route, useNavigate, Link } from 'react-router-dom';
 import NotesList from './components/NotesList';
 import './components/Dashboard.css';
+import './components/IdeaDesk.css';
+import { Dialog, DialogPanel, DialogTitle, Description } from '@headlessui/react';
 import VoiceRecorder from './components/VoiceRecorder';
 import VoiceRecorderCard from './components/VoiceRecorderCard';
 import { CheckIcon, MicrophoneIcon, DocumentTextIcon, ShareIcon, RocketLaunchIcon, SparklesIcon, BoltIcon, CheckBadgeIcon, ShieldCheckIcon, ArrowRightIcon, ArrowPathIcon, LightBulbIcon, DocumentCheckIcon, BookOpenIcon } from '@heroicons/react/24/outline';
@@ -62,6 +64,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
   const [customPersonaIcon, setCustomPersonaIcon] = useState('🔮');
 
   // Text Monologue & Fast Ingestion State
+  const [captureOpen, setCaptureOpen] = useState(false);
   const [captureTab, setCaptureTab] = useState('voice'); // 'voice' or 'text'
   const [monologueText, setMonologueText] = useState('');
   const [monologueTitle, setMonologueTitle] = useState('');
@@ -141,10 +144,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
   const effectiveUser = isDevUser ? devMockUser : user;
 
   const onNoteSaved = (newNote) => {
-    const markedNote = newNote.business_idea 
-      ? { ...newNote, is_featured: true } 
-      : newNote;
-    
+    const markedNote = newNote;
     const recordSource = String(newNote.id).startsWith('idea_') ? 'ambient' : 'voice_notes';
     setNotes(prev => [{ ...markedNote, recordSource, mirrorCheck: 'unverified' }, ...prev.filter(note => note.id !== markedNote.id)]);
 
@@ -193,7 +193,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
         business_idea: createdIdea.businessIdeaMarkdown || '',
         tags: createdIdea.tags || ['monologue'],
         status: synthesizeIdea ? 'active' : 'raw',
-        is_featured: synthesizeIdea,
+        is_featured: createdIdea.isFeatured === true,
         created_at: createdIdea.createdAt || new Date().toISOString()
       };
 
@@ -448,15 +448,14 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
             onIdeaCreated={(newIdea) => setNotes(prev => [newIdea, ...prev])}
           />
           
-          <main className="dashboard-main">
-            <div className="dashboard-heading">
-              <div><h1>Your ideas</h1><p>Capture a thought. Come back when you’re ready to take it further.</p></div>
-              <a className="dashboard-jump" href="#idea-library">Browse your library <ArrowRightIcon aria-hidden="true" /></a>
-            </div>
-            <div className="dashboard-workspace">
+          <main className="idea-desk">
+            <NotesList notes={notes} setNotes={setNotes} loadingNotes={loadingNotes} notesError={notesError} onReloadNotes={onReloadNotes} onRecord={() => { setCaptureTab('voice'); setCaptureOpen(true); }} onWrite={() => { setCaptureTab('text'); setCaptureOpen(true); }} />
+            <Dialog open={captureOpen} onClose={() => { if (!isSubmittingMonologue) setCaptureOpen(false); }} initialFocus={captureTab === 'voice' ? voiceCaptureRef : ideaComposerRef} className="note-dialog desk-capture-dialog">
+              <div className="note-dialog-backdrop" aria-hidden="true" /><div className="note-dialog-viewport"><DialogPanel className="desk-capture-panel">
+                <button className="desk-capture-close" onClick={() => setCaptureOpen(false)} disabled={isSubmittingMonologue} aria-label="Close capture">×</button>
               <section className="dashboard-capture" aria-labelledby="capture-title">
-                <h2 id="capture-title">Capture an idea</h2>
-                <p className="dashboard-hint">Start with a voice memo or a few words.</p>
+                <DialogTitle as="h2" id="capture-title">Capture an idea</DialogTitle>
+                <Description className="dashboard-hint">Speak the rough thought. You can develop it later.</Description>
                 <div className="capture-tabs" aria-label="Capture method">
                   <button type="button" ref={voiceCaptureRef} onClick={() => setCaptureTab('voice')} aria-pressed={captureTab === 'voice'}><MicrophoneIcon aria-hidden="true" />Voice Memo</button>
                   <button type="button" ref={textCaptureRef} onClick={() => setCaptureTab('text')} aria-pressed={captureTab === 'text'}><DocumentTextIcon aria-hidden="true" />Text</button>
@@ -479,10 +478,8 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                 )}
                 {monologueStatus && <p role={monologueStatus.type === 'error' ? 'alert' : 'status'} className={`capture-feedback ${monologueStatus.type}`}>{monologueStatus.message}</p>}
               </section>
-              <section id="idea-library" className="dashboard-library" aria-labelledby="library-title">
-                <NotesList notes={notes} setNotes={setNotes} loadingNotes={loadingNotes} notesError={notesError} onReloadNotes={onReloadNotes} />
-              </section>
-            </div>
+              </DialogPanel></div>
+            </Dialog>
           </main>
         </>
       )}
@@ -1022,7 +1019,7 @@ function FullIdeaPage({ user, session }) {
 
             {/* Right side actions in global header */}
             <div className="flex items-center space-x-2 sm:space-x-3">
-              {note?.audio_url ? (
+              {(note?.audio_url || (Number.isFinite(note?.duration) && note.duration > 0)) ? (
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-100 bg-white/10 border border-white/20 px-2.5 py-1 rounded-full">
                   🎙️ Voice Memo
                 </span>
