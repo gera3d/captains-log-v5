@@ -15,7 +15,7 @@ const excerpt = text => {
 function savedPreview(note) {
   const report = savedText(note.business_idea).trim();
   const original = savedText(note.transcript || note.transcription).trim();
-  if (!report) return { label: 'Original note', text: excerpt(original), report: false };
+  if (!report) return { label: 'Original capture', text: excerpt(original), report: false };
   const pitch = report.match(/\*\*Elevator Pitch:\*\*\s*([^\n]+)/i)?.[1] || report.match(/\*{0,2}Elevator Pitch\*{0,2}\s*:\s*([^\n]+)/i)?.[1];
   if (pitch) return { label: 'From the report', text: excerpt(pitch.trim()), report: true };
   const summary = extractSummary({ ...note, business_idea: report, transcript: original });
@@ -35,7 +35,7 @@ export default function ActiveIdeas({ notes, userId, loading, error, onChoose, o
   const selected = notes.filter(note => note.user_id === userId && featured(note) && !archived(note));
   const visible = selected.slice(0, 3);
   return <section className="active-ideas" aria-labelledby="active-ideas-title">
-    <div className="original-section-heading"><h2 id="active-ideas-title">Active ideas</h2><button onClick={onChoose}>{selected.length ? 'Manage ideas' : 'Choose ideas'}<ChevronRightIcon aria-hidden="true" /></button></div>
+    <div className="original-section-heading"><h2 id="active-ideas-title">Active ideas</h2><button onClick={onChoose}>{selected.length ? 'Manage Featured' : 'Choose ideas'}<ChevronRightIcon aria-hidden="true" /></button></div>
     {loading ? <div className="active-ideas-state" role="status">Loading active ideas…</div> : error ? <div className="active-ideas-state"><h3>Active ideas couldn’t be loaded</h3><p>Retry to see your saved selection.</p><button onClick={onRetry}>Retry loading</button></div> : visible.length ? <>
       <div className="active-idea-gallery">{visible.map((note, index) => {
         const lead = index === 0;
