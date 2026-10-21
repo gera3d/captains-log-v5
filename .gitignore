@@ -9,3 +9,6 @@ client/*elevated*.png
 client/scripts/*.png
 client/scripts/inspect_dashboard.cjs
 client/scripts/ideabrowser_page.txt
+
+# Local browser verification evidence
+client/artifacts/

@@ -1,0 +1,46 @@
+{
+  "retrieved": "2026-10-20",
+  "purpose": "Tool identification in private homepage candidate, not partnership/endorsement or installed-integration evidence.",
+  "assets": [
+    {
+      "file": "public/brands/cursor-icon.svg",
+      "name": "Cursor",
+      "source": "https://cursor.com/marketing-static/favicon-light.svg",
+      "sourcePage": "https://cursor.com/brand",
+      "sha256": "78f169abca311d70e18ada789ccf1a55b4ca0306822f21a9ab0c2658ed88dbe0",
+      "notes": "Official vendor asset, unchanged."
+    },
+    {
+      "file": "public/brands/antigravity.svg",
+      "name": "Google Antigravity",
+      "source": "https://antigravity.google/assets/image/brand/antigravity-icon__full-color.svg",
+      "sourcePage": "https://antigravity.google/press",
+      "sha256": "d775965ea1f8060538c15f758a3e22487317211fcb6051333b5e023f35aa726f",
+      "notes": "Official vendor asset, unchanged."
+    },
+    {
+      "file": "public/brands/claude.png",
+      "name": "Claude Code",
+      "source": "https://claude.com/icon.png",
+      "sourcePage": "https://claude.com/",
+      "sha256": "ce7e8cafe276c4d6820387652d77437772fb2efa7511bff92a4e7664cd2bee51",
+      "notes": "Official vendor asset, unchanged."
+    },
+    {
+      "file": "public/brands/openai.png",
+      "name": "Codex",
+      "source": "https://raw.githubusercontent.com/openai/plugins/main/plugins/openai-developers/assets/logo.png",
+      "sourcePage": "https://github.com/openai/plugins/tree/main/plugins/openai-developers",
+      "sha256": "776310bcb0f0f191c616f31a13fcb8de8cc94d920c77625c271b3a034199ac43",
+      "notes": "OpenAI vendor mark identifies Codex; not a dedicated Codex product logo."
+    },
+    {
+      "file": "public/brands/ai-studio.png",
+      "name": "Google AI Studio",
+      "source": "https://www.gstatic.com/images/branding/productlogos/ai_studio/v1/web-96dp/logo_ai_studio_color_1x_web_96dp.png",
+      "sourcePage": "https://aistudio.google.com/welcome",
+      "sha256": "f4aaba05c020e9cba9e8b38ba8dff69f1e2aee9efc20dcd205dc1eaea8f7f643",
+      "notes": "Official vendor asset, unchanged."
+    }
+  ]
+}

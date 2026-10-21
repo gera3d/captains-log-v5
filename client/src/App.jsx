@@ -1,3 +1,4 @@
+import { workflowUrl } from './runtimeConfig';
 /*
   ROOT-TODO[HIGH]: App Structure & Release
   - Main entry point for Captain's Log app.
@@ -7,7 +8,8 @@
 */
 // TODO[progress-md][P1][App] See progress.md for all open UI polish, loading, error, and browser test tasks
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import WelcomeDialog from './components/WelcomeDialog';
 import LoadingSpinner from './components/LoadingSpinner';
 import { supabase } from './supabaseClient';
 import { Routes, Route, useNavigate, Link } from 'react-router-dom';
@@ -19,11 +21,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { GenerationProvider, useGeneration } from './contexts/GenerationContext';
 import GenerationProgressHUD from './components/GenerationProgressHUD';
 import AuthButton from './components/AuthButton';
-import AuthModal, { AuthCard } from './components/AuthModal';
-import FeaturesSection from './components/FeaturesSection';
-import RoadmapSection from './components/RoadmapSection'; // Import the RoadmapSection
-import FAQSection from './components/FAQSection';
-import Footer from './components/Footer';
+import LandingPage from './components/LandingPage';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useParams } from 'react-router-dom';
@@ -45,220 +43,15 @@ import DomainBlueprintShowcase from './components/DomainBlueprintShowcase';
   - UI: Consider a dismissible banner or modal for onboarding.
 */
 
-function CTASection({ onOpenAuth }) {
-  return (
-    <section className="relative py-24 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 border-t border-white/10 overflow-hidden">
-      {/* Ambient background glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-amber-500/10 blur-[150px] pointer-events-none rounded-full" />
-      
-      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/10 border border-amber-400/20 text-amber-300 text-xs font-semibold tracking-widest uppercase mb-4">
-          Start Today
-        </span>
-        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold font-display text-white tracking-tight mb-4">
-          Ready to Turn Your Voice Into Your Next Venture?
-        </h2>
-        <p className="text-slate-300 text-base sm:text-lg max-w-2xl mx-auto mb-8 leading-relaxed">
-          Stop letting your best startup ideas get lost in note apps. Speak them out loud, validate market demand, and launch faster.
-        </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <button
-            onClick={() => onOpenAuth('signup')}
-            className="w-full sm:w-auto bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold text-base px-8 py-4 rounded-xl shadow-xl shadow-amber-500/25 transition transform hover:-translate-y-0.5 cursor-pointer flex items-center justify-center gap-2.5"
-          >
-            <RocketLaunchIcon className="w-5 h-5 text-slate-950" />
-            <span>Create Your Free Account</span>
-          </button>
-          <button
-            onClick={() => onOpenAuth('signin')}
-            className="w-full sm:w-auto bg-white/10 hover:bg-white/15 text-white font-medium text-base rounded-xl px-7 py-4 transition border border-white/15 cursor-pointer backdrop-blur-sm"
-          >
-            Sign In with Existing Account
-          </button>
-        </div>
-        <p className="mt-4 text-xs text-slate-400">
-          No credit card required • 100% free starter tier • Instant access
-        </p>
-      </div>
-    </section>
-  );
-}
-
-function LandingPage() {
-  const { login, loginWithGitHub } = useAuth();
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authModalMode, setAuthModalMode] = useState('signin');
-
-  return (
-    <div className="bg-slate-950 text-white min-h-screen flex flex-col selection:bg-amber-400 selection:text-slate-900 relative overflow-x-hidden font-sans">
-      {/* Top Ambient Glows */}
-      <div className="absolute top-[-100px] left-1/4 w-[650px] h-[500px] bg-indigo-600/15 blur-[160px] pointer-events-none rounded-full" />
-      <div className="absolute top-[200px] right-10 w-[550px] h-[450px] bg-blue-500/15 blur-[160px] pointer-events-none rounded-full" />
-
-      {/* Top Frosted Navbar */}
-      <nav className="sticky top-0 z-40 backdrop-blur-xl bg-slate-950/80 border-b border-white/10 px-4 sm:px-8 py-3.5 transition-all">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center">
-            <img src="/goodideas.png" alt="GoodIdea Logo" className="h-8 sm:h-9 w-auto drop-shadow-md" />
-          </div>
-
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
-            <a href="#how-it-works" className="hover:text-amber-300 transition-colors">How It Works</a>
-            <a href="#roadmap" className="hover:text-amber-300 transition-colors">Roadmap</a>
-            <a href="#faq" className="hover:text-amber-300 transition-colors">FAQ</a>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => { setAuthModalMode('signin'); setShowAuthModal(true); }}
-              className="text-xs sm:text-sm font-semibold px-4 py-2 rounded-xl text-slate-200 hover:text-white hover:bg-white/10 transition border border-white/15 cursor-pointer"
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => { setAuthModalMode('signup'); setShowAuthModal(true); }}
-              className="text-xs sm:text-sm font-bold px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 shadow-md shadow-amber-500/20 transition transform hover:-translate-y-0.5 cursor-pointer"
-            >
-              Create Account
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* Main Hero with Restored Visual Harmony */}
-      <main className="flex-1 flex items-center py-16 lg:py-24 relative z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
-          {/* LEFT SIDE: Original Glowing 3D Voice Recorder Card */}
-          <div className="lg:w-1/2 lg:order-1 order-2 relative w-full flex justify-center">
-            <div className="transform transition-all hover:scale-[1.02] relative z-10 w-full max-w-md">
-              {/* Glow effect */}
-              <div className="absolute -inset-10 bg-blue-500/25 blur-3xl rounded-full pointer-events-none"></div>
-              
-              {/* Voice recorder component */}
-              <VoiceRecorderCard 
-                onNoteSaved={() => {}} 
-                className="relative z-20 shadow-[0_25px_80px_-15px_rgba(0,0,0,0.5)] border border-white/15 bg-slate-900/90 backdrop-blur-xl" 
-                demoMode={true}
-                hideGoogleSignIn={true}
-              />
-              
-              {/* Enhanced decorative effects */}
-              <div className="absolute -bottom-16 left-1/2 transform translate-y-1/2 -translate-x-1/2 w-[120%] h-32 bg-gradient-to-b from-transparent to-blue-500/20 blur-2xl rounded-full z-10 pointer-events-none"></div>
-            </div>
-          </div>
-          
-          {/* RIGHT SIDE: Logo and Content */}
-          <div className="lg:w-1/2 lg:order-2 order-1 flex flex-col items-center lg:items-start text-center lg:text-left">
-            {/* Eyebrow badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-400/20 text-blue-300 text-xs font-semibold uppercase tracking-wider mb-6">
-              <SparklesIcon className="w-3.5 h-3.5 text-amber-400" />
-              <span>Next-Gen Voice Ideation AI</span>
-            </div>
-
-            {/* Large original GoodIdea logo image */}
-            <img src="/goodideas.png" alt="GoodIdea Logo" className="h-24 sm:h-28 w-auto mb-6 drop-shadow-2xl" />
-            
-            {/* Text content */}
-            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-extrabold mb-5 text-white leading-[1.12] tracking-tight">
-              Turn Your Thoughts Into Startups — <span className="bg-gradient-to-r from-amber-300 via-amber-400 to-orange-400 bg-clip-text text-transparent">In Days, Not Months.</span>
-            </h1>
-            <p className="text-base sm:text-lg mb-8 text-slate-300 max-w-xl leading-relaxed">
-              Speak your ideas out loud. We'll transcribe, structure, and benchmark them against market data — so you know what's worth building before writing code.
-            </p>
-            
-            {/* Primary Action Buttons */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 mb-6">
-              <button
-                onClick={() => { setAuthModalMode('signin'); setShowAuthModal(true); }}
-                className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold text-sm sm:text-base px-7 py-3.5 rounded-xl shadow-xl shadow-amber-500/25 transition transform hover:-translate-y-0.5 cursor-pointer flex items-center gap-2.5"
-              >
-                <RocketLaunchIcon className="w-5 h-5 text-slate-950" />
-                <span>Start Validating Free</span>
-              </button>
-              <button
-                className="bg-white/10 hover:bg-white/15 text-white font-medium text-sm sm:text-base rounded-xl px-6 py-3.5 transition border border-white/15 cursor-pointer backdrop-blur-sm"
-                onClick={() => {
-                  const section = document.getElementById('how-it-works');
-                  if (section) {
-                    section.scrollIntoView({ behavior: 'smooth' });
-                  }
-                }}
-              >
-                How It Works
-              </button>
-            </div>
-
-            {/* Quick OAuth Row */}
-            <div className="flex items-center gap-3 text-xs text-slate-400">
-              <span>Or instant sign in:</span>
-              <button
-                onClick={() => login()}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium transition cursor-pointer border border-white/15"
-                title="Sign in with Google"
-              >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                </svg>
-                Google
-              </button>
-              <button
-                onClick={() => loginWithGitHub()}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium transition cursor-pointer border border-white/15"
-                title="Sign in with GitHub"
-              >
-                <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                  <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
-                </svg>
-                GitHub
-              </button>
-            </div>
-
-            {/* Trust Reassurance Strip */}
-            <div className="mt-8 pt-6 border-t border-white/10 flex flex-wrap justify-center lg:justify-start items-center gap-5 text-xs text-slate-400">
-              <div className="flex items-center gap-1.5">
-                <BoltIcon className="w-4 h-4 text-amber-400" />
-                <span>Instant Whisper AI Transcription</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <CheckBadgeIcon className="w-4 h-4 text-blue-400" />
-                <span>Objective Viability Index</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <ShieldCheckIcon className="w-4 h-4 text-emerald-400" />
-                <span>256-Bit Encrypted & Private</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-      
-      {/* Features, Roadmap, FAQ, Final CTA & Footer */}
-      <div>
-        <FeaturesSection />
-        <RoadmapSection />
-        <FAQSection />
-        <CTASection onOpenAuth={(mode) => { setAuthModalMode(mode); setShowAuthModal(true); }} />
-        <Footer />
-      </div>
-
-      {/* High-Polish Auth Modal for Username/Password and Registration */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        initialMode={authModalMode}
-      />
-    </div>
-  );
-}
-
 function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loadingNotes = false }) {
   const navigate = useNavigate();
   const { runGeneration } = useGeneration();
   const [showIntegrationsModal, setShowIntegrationsModal] = useState(initialOpenIntegrations);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingFocus, setOnboardingFocus] = useState(null);
+  const voiceCaptureRef = useRef(null);
+  const textCaptureRef = useRef(null);
+  const ideaComposerRef = useRef(null);
   const [activeIdeas, setActiveIdeas] = useState([]);
   const [selectedPersona, setSelectedPersona] = useState(() => {
     // Try to load saved persona from localStorage
@@ -404,17 +197,26 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
   };
 
   useEffect(() => {
-    if (isDevUser) {
+    if (!user?.id) return;
+    try {
+      setShowOnboarding(!localStorage.getItem('dashboardOnboardingSeen'));
+    } catch {
       setShowOnboarding(true);
-      return;
     }
-    if (effectiveUser) {
-      const seen = localStorage.getItem('dashboardOnboardingSeen');
-      if (!seen) {
-        setShowOnboarding(true);
-      }
-    }
-  }, [effectiveUser, isDevUser]);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (showOnboarding || !onboardingFocus) return;
+    const frame = requestAnimationFrame(() => {
+      const target = onboardingFocus === 'composer'
+        ? ideaComposerRef.current
+        : captureTab === 'voice' ? voiceCaptureRef.current : textCaptureRef.current;
+      target?.focus({ preventScroll: true });
+      target?.scrollIntoView({ block: 'center', behavior: 'instant' });
+      setOnboardingFocus(null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [showOnboarding, onboardingFocus, captureTab]);
 
   // Improved active ideas selection logic - show all ideas with content except archived ones, sorted strictly newest first
   useEffect(() => {
@@ -463,8 +265,19 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
   }, [notes]); // Depend on notes so we always have latest state
 
   const handleDismissOnboarding = () => {
-    localStorage.setItem('dashboardOnboardingSeen', 'true');
+    try {
+      localStorage.setItem('dashboardOnboardingSeen', 'true');
+    } catch {
+      console.warn('Welcome dismissal could not be saved in this browser.');
+    }
     setShowOnboarding(false);
+    setOnboardingFocus('capture');
+  };
+
+  const handleStartOnboarding = () => {
+    handleDismissOnboarding();
+    setCaptureTab('text');
+    setOnboardingFocus('composer');
   };
 
   const onNoteSaved = (newNote) => {
@@ -635,105 +448,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
     }
   };
 
-  const onboardingModal = (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#1d3263] bg-gradient-to-br from-[#1d3263] via-[#223a6d] to-[#1d3263] animate-fade-in-up"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="onboarding-title"
-      aria-describedby="onboarding-desc"
-      tabIndex={-1}
-      onKeyDown={e => { if (e.key === "Escape") handleDismissOnboarding(); }}
-    >
-      <div className="relative bg-white/5 rounded-3xl shadow-2xl max-w-md w-full px-8 py-10 sm:px-12 sm:py-12 border border-white/10 ring-1 ring-white/10 glass-gradient focus:outline-none outline-none"
-        style={{ outline: "none" }}
-      >
-        <button
-          className="absolute top-4 right-4 text-white hover:text-[#FCD24F] text-2xl font-bold transition focus:outline-none focus:ring-2 focus:ring-[#FCD24F] rounded-full bg-white/10 hover:bg-white/20 shadow"
-          onClick={handleDismissOnboarding}
-          aria-label="Dismiss onboarding"
-          tabIndex={0}
-        >
-          ×
-        </button>
-        <div className="flex flex-col items-center">
-          <div className="mb-4" aria-hidden="true">
-            <svg width="56" height="56" viewBox="0 0 56 56" className="mx-auto drop-shadow-lg">
-              <g>
-                <rect width="56" height="56" rx="16" fill="#fff" fillOpacity="0.08"/>
-                <path d="M28 12v13.5c0 1.1.9 2 2 2h1.5a2 2 0 012 2V36a7.5 7.5 0 11-15 0V29.5a2 2 0 012-2H26a2 2 0 002-2V12" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                <ellipse cx="28" cy="40" rx="7.5" ry="3.5" fill="#FCD24F" fillOpacity="0.85"/>
-              </g>
-            </svg>
-          </div>
-          <div className="font-extrabold text-2xl mb-1 text-[#d9d9d9] tracking-wide logo-text" style={{letterSpacing: "0.04em"}}>
-            GoodIdea
-          </div>
-          <h2 id="onboarding-title" className="text-2xl sm:text-3xl font-bold mb-2 text-[#f2f2f2] text-center drop-shadow-lg">
-            Welcome aboard!
-          </h2>
-          <p id="onboarding-desc" className="text-[#d9d9d9] mb-5 text-center text-lg font-medium">
-            Here’s how to get started:
-          </p>
-          <ul className="text-left space-y-4 mb-8 w-full max-w-xs">
-            <li className="flex items-center gap-3">
-              <span className="inline-flex items-center justify-center h-9 w-9 rounded-full bg-[#FCD24F]/20 shadow">
-                <MicrophoneIcon className="h-6 w-6 text-[#FCD24F]" aria-hidden="true" />
-              </span>
-              <span className="font-semibold text-[#FCD24F]">Record</span>
-              <span className="text-[#d9d9d9] ml-2">Tap the mic to capture voice notes.</span>
-            </li>
-            <li className="flex items-center gap-3">
-              <span className="inline-flex items-center justify-center h-9 w-9 rounded-full bg-white/10 shadow">
-                <DocumentTextIcon className="h-6 w-6 text-white" aria-hidden="true" />
-              </span>
-              <span className="font-semibold text-white">View</span>
-              <span className="text-[#d9d9d9] ml-2">See and organize your notes.</span>
-            </li>
-            <li className="flex items-center gap-3">
-              <span className="inline-flex items-center justify-center h-9 w-9 rounded-full bg-white/10 shadow">
-                <ShareIcon className="h-6 w-6 text-white" aria-hidden="true" />
-              </span>
-              <span className="font-semibold text-white">Share</span>
-              <span className="text-[#d9d9d9] ml-2">Export or share your notes anytime.</span>
-            </li>
-          </ul>
-          <button
-            className="mt-2 px-10 py-3 rounded-full bg-[#FCD24F] text-[#1d3263] text-lg font-bold shadow-lg transition-all duration-200 transform hover:scale-105 hover:bg-[#ffe27a] focus:outline-none focus:ring-4 focus:ring-[#FCD24F]/60 active:scale-98"
-            onClick={handleDismissOnboarding}
-            autoFocus
-            tabIndex={0}
-            aria-label="Close onboarding and start using GoodIdea"
-          >
-            GOT IT!
-          </button>
-          <div className="mt-6 text-center">
-            <span className="text-[#f2f2f2] underline underline-offset-4 decoration-2 decoration-[#f2f2f2] cursor-pointer transition hover:text-[#FCD24F]" tabIndex={0} role="button" aria-label="Learn more about GoodIdea">
-              Learn more
-            </span>
-          </div>
-        </div>
-      </div>
-      <style>
-        {`
-          .glass-gradient {
-            background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%);
-            backdrop-filter: blur(12px);
-          }
-          @keyframes fade-in-up {
-            0% { opacity: 0; transform: translateY(40px);}
-            100% { opacity: 1; transform: translateY(0);}
-          }
-          .animate-fade-in-up {
-            animation: fade-in-up 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-          }
-          .logo-text {
-            font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
-          }
-        `}
-      </style>
-    </div>
-  );
+  const onboardingModal = <WelcomeDialog onDismiss={handleDismissOnboarding} onStart={handleStartOnboarding} />;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -936,6 +651,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                       <button
                         type="button"
                         onClick={() => setCaptureTab('voice')}
+                        ref={voiceCaptureRef}
                         className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                           captureTab === 'voice'
                             ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
@@ -949,6 +665,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                       <button
                         type="button"
                         onClick={() => setCaptureTab('text')}
+                        ref={textCaptureRef}
                         className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                           captureTab === 'text'
                             ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
@@ -1015,6 +732,8 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
 
                           <div className="flex-1 min-h-0 flex flex-col mb-3">
                             <textarea
+                              ref={ideaComposerRef}
+                              aria-label="Your idea"
                               placeholder="Dump your stream of consciousness, transcript, or startup thoughts here...
 
 e.g. In this idea, I want to explore how to use shorts as a way of telling an interesting story, and you build that story in a story builder..."
@@ -1509,7 +1228,7 @@ function FullIdeaPage({ user, session }) {
         title: note.title || 'Startup Blueprint',
         type: note.business_idea ? 'regenerate' : 'generate',
         execute: async () => {
-          const response = await fetch('https://n8n.why57.com/webhook/transcript-summarize', {
+          const response = await fetch(workflowUrl('summarize'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: transcriptText.trim() }),
@@ -1619,7 +1338,7 @@ function FullIdeaPage({ user, session }) {
         };
         
         // Call n8n webhook with production URL
-        const response = await fetch('https://n8n.why57.com/webhook/prd', {
+        const response = await fetch(workflowUrl('prd'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),

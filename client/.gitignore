@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Dedicated private preview build
+dist-staging/
+
+# Private preview built with browser-public live connection settings
+dist-live/

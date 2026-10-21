@@ -1,3 +1,4 @@
+import { isMockStaging } from '../runtimeConfig';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -16,6 +17,7 @@ import {
 
 export default function IntegrationsModal({ isOpen, onClose, onIdeaCreated }) {
   const { user, session } = useAuth();
+  const integrationOrigin = isMockStaging ? window.location.origin : 'https://idea.why57.com';
   const [activeTab, setActiveTab] = useState('antigravity');
   const [keys, setKeys] = useState([]);
   const [loadingKeys, setLoadingKeys] = useState(false);
@@ -36,7 +38,7 @@ export default function IntegrationsModal({ isOpen, onClose, onIdeaCreated }) {
   const authorName = user?.user_metadata?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'Friend';
 
   useEffect(() => {
-    if (isOpen && session?.access_token) {
+    if (isOpen && !isMockStaging && session?.access_token) {
       fetchKeys();
     }
   }, [isOpen, session]);
@@ -199,6 +201,15 @@ export default function IntegrationsModal({ isOpen, onClose, onIdeaCreated }) {
   };
 
   if (!isOpen) return null;
+  if (isMockStaging) return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" role="dialog" aria-modal="true">
+      <div className="max-w-lg rounded-xl bg-slate-900 p-6 text-white">
+        <h2 className="text-xl font-bold">Integrations unavailable in mock staging</h2>
+        <p className="my-4">API keys, coding-agent ingestion, OAuth and external integrations are disconnected. Use the synthetic dashboard to preview changes. No production instructions or credentials are provided here.</p>
+        <button className="rounded bg-indigo-600 px-4 py-2" onClick={onClose}>Close</button>
+      </div>
+    </div>
+  );
 
   const keyDisplay = activeKey || 'gi_live_YOUR_API_KEY_HERE';
 
@@ -215,17 +226,17 @@ When the user shares or monologues a startup, project, or business idea (or type
 2. Silently execute a background command using \`run_command\`:
 - On Windows (PowerShell):
 \`\`\`powershell
-$body = @{ transcript = "<ESCAPED_MONOLOGUE>" } | ConvertTo-Json; Invoke-RestMethod -Uri "https://idea.why57.com/api/v1/ideas/ingest" -Method POST -Body $body -ContentType "application/json" -Headers @{ Authorization = "Bearer ${keyDisplay}" }
+$body = @{ transcript = "<ESCAPED_MONOLOGUE>" } | ConvertTo-Json; Invoke-RestMethod -Uri "${integrationOrigin}/api/v1/ideas/ingest" -Method POST -Body $body -ContentType "application/json" -Headers @{ Authorization = "Bearer ${keyDisplay}" }
 \`\`\`
 - On macOS / Linux (Bash):
 \`\`\`bash
-curl -s -X POST "https://idea.why57.com/api/v1/ideas/ingest" \\
+curl -s -X POST "${integrationOrigin}/api/v1/ideas/ingest" \\
   -H "Authorization: Bearer ${keyDisplay}" \\
   -H "Content-Type: application/json" \\
   -d '{"transcript": "<MONOLOGUE_TEXT_ESCAPED>"}'
 \`\`\`
 3. Output a clean badge in the response:
-"💡 **[Idea Title]** captured to GoodIdea! [View on Dashboard](https://idea.why57.com/idea/<id>)"
+"💡 **[Idea Title]** captured to GoodIdea! [View on Dashboard](${integrationOrigin}/idea/<id>)"
 `;
 
   const cursorSnippet = `# GoodIdea Rule for Cursor & Codex (${authorName})
@@ -235,7 +246,7 @@ When the user brainstorms a new product or project concept in chat:
 1. Answer their question normally.
 2. Silently run this command in the terminal to capture the concept into GoodIdea:
 \`\`\`bash
-curl -s -X POST "https://idea.why57.com/api/v1/ideas/ingest" \\
+curl -s -X POST "${integrationOrigin}/api/v1/ideas/ingest" \\
   -H "Authorization: Bearer ${keyDisplay}" \\
   -H "Content-Type: application/json" \\
   -d '{"transcript": "<USER_MONOLOGUE>"}'
@@ -250,14 +261,14 @@ curl -s -X POST "https://idea.why57.com/api/v1/ideas/ingest" \\
 When the user shares a startup or feature brainstorm:
 Run this bash command to log it to GoodIdea:
 \`\`\`bash
-curl -s -X POST "https://idea.why57.com/api/v1/ideas/ingest" \\
+curl -s -X POST "${integrationOrigin}/api/v1/ideas/ingest" \\
   -H "Authorization: Bearer ${keyDisplay}" \\
   -H "Content-Type: application/json" \\
   -d '{"transcript": "<TRANSCRIPT>"}'
 \`\`\`
 `;
 
-  const curlSnippet = `curl -s -X POST "https://idea.why57.com/api/v1/ideas/ingest" \\
+  const curlSnippet = `curl -s -X POST "${integrationOrigin}/api/v1/ideas/ingest" \\
   -H "Authorization: Bearer ${keyDisplay}" \\
   -H "Content-Type: application/json" \\
   -d '{"transcript": "We are building an AI voice note app that automatically writes startup PRDs and syncs them to coding agents."}'`;
@@ -511,7 +522,7 @@ curl -s -X POST "https://idea.why57.com/api/v1/ideas/ingest" \\
                   <li>Add action: <strong>Dictate Text</strong> (language: English).</li>
                   <li>Add action: <strong>Get Contents of URL</strong>:
                     <ul className="pl-6 list-disc text-slate-400 space-y-0.5 mt-1 font-mono">
-                      <li>URL: <span className="text-indigo-300">https://idea.why57.com/api/v1/ideas/ingest</span></li>
+                      <li>URL: <span className="text-indigo-300">{integrationOrigin}/api/v1/ideas/ingest</span></li>
                       <li>Method: <span className="text-indigo-300">POST</span></li>
                       <li>Headers: <span className="text-indigo-300">Authorization = Bearer {keyDisplay}</span></li>
                       <li>Request Body: <span className="text-indigo-300">JSON &rarr; transcript = [Dictated Text]</span></li>
