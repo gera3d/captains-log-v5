@@ -1,4 +1,5 @@
 import "./CodingTools.css";
+import GoodIdeaWord from "./GoodIdeaWord";
 
 const tools = [
   {
@@ -18,7 +19,7 @@ export default function CodingTools() {
       aria-labelledby="coding-tools-title"
     >
       <h2 id="coding-tools-title">
-        Use Good Idea alongside your coding tools.
+        Use <GoodIdeaWord /> alongside your coding tools.
       </h2>
       <ul>
         {tools.map((tool) => (

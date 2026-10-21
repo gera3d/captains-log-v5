@@ -22,6 +22,7 @@ import { GenerationProvider, useGeneration } from './contexts/GenerationContext'
 import GenerationProgressHUD from './components/GenerationProgressHUD';
 import AuthButton from './components/AuthButton';
 import LandingPage from './components/LandingPage';
+import BetaInformation from './components/BetaInformation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useParams } from 'react-router-dom';
@@ -2008,6 +2009,7 @@ function App() {
   return (
     <div>
       <Routes>
+        <Route path="/privacy" element={<BetaInformation />} />
         <Route
           path="/"
           element={

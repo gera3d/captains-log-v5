@@ -1,0 +1,11 @@
+.goodidea-word {
+  display: inline;
+  white-space: nowrap;
+  font-weight: 400;
+}
+.goodidea-word .goodidea-word-emphasis {
+  display: inline;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+}

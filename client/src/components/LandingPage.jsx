@@ -1,8 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import AuthModal from "./AuthModal";
+import { isBetaMode } from "../runtimeConfig";
+import BetaWaitlistDialog from "./BetaWaitlist";
 import HomepageOutputs from "./HomepageOutputs";
 import CodingTools from "./CodingTools";
+import GoodIdeaWord from "./GoodIdeaWord";
+import CaptureStory from "./CaptureStory";
 import "./LandingPage.css";
 
 const questions = [
@@ -26,6 +30,15 @@ const questions = [
 
 export default function LandingPage() {
   const [authMode, setAuthMode] = useState(null);
+  const [showWaitlist, setShowWaitlist] = useState(false);
+  const requestAccess = () => {
+    if (isBetaMode) {
+      setAuthMode(null);
+      setShowWaitlist(true);
+    } else {
+      setAuthMode("signup");
+    }
+  };
   return (
     <>
       <div className="home-page font-sans">
@@ -53,11 +66,8 @@ export default function LandingPage() {
               >
                 Sign in
               </button>
-              <button
-                className="home-nav-create"
-                onClick={() => setAuthMode("signup")}
-              >
-                Create an account
+              <button className="home-nav-create" onClick={requestAccess}>
+                {isBetaMode ? "Join the waiting list" : "Create an account"}
               </button>
             </div>
           </nav>
@@ -68,28 +78,25 @@ export default function LandingPage() {
             aria-labelledby="home-title"
           >
             <h1 id="home-title" className="font-display">
-              Have an idea?
+              Turn your idea
               <br />
-              Let’s figure out what
-              <br className="home-desktop-break" /> to do with it.
+              into a plan to build.
             </h1>
             <div className="home-intro-copy">
               <p>
-                Record what you’re thinking or just type it out. Good Idea keeps
-                the original note and helps you work through the idea, so you
-                can decide what to do next.
+                Record a thought or type it out. <GoodIdeaWord /> helps you work
+                it into a spec and a build brief you can use in your coding tool.
               </p>
-              <button
-                className="home-primary"
-                onClick={() => setAuthMode("signup")}
-              >
-                Create an account
-              </button>
-              <a className="home-secondary" href="#how-it-works">
-                See how it works
-              </a>
+              <div className="home-intro-actions">
+                <button className="home-primary" onClick={requestAccess}>
+                  {isBetaMode ? "Join the waiting list" : "Create an account"}
+                </button>
+                <a className="home-secondary" href="#how-it-works">See how it works</a>
+              </div>
+              {isBetaMode && <p className="beta-public-note"><GoodIdeaWord /> is in beta.</p>}
             </div>
           </section>
+          <CaptureStory />
           <CodingTools />
           <section
             id="workspace"
@@ -108,16 +115,16 @@ export default function LandingPage() {
                 />
                 <img
                   src="/images/homepage-workspace-desktop.png"
-                  alt="GoodIdea dashboard showing a typed idea for a neighborhood tool library, alongside Active Ideas. The original thought asks whether neighbors could borrow tools they rarely use."
+                  alt="Actual GoodIdea dashboard with Voice Memo selected and the microphone idle, ready to record. Text Monologue is available as a secondary option; a synthetic tool-library idea is shown alongside."
                   width="1088"
-                  height="648"
+                  height="656"
                 />
               </picture>
               <figcaption>
-                <span className="home-example-label">Example content</span>
+                <span className="home-example-label">Voice Memo example</span>
                 <span>
-                  Actual product screen with a synthetic note and mock result.
-                  No real account or AI output is shown.
+                  Actual dashboard, ready to record. Synthetic example idea; no
+                  recording was made.
                 </span>
               </figcaption>
             </figure>
@@ -136,9 +143,9 @@ export default function LandingPage() {
                   you might have.
                 </h2>
                 <p>
-                  Something else on your mind?
+                  Want to know about beta access?
                   <br />
-                  <Link to="/contact">Get in touch.</Link>
+                  <Link to="/privacy">Read about the waiting list.</Link>
                 </p>
               </div>
               <div className="home-questions">
@@ -162,14 +169,15 @@ export default function LandingPage() {
               <h2 id="home-final-title" className="font-display">
                 Want to try it?
               </h2>
-              <p>Start with an idea you’ve been thinking about.</p>
+              <p>
+                {isBetaMode
+                  ? "Join the waiting list to hear when you can try it."
+                  : "Start with an idea you’ve been thinking about."}
+              </p>
             </div>
             <div className="home-final-actions">
-              <button
-                className="home-primary"
-                onClick={() => setAuthMode("signup")}
-              >
-                Create an account
+              <button className="home-primary" onClick={requestAccess}>
+                {isBetaMode ? "Join the waiting list" : "Create an account"}
               </button>
               <p>
                 Already have an account?{" "}
@@ -189,20 +197,27 @@ export default function LandingPage() {
                 />
               </a>
               <nav aria-label="Footer navigation">
-                <Link to="/privacy">Privacy</Link>
-                <Link to="/terms">Terms</Link>
-                <Link to="/contact">Contact</Link>
+                <Link to="/privacy">Beta access &amp; privacy</Link>
+                <a href="#faq">Questions</a>
               </nav>
             </div>
-            <p>© {new Date().getFullYear()} GoodIdea</p>
+            <p>© {new Date().getFullYear()} <GoodIdeaWord /></p>
           </div>
         </footer>
       </div>
       <AuthModal
         isOpen={authMode !== null}
         initialMode={authMode || "signin"}
+        allowSignup={!isBetaMode}
+        onRequestWaitlist={requestAccess}
         onClose={() => setAuthMode(null)}
       />
+      {isBetaMode && (
+        <BetaWaitlistDialog
+          open={showWaitlist}
+          onClose={() => setShowWaitlist(false)}
+        />
+      )}
     </>
   );
 }
