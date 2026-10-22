@@ -1,4 +1,11 @@
+import IdeaContextPanel from './components/IdeaContextPanel';
+import { readIdeaContext } from './utils/ideaContext';
+import { loadOwnedIdea, saveGeneratedReport, saveGeneratedSpec } from './utils/ideaContextStore';
+import { generationJson, generationText, generationMessage, GenerationError, requireGenerationInput } from './utils/generationRequest';
 import { workflowUrl } from './runtimeConfig';
+import { artifactTabs, clearLibraryContext } from './utils/libraryContext';
+import IdeaIdentity from './components/IdeaIdentity';
+import './components/IdeaReading.css';
 /*
   ROOT-TODO[HIGH]: App Structure & Release
   - Main entry point for Captain's Log app.
@@ -9,12 +16,14 @@ import { workflowUrl } from './runtimeConfig';
 // TODO[progress-md][P1][App] See progress.md for all open UI polish, loading, error, and browser test tasks
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import WelcomeDialog from './components/WelcomeDialog';
+import { Dialog, DialogPanel, DialogTitle, Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
+import { savedText } from './components/NotePreview';
 import LoadingSpinner from './components/LoadingSpinner';
 import { supabase } from './supabaseClient';
-import { Routes, Route, useNavigate, Link } from 'react-router-dom';
+import { Routes, Route, useNavigate, Link, useSearchParams, useLocation } from 'react-router-dom';
 import NotesList from './components/NotesList';
-import VoiceRecorder from './components/VoiceRecorder';
+import './components/Dashboard.css';
+import './components/OriginalDashboard.css';
 import VoiceRecorderCard from './components/VoiceRecorderCard';
 import { CheckIcon, MicrophoneIcon, DocumentTextIcon, ShareIcon, RocketLaunchIcon, SparklesIcon, BoltIcon, CheckBadgeIcon, ShieldCheckIcon, ArrowRightIcon, ArrowPathIcon, LightBulbIcon, DocumentCheckIcon, BookOpenIcon } from '@heroicons/react/24/outline';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -38,38 +47,43 @@ import BuilderPromptKit from './components/BuilderPromptKit';
 import VentureBentoCockpit from './components/VentureBentoCockpit';
 import DomainBlueprintShowcase from './components/DomainBlueprintShowcase';
 
+const readingMarkdownComponents = { ...ideaMarkdownComponents, table: ({ children }) => <div className="idea-reading-table"><p className="idea-reading-table-hint">Scroll horizontally to read all columns →</p><div role="region" aria-label="Saved table, scroll horizontally" tabIndex={0}><table>{children}</table></div></div> };
+
+
 /*
   TODO[MEDIUM]: Dashboard Onboarding
   - FEATURE: Add user onboarding tips for first-time users.
   - UI: Consider a dismissible banner or modal for onboarding.
 */
 
-function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loadingNotes = false }) {
-  const navigate = useNavigate();
+function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loadingNotes = false, notesError = null, onReloadNotes }) {
   const { runGeneration } = useGeneration();
   const [showIntegrationsModal, setShowIntegrationsModal] = useState(initialOpenIntegrations);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [onboardingFocus, setOnboardingFocus] = useState(null);
   const voiceCaptureRef = useRef(null);
   const textCaptureRef = useRef(null);
   const ideaComposerRef = useRef(null);
-  const [activeIdeas, setActiveIdeas] = useState([]);
   const [selectedPersona, setSelectedPersona] = useState(() => {
     // Try to load saved persona from localStorage
     const savedPersona = localStorage.getItem('userPersona');
     return savedPersona || "Innovator";
   });
-  const [showPersonaDropdown, setShowPersonaDropdown] = useState(false);
+  const personaButtonRef = useRef(null);
   const [showCustomPersonaModal, setShowCustomPersonaModal] = useState(false);
+  const closeCustomPersona = () => { setShowCustomPersonaModal(false); requestAnimationFrame(() => personaButtonRef.current?.focus()); };
   const [customPersonaName, setCustomPersonaName] = useState('');
   const [customPersonaGoals, setCustomPersonaGoals] = useState('');
   const [customPersonaIcon, setCustomPersonaIcon] = useState('🔮');
 
   // Text Monologue & Fast Ingestion State
+  const [voiceStatus, setVoiceStatus] = useState('idle');
+  const voiceStatusRef = useRef('idle');
+  const voiceBusy = ['preparing', 'recording', 'saving'].includes(voiceStatus);
+  const isVoiceBusy = () => ['preparing', 'recording', 'saving'].includes(voiceStatusRef.current);
   const [captureTab, setCaptureTab] = useState('voice'); // 'voice' or 'text'
   const [monologueText, setMonologueText] = useState('');
   const [monologueTitle, setMonologueTitle] = useState('');
   const [isSubmittingMonologue, setIsSubmittingMonologue] = useState(false);
+  const monologuePendingRef = useRef(false);
   const [monologueStatus, setMonologueStatus] = useState(null); // { type: 'success' | 'error', message: string }
   
   // Load custom personas from localStorage
@@ -144,170 +158,30 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
   };
   const effectiveUser = isDevUser ? devMockUser : user;
 
-  // Format date to be more compact
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    try {
-      const d = new Date(dateString);
-      if (isNaN(d.getTime())) return '';
-      const options = { month: 'short', day: 'numeric' };
-      return d.toLocaleDateString(undefined, options);
-    } catch {
-      return '';
-    }
-  };
-
-  // Handle idea generation completion - promote to active idea
-  const handleIdeaGenerated = async (noteId) => {
-    // Find the updated note in our notes list
-    const updatedNote = notes.find(note => note.id === noteId);
-    // Don't promote archived notes to active ideas
-    if (!updatedNote || !updatedNote.business_idea || updatedNote.archived) return;
-    
-    try {
-      // Update the note in the database to be featured/active
-      const { data, error } = await supabase
-        .from('voice_notes')
-        .update({ is_featured: true, status: 'active' })
-        .eq('id', noteId);
-        
-      if (error) throw error;
-      
-      // Update local state
-      setNotes(prev => prev.map(note => 
-        note.id === noteId ? {...note, status: 'active', is_featured: true} : note
-      ));
-      
-      // Update active ideas list
-      setActiveIdeas(prev => {
-        if (prev.some(idea => idea.id === noteId)) {
-          // Already in active ideas, just update it
-          return prev.map(idea => 
-            idea.id === noteId ? {...updatedNote, status: 'active', is_featured: true} : idea
-          );
-        } else {
-          // Add to active ideas
-          return [{...updatedNote, status: 'active', is_featured: true}, ...prev];
-        }
-      });
-      
-      console.log(`Note ${noteId} promoted to active idea after generation`);
-    } catch (err) {
-      console.error("Error promoting generated idea:", err);
-    }
-  };
-
-  useEffect(() => {
-    if (!user?.id) return;
-    try {
-      setShowOnboarding(!localStorage.getItem('dashboardOnboardingSeen'));
-    } catch {
-      setShowOnboarding(true);
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (showOnboarding || !onboardingFocus) return;
-    const frame = requestAnimationFrame(() => {
-      const target = onboardingFocus === 'composer'
-        ? ideaComposerRef.current
-        : captureTab === 'voice' ? voiceCaptureRef.current : textCaptureRef.current;
-      target?.focus({ preventScroll: true });
-      target?.scrollIntoView({ block: 'center', behavior: 'instant' });
-      setOnboardingFocus(null);
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [showOnboarding, onboardingFocus, captureTab]);
-
-  // Improved active ideas selection logic - show all ideas with content except archived ones, sorted strictly newest first
-  useEffect(() => {
-    const isArchived = (note) => note.archived === true || note.archived === 'true' || note.status === 'archived';
-
-    const getNoteTimestamp = (item) => {
-      if (!item) return 0;
-      const d = item.created_at || item.createdAt || item.updated_at || item.updatedAt;
-      if (!d) return 0;
-      const t = new Date(d).getTime();
-      return Number.isFinite(t) ? t : 0;
-    };
-
-    if (notes && notes.length > 0) {
-      // Select all non-archived notes with business_idea content, sorted strictly newest first
-      const contentNotes = notes
-        .filter(note => 
-          note.business_idea && 
-          note.business_idea.trim().length > 0 && 
-          !isArchived(note)
-        )
-        .sort((a, b) => getNoteTimestamp(b) - getNoteTimestamp(a));
-
-      setActiveIdeas(contentNotes);
-      
-      console.log(`Active ideas updated: ${contentNotes.length} ideas found`);
-    } else {
-      setActiveIdeas([]);
-    }
-  }, [notes]);
-
-  // Listen for idea generation events
-  useEffect(() => {
-    // Set up listener for custom events when ideas are generated
-    const handleIdeaGenerationComplete = (event) => {
-      if (event.detail && event.detail.noteId) {
-        handleIdeaGenerated(event.detail.noteId);
-      }
-    };
-    
-    window.addEventListener('ideaGenerated', handleIdeaGenerationComplete);
-    
-    return () => {
-      window.removeEventListener('ideaGenerated', handleIdeaGenerationComplete);
-    };
-  }, [notes]); // Depend on notes so we always have latest state
-
-  const handleDismissOnboarding = () => {
-    try {
-      localStorage.setItem('dashboardOnboardingSeen', 'true');
-    } catch {
-      console.warn('Welcome dismissal could not be saved in this browser.');
-    }
-    setShowOnboarding(false);
-    setOnboardingFocus('capture');
-  };
-
-  const handleStartOnboarding = () => {
-    handleDismissOnboarding();
-    setCaptureTab('text');
-    setOnboardingFocus('composer');
-  };
-
   const onNoteSaved = (newNote) => {
-    const markedNote = newNote.business_idea 
-      ? { ...newNote, is_featured: true } 
-      : newNote;
-    
-    setNotes(prev => [markedNote, ...prev]);
-    
-    if (newNote.business_idea) {
-      setActiveIdeas(prev => {
-        const updated = [markedNote, ...prev];
-        return updated;
-      });
-    }
+    const markedNote = newNote;
+    const recordSource = String(newNote.id).startsWith('idea_') ? 'ambient' : 'voice_notes';
+    setNotes(prev => [{ ...markedNote, recordSource, mirrorCheck: 'unverified' }, ...prev.filter(note => note.id !== markedNote.id)]);
+
   };
 
   const handleMonologueSubmit = async (synthesizeIdea = false) => {
+    if (monologuePendingRef.current) return;
     if (!monologueText.trim()) {
       setMonologueStatus({ type: 'error', message: 'Please enter your monologue or idea text first.' });
       return;
     }
 
+    monologuePendingRef.current = true;
     setIsSubmittingMonologue(true);
     setMonologueStatus(null);
 
     const submitAction = async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData?.user?.id || authData.user.id !== effectiveUser?.id) throw new Error('Your current account could not be confirmed. Your text is kept.');
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
+      if (sessionError || !token || sessionData.session.user?.id !== authData.user.id) throw new Error('Your session could not be confirmed. Your text is kept.');
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -328,7 +202,11 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
         throw new Error(errJson.error || `Server responded with ${res.status}`);
       }
 
-      const createdIdea = await res.json();
+      const createdIdea = await res.json().catch(() => null);
+      const { data: currentAuth, error: currentAuthError } = await supabase.auth.getUser();
+      if (!createdIdea || Array.isArray(createdIdea) || typeof createdIdea.id !== 'string' || !/^idea_[A-Za-z0-9_-]+$/.test(createdIdea.id) || createdIdea.userId !== authData.user.id || createdIdea.success === false || ['title', 'summary', 'transcript', 'businessIdeaMarkdown'].some(key => createdIdea[key] != null && typeof createdIdea[key] !== 'string') || (createdIdea.tags != null && (!Array.isArray(createdIdea.tags) || createdIdea.tags.some(tag => typeof tag !== 'string'))) || currentAuthError || currentAuth?.user?.id !== authData.user.id || (synthesizeIdea && !savedText(createdIdea.businessIdeaMarkdown).trim())) {
+        throw new Error('Save could not be confirmed. Your text is kept; refresh before retrying.');
+      }
       
       const newFormattedNote = {
         id: createdIdea.id,
@@ -339,7 +217,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
         business_idea: createdIdea.businessIdeaMarkdown || '',
         tags: createdIdea.tags || ['monologue'],
         status: synthesizeIdea ? 'active' : 'raw',
-        is_featured: synthesizeIdea,
+        is_featured: createdIdea.isFeatured === true,
         created_at: createdIdea.createdAt || new Date().toISOString()
       };
 
@@ -349,8 +227,8 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
       setMonologueStatus({
         type: 'success',
         message: synthesizeIdea
-          ? '🎉 Idea captured and structured!'
-          : '✅ Raw monologue captured! You can generate a business idea from it whenever you choose.'
+          ? 'Idea and report saved. Open it to read the result. Later development and management are not available for this text source here yet.'
+          : 'Note saved. Open it to read your original. Later development and management are not available for this text source here yet.'
       });
 
       return {
@@ -376,50 +254,8 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
       setMonologueStatus({ type: 'error', message: err.message || 'Failed to capture monologue.' });
     } finally {
       setIsSubmittingMonologue(false);
+      monologuePendingRef.current = false;
     }
-  };
-
-  const promoteToActiveIdea = async (noteId) => {
-    const noteToPromote = notes.find(note => note.id === noteId);
-    if (!noteToPromote) return;
-    
-    if (String(noteId).startsWith('idea_')) {
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData?.session?.access_token;
-        const headers = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-        await fetch(`/api/v1/ideas/${noteId}`, {
-          method: 'PATCH',
-          headers,
-          body: JSON.stringify({ is_featured: true, status: 'active' })
-        });
-      } catch (err) {
-        console.error("Error promoting ambient idea:", err);
-      }
-    } else {
-      try {
-        const { data, error } = await supabase
-          .from('voice_notes')
-          .update({ is_featured: true, status: 'active' })
-          .eq('id', noteId);
-          
-        if (error) throw error;
-      } catch (err) {
-        console.error("Error promoting idea:", err);
-      }
-    }
-    
-    setNotes(prev => prev.map(note => 
-      note.id === noteId ? {...note, status: 'active', is_featured: true} : note
-    ));
-    
-    setActiveIdeas(prev => {
-      if (prev.some(idea => idea.id === noteId)) return prev;
-      
-      const updatedNote = {...noteToPromote, status: 'active', is_featured: true};
-      return [updatedNote, ...prev];
-    });
   };
 
   const addCustomPersona = () => {
@@ -434,7 +270,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
       
       setCustomPersonas([...customPersonas, newPersona]);
       setSelectedPersona(newPersona.label);
-      setShowCustomPersonaModal(false);
+      closeCustomPersona();
       setCustomPersonaName('');
       setCustomPersonaGoals('');
       setCustomPersonaIcon('🔮');
@@ -449,7 +285,6 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
     }
   };
 
-  const onboardingModal = <WelcomeDialog onDismiss={handleDismissOnboarding} onStart={handleStartOnboarding} />;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -458,7 +293,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.8)_0%,_rgba(255,255,255,0)_60%)]"></div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
+          <div className="dashboard-header-row flex justify-between items-center h-20">
             <Link to="/" className="flex items-center group transition">
               <img 
                 src="/goodideas.png" 
@@ -468,7 +303,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
             </Link>
             
             {effectiveUser && (
-              <div className="flex items-center space-x-4">
+              <div className="dashboard-account flex items-center space-x-4">
                 <div className="relative flex items-center text-white/90 text-sm">
                   <svg className="h-3.5 w-3.5 mr-1.5 text-white/60" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
@@ -482,30 +317,27 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                   <span className="mx-1">the</span>
                   
                   {/* Only the persona with its icon in the dropdown button */}
-                  <div className="relative">
-                    <button 
-                      onClick={() => setShowPersonaDropdown(!showPersonaDropdown)}
+                  <Popover className="relative">{({ open, close }) => <>
+                    <PopoverButton ref={personaButtonRef}
                       className="flex items-center text-white font-medium rounded-full px-3 py-1 transition-all duration-200 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10"
-                      aria-haspopup="listbox"
-                      aria-expanded={showPersonaDropdown}
                     >
                       <span className="mr-1">
                         {personas.find(p => p.label === selectedPersona)?.icon || '💡'}
                       </span>
                       <span className="font-semibold">{selectedPersona}</span>
                       <svg 
-                        className={`ml-1.5 h-4 w-4 transition-transform duration-300 ${showPersonaDropdown ? 'transform rotate-180' : ''}`} 
+                        className={`ml-1.5 h-4 w-4 transition-transform duration-300 ${open ? 'transform rotate-180' : ''}`}
                         fill="none" 
                         stroke="currentColor" 
                         viewBox="0 0 24 24"
                       >
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                       </svg>
-                    </button>
+                    </PopoverButton>
                     
                     {/* Dropdown content remains the same */}
-                    {showPersonaDropdown && (
-                      <div 
+                    {open && (
+                      <PopoverPanel static
                         className="absolute mt-2 w-64 right-0 origin-top-right animate-dropdown z-30"
                         onWheel={(e) => e.stopPropagation()}
                       >
@@ -527,7 +359,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                                   }`}
                                   onClick={() => {
                                     setSelectedPersona(persona.label);
-                                    setShowPersonaDropdown(false);
+                                    close();
                                   }}
                                   onMouseEnter={(e) => {
                                     // Create tooltip element
@@ -568,10 +400,11 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                                     </svg>
                                   )}
                                   
+                                </button>
                                   {/* Delete button for custom personas */}
                                   {persona.isCustom && (
                                     <button 
-                                      className="absolute right-2 top-2 text-gray-400 hover:text-red-500 p-1"
+                                      aria-label={`Delete persona ${persona.label}`} className="absolute right-2 top-2 text-gray-500 hover:text-red-600 p-1 min-h-11 min-w-11"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         deleteCustomPersona(persona.id);
@@ -582,7 +415,6 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                                       </svg>
                                     </button>
                                   )}
-                                </button>
                               </div>
                             ))}
                           </div>
@@ -593,7 +425,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                               className="w-full py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-md text-sm font-medium flex items-center justify-center transition-colors"
                               onClick={() => {
                                 setShowCustomPersonaModal(true);
-                                setShowPersonaDropdown(false);
+                                close();
                               }}
                             >
                               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -603,9 +435,9 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                             </button>
                           </div>
                         </div>
-                      </div>
+                      </PopoverPanel>
                     )}
-                  </div>
+                  </>}</Popover>
                 </div>
                 
                 {/* Integrations & Harness API Modal Button */}
@@ -632,262 +464,51 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
 
       {effectiveUser && (
         <>
-          {showOnboarding && onboardingModal}
           <IntegrationsModal
             isOpen={showIntegrationsModal}
             onClose={() => setShowIntegrationsModal(false)}
             onIdeaCreated={(newIdea) => setNotes(prev => [newIdea, ...prev])}
           />
           
-          <main className="relative pt-10 pb-16 bg-gradient-to-b from-slate-100 to-white min-h-[calc(100vh-5rem)]">
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex flex-col lg:flex-row gap-8 mb-16">
-                {/* First container - Capture Your Idea (Voice or Text) */}
-                <div className="lg:w-1/2 order-1">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                    <h2 className="text-2xl font-bold font-display text-slate-900 tracking-tight">Capture Your Idea</h2>
-                    
-                    {/* Clean Pill Segmented Tabs matching toolbar palette */}
-                    <div className="inline-flex items-center gap-1.5 p-1 bg-slate-100 border border-slate-200 rounded-full shadow-inner">
-                      <button
-                        type="button"
-                        onClick={() => setCaptureTab('voice')}
-                        ref={voiceCaptureRef}
-                        className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                          captureTab === 'voice'
-                            ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent'
-                        }`}
-                        aria-pressed={captureTab === 'voice'}
-                      >
-                        <MicrophoneIcon className={`w-3.5 h-3.5 mr-1.5 ${captureTab === 'voice' ? 'text-white' : 'text-slate-500'}`} />
-                        <span>Voice Memo</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCaptureTab('text')}
-                        ref={textCaptureRef}
-                        className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                          captureTab === 'text'
-                            ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent'
-                        }`}
-                        aria-pressed={captureTab === 'text'}
-                      >
-                        <DocumentTextIcon className={`w-3.5 h-3.5 mr-1.5 ${captureTab === 'text' ? 'text-white' : 'text-slate-500'}`} />
-                        <span>Text Monologue</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="h-[600px]">
-                    {captureTab === 'voice' ? (
-                      <VoiceRecorderCard 
-                        onNoteSaved={onNoteSaved} 
-                        className="shadow-xl border border-indigo-100 h-full !mt-0 !mb-0" 
-                      />
-                    ) : (
-                      <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 sm:p-7 h-full flex flex-col justify-between">
-                        <div className="flex flex-col flex-1 min-h-0">
-                          <div className="flex items-center justify-between mb-3">
-                            <div>
-                              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                                <DocumentTextIcon className="w-5 h-5 text-indigo-600" />
-                                <span>Text Monologue</span>
-                              </h3>
-                              <p className="text-xs text-slate-500 mt-0.5">
-                                Type or paste your raw monologue, transcript, or startup brainstorm.
-                              </p>
-                            </div>
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                              Instant Capture
-                            </span>
-                          </div>
-
-                          {monologueStatus && (
-                            <div className={`mb-3 p-3 rounded-xl text-xs font-semibold border flex items-center justify-between ${
-                              monologueStatus.type === 'success'
-                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                : 'bg-rose-50 text-rose-800 border-rose-200'
-                            }`}>
-                              <span>{monologueStatus.message}</span>
-                              <button 
-                                onClick={() => setMonologueStatus(null)}
-                                className="text-slate-400 hover:text-slate-600 ml-2 text-base leading-none cursor-pointer"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          )}
-
-                          <div className="mb-3">
-                            <input
-                              type="text"
-                              placeholder="Idea Title (Optional, e.g. Shorts Story Builder)"
-                              value={monologueTitle}
-                              onChange={(e) => setMonologueTitle(e.target.value)}
-                              className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
-                              disabled={isSubmittingMonologue}
-                            />
-                          </div>
-
-                          <div className="flex-1 min-h-0 flex flex-col mb-3">
-                            <textarea
-                              ref={ideaComposerRef}
-                              aria-label="Your idea"
-                              placeholder="Dump your stream of consciousness, transcript, or startup thoughts here...
-
-e.g. In this idea, I want to explore how to use shorts as a way of telling an interesting story, and you build that story in a story builder..."
-                              value={monologueText}
-                              onChange={(e) => setMonologueText(e.target.value)}
-                              disabled={isSubmittingMonologue}
-                              className="w-full flex-1 p-3.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white resize-none font-sans leading-relaxed transition"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="pt-3 border-t border-slate-100 mt-auto">
-                          <div className="flex flex-col sm:flex-row items-center gap-2.5">
-                            <button
-                              type="button"
-                              onClick={() => handleMonologueSubmit(false)}
-                              disabled={isSubmittingMonologue || !monologueText.trim()}
-                              className="inline-flex items-center justify-center px-4 py-2 rounded-full border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer w-full sm:w-auto"
-                            >
-                              <DocumentTextIcon className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
-                              <span>Save Transcript</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleMonologueSubmit(true)}
-                              disabled={isSubmittingMonologue || !monologueText.trim()}
-                              className="inline-flex items-center justify-center px-5 py-2 rounded-full border border-indigo-500 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white shadow-sm transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer w-full sm:flex-1"
-                            >
-                              {isSubmittingMonologue ? (
-                                <>
-                                  <svg className="animate-spin h-3.5 w-3.5 mr-1.5 text-white" viewBox="0 0 24 24" fill="none">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                  </svg>
-                                  <span>Generating Idea...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <SparklesIcon className="w-3.5 h-3.5 mr-1.5 text-white" />
-                                  <span>Generate Business Idea</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
-                          <p className="text-[11px] text-slate-400 mt-2 text-center">
-                            You can also ingest ambiently from your IDE using the Antigravity skill or curl.
-                          </p>
-                        </div>
-                      </div>
-                    )}
+          <main className="original-dashboard">
+            <NotesList notes={notes} setNotes={setNotes} loadingNotes={loadingNotes} notesError={notesError} onReloadNotes={onReloadNotes}
+              onRecord={() => { if (isVoiceBusy() || isSubmittingMonologue) return; setCaptureTab('voice'); requestAnimationFrame(() => { voiceCaptureRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); voiceCaptureRef.current?.focus(); }); }}
+              onWrite={() => { if (isVoiceBusy() || isSubmittingMonologue) return; setCaptureTab('text'); requestAnimationFrame(() => { ideaComposerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); ideaComposerRef.current?.focus(); }); }}
+              capture={<section className="original-capture" aria-labelledby="capture-title">
+                <div className="original-section-heading"><h2 id="capture-title">Capture your idea</h2>
+                  <div className="capture-tabs" aria-label="Capture method">
+                    <button type="button" ref={voiceCaptureRef} onClick={() => { if (!isVoiceBusy()) setCaptureTab('voice'); }} disabled={voiceBusy || isSubmittingMonologue} aria-pressed={captureTab === 'voice'}><MicrophoneIcon aria-hidden="true" />Voice Memo</button>
+                    <button type="button" ref={textCaptureRef} onClick={() => { if (!isVoiceBusy()) setCaptureTab('text'); }} disabled={voiceBusy || isSubmittingMonologue} aria-pressed={captureTab === 'text'}><DocumentTextIcon aria-hidden="true" />Text</button>
                   </div>
                 </div>
-                
-                {/* Second container - Active Ideas */}
-                <div className="lg:w-1/2 order-2">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-2xl font-bold font-display text-slate-900 tracking-tight">Active Ideas</h2>
-                    <button 
-                      className="inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-semibold border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition shadow-sm cursor-pointer"
-                      onClick={() => document.getElementById('all-notes-section').scrollIntoView({ behavior: 'smooth' })}
-                    >
-                      View All Notes
-                    </button>
-                  </div>
-                  
-                  {/* Set exact same height as Record Your Idea container */}
-                  <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-4 h-[600px] overflow-y-auto">
-                    {activeIdeas.length > 0 ? (
-                      <div className="overflow-y-auto pr-1 flex-grow">
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 auto-rows-max">
-                          {activeIdeas.map(idea => (
-                            <div 
-                              key={idea.id} 
-                              className="p-2.5 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border border-blue-100 hover:bg-gradient-to-r hover:from-indigo-100 hover:to-blue-100 hover:shadow-md transition-all cursor-pointer group"
-                              onClick={() => navigate(`/idea/${idea.id}`)}
-                            >
-                              <div className="flex flex-col h-full">
-                                <h3 className="font-medium text-sm text-gray-900 leading-tight mb-0.5 line-clamp-2">
-                                  {extractTitle(idea)}
-                                </h3>
-                                <div className="flex justify-between items-center mt-auto pt-1">
-                                  <span className="text-xs text-gray-400">
-                                    {formatDate(idea.created_at || idea.createdAt)}
-                                  </span>
-                                  <span className="text-xs font-medium text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    View
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                          
-                          <div 
-                            className="p-2.5 rounded-lg border border-dashed border-gray-300 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all flex flex-col items-center justify-center cursor-pointer h-full text-center"
-                            onClick={() => document.querySelector('.voice-recorder-trigger')?.click()}
-                          >
-                            <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center mb-0.5">
-                              <svg className="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                              </svg>
-                            </div>
-                            <span className="text-xs font-medium text-gray-600">New</span>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-full text-center p-6">
-                        <div className="bg-indigo-50 p-3 rounded-full mb-3">
-                          <svg className="w-6 h-6 text-indigo-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <h3 className="text-base font-medium text-gray-900 mb-1">No Active Ideas Yet</h3>
-                        <p className="text-sm text-gray-500 mb-3">Record an idea to get started!</p>
-                        <button 
-                          className="inline-flex items-center px-4 py-2 rounded-full text-xs font-bold border border-indigo-500 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-colors cursor-pointer"
-                          onClick={() => document.querySelector('.voice-recorder-trigger')?.click()}
-                        >
-                          Record Your First Idea
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              <section id="all-notes-section">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-2xl font-semibold text-gray-800">All Notes</h2>
-                </div>
-                <NotesList 
-                  notes={notes} 
-                  setNotes={setNotes} 
-                  loadingNotes={loadingNotes}
-                  onPromoteToActive={promoteToActiveIdea} 
-                />
-              </section>
-            </div>
+                {captureTab === 'voice' ? <VoiceRecorderCard onNoteSaved={onNoteSaved} footerText="Your original stays saved. Develop it when you’re ready." className="original-voice-card !mt-0 !mb-0" onStatusChange={status => { voiceStatusRef.current = status; setVoiceStatus(status); }} /> :
+                  <div className="original-text-card dashboard-text">
+                    <h3>Write a note</h3><p className="dashboard-hint">Type or paste a rough thought. Save the original, or generate a report now. Later development and management of text notes are not available here yet.</p>
+                    <label htmlFor="capture-title-input">Title <span>(optional)</span></label>
+                    <input id="capture-title-input" value={monologueTitle} onChange={e => setMonologueTitle(e.target.value)} disabled={isSubmittingMonologue} placeholder="Give your idea a name" />
+                    <label htmlFor="capture-idea-input">Your idea</label>
+                    <textarea id="capture-idea-input" ref={ideaComposerRef} value={monologueText} onChange={e => setMonologueText(e.target.value)} disabled={isSubmittingMonologue} placeholder="What are you thinking about?" rows={6} />
+                    <div className="original-text-actions"><button className="dashboard-primary" onClick={() => handleMonologueSubmit(false)} disabled={isSubmittingMonologue || !monologueText.trim()}>{isSubmittingMonologue ? 'Saving…' : 'Save note'}</button>
+                    <button className="dashboard-secondary" onClick={() => handleMonologueSubmit(true)} disabled={isSubmittingMonologue || !monologueText.trim()}><SparklesIcon aria-hidden="true" />Generate business idea</button></div>
+                    <p className="dashboard-hint">Saving or generating never pins an idea automatically.</p>
+                  </div>}
+                {monologueStatus && <p role={monologueStatus.type === 'error' ? 'alert' : 'status'} className={`capture-feedback ${monologueStatus.type}`}>{monologueStatus.message}</p>}
+              </section>} />
           </main>
         </>
       )}
 
       {!effectiveUser && <LandingPage />}
 
-      {showCustomPersonaModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-dropdown">
+      <Dialog open={showCustomPersonaModal} onClose={closeCustomPersona} className="persona-dialog relative z-50">
+        <div className="fixed inset-0 bg-black/50" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center p-4 overflow-y-auto">
+          <DialogPanel className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="font-medium text-lg text-gray-900">Create Your Own Persona</h3>
+              <DialogTitle className="font-medium text-lg text-gray-900">Create Your Own Persona</DialogTitle>
               <button 
-                onClick={() => setShowCustomPersonaModal(false)}
-                className="text-gray-400 hover:text-gray-500"
+                onClick={closeCustomPersona}
+                aria-label="Close persona dialog" className="text-gray-500 hover:text-gray-700 min-h-11 min-w-11 flex items-center justify-center"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -902,7 +523,7 @@ e.g. In this idea, I want to explore how to use shorts as a way of telling an in
                 </label>
                 <input
                   type="text"
-                  id="personaName"
+                  id="personaName" data-autofocus
                   placeholder="e.g., UX Specialist"
                   value={customPersonaName}
                   onChange={(e) => setCustomPersonaName(e.target.value)}
@@ -914,12 +535,13 @@ e.g. In this idea, I want to explore how to use shorts as a way of telling an in
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Choose Icon
                 </label>
-                <div className="grid grid-cols-8 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {["🔮", "🎯", "🧠", "🌟", "📈", "🛠️", "🧩", "✨"].map(icon => (
                     <button
                       key={icon}
                       type="button"
-                      className={`h-10 w-10 flex items-center justify-center text-xl rounded-md ${
+                      aria-label={`Choose ${icon} icon`} aria-pressed={customPersonaIcon === icon}
+                      className={`min-h-11 min-w-0 w-full flex items-center justify-center text-xl rounded-md ${
                         customPersonaIcon === icon 
                           ? 'bg-indigo-100 border-2 border-indigo-500' 
                           : 'bg-gray-100 hover:bg-gray-200'
@@ -949,7 +571,7 @@ e.g. In this idea, I want to explore how to use shorts as a way of telling an in
               <div className="flex justify-end space-x-2.5">
                 <button
                   type="button"
-                  onClick={() => setShowCustomPersonaModal(false)}
+                  onClick={closeCustomPersona}
                   className="px-4 py-1.5 rounded-full border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition cursor-pointer"
                 >
                   Cancel
@@ -966,27 +588,14 @@ e.g. In this idea, I want to explore how to use shorts as a way of telling an in
                 </button>
               </div>
             </div>
-          </div>
+          </DialogPanel>
         </div>
-      )}
+      </Dialog>
 
       <footer className="bg-slate-900 text-white py-8 px-4 md:px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm text-slate-400">&copy; {new Date().getFullYear()} GoodIdea. All rights reserved.</p>
-          <div className="mt-4 md:mt-0 flex space-x-6">
-            <a href="#" className="text-[#81D4FA] hover:underline">
-              <span className="sr-only">Facebook</span>
-              <svg className="h-6 w-6" fill="#FFD600" viewBox="0 0 24 24">
-                <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54v-2.89h2.54V9.845c0-2.507 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562v1.875h2.773l-.443 2.89h-2.33v6.987C18.343 21.128 22 16.991 22 12z" />
-              </svg>
-            </a>
-            <a href="#" className="text-[#81D4FA] hover:underline">
-              <span className="sr-only">Twitter</span>
-              <svg className="h-6 w-6" fill="#FFD600" viewBox="0 0 24 24">
-                <path d="M8 19c7.732 0 11.946-6.41 11.946-11.946 0-.182 0-.364-.012-.545A8.548 8.548 0 0022 4.309a8.19 8.19 0 01-2.357.646A4.118 4.118 0 0021.448 3a8.224 8.224 0 01-2.605.996A4.107 4.107 0 0015.448 3c-2.266 0-4.104 1.838-4.104 4.104 0 .322.036.636.106.936A11.65 11.65 0 013 4.15a4.104 4.104 0 001.27 5.475 a4.073 4.073 0 01-1.858-.513v.052c0 2.042 1.453 3.746 3.379 4.132a4.095 4.095 0 01-1.853.07c.522 1.63 2.037 2.816 3.833 2.85A8.233 8.233 0 012 19.54a11.616 11.616 0 006.29 1.84" />
-              </svg>
-            </a>
-          </div>
+
         </div>
       </footer>
 
@@ -1001,23 +610,44 @@ e.g. In this idea, I want to explore how to use shorts as a way of telling an in
 
 function FullIdeaPage({ user, session }) {
   const { id } = useParams();
+  const location = useLocation();
+  const clearDirectEntryContext = () => { if (location.state?.libraryUserId !== user?.id) clearLibraryContext(user?.id); };
   const [note, setNote] = useState(null);
+  const savedReportRef = useRef(null);
+  const rawTranscriptRef = useRef(null);
+  const routeIdentityRef = useRef(null);
+  routeIdentityRef.current = { id, userId: user?.id };
+  const [unsavedGeneration, setUnsavedGeneration] = useState(null);
+  const [unsavedSpec, setUnsavedSpec] = useState(null);
+  const [contextSaving, setContextSaving] = useState(false);
+  const generationPendingRef = useRef(false);
+  const canDevelopNote = Boolean(user?.id && note?.id === id && note?.user_id === user.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(note.id));
   const [copied, setCopied] = useState('');
   const [generatingPRD, setGeneratingPRD] = useState(false);
   const [generatingIdea, setGeneratingIdea] = useState(false);
+  const [ideaError, setIdeaError] = useState(null);
   const { runGeneration, isGenerating, activeTask } = useGeneration();
   const [prdContent, setPrdContent] = useState(null);
-  const [activeTab, setActiveTab] = useState('cockpit');
+  const [artifactParams, setArtifactParams] = useSearchParams();
+  const requestedArtifact = artifactParams.get('artifact');
+  const activeTab = Object.hasOwn(artifactTabs, requestedArtifact) ? artifactTabs[requestedArtifact] : 'cockpit';
+  const setActiveTab = tab => {
+    const artifact = Object.keys(artifactTabs).find(key => artifactTabs[key] === tab) || 'overview';
+    setArtifactParams({ artifact }, { replace: true, preventScrollReset: true, state: user?.id && location.state?.libraryUserId === user.id ? { libraryUserId: user.id } : null });
+  };
   const [prdError, setPrdError] = useState(null);
   const [showMoreActions, setShowMoreActions] = useState(false);
 
   const reportSummary = useMemo(
-    () => parseIdeaReportSummary(note?.business_idea),
-    [note?.business_idea]
+    () => parseIdeaReportSummary(note?.id === id ? (savedReportRef.current?.id === id ? savedReportRef.current.value : note.business_idea) : null),
+    [note, id]
   );
 
   useEffect(() => {
     const fetchNote = async () => {
+      savedReportRef.current = null;
+      rawTranscriptRef.current = null;
+      setUnsavedGeneration(null); setUnsavedSpec(null); setContextSaving(false);
       // 1. Direct fetch from API for ambient harness ideas (avoids invalid postgres UUID/bigint query)
       if (String(id).startsWith('idea_')) {
         try {
@@ -1053,6 +683,7 @@ function FullIdeaPage({ user, session }) {
               audio_url: apiIdea.audio_url || apiIdea.audioUrl || null,
               created_at: apiIdea.createdAt
             };
+            savedReportRef.current = { id: loaded.id, value: apiIdea.businessIdeaMarkdown || '' };
             setNote(loaded);
             if (apiIdea.prdContent) {
               setPrdContent(apiIdea.prdContent);
@@ -1105,6 +736,7 @@ function FullIdeaPage({ user, session }) {
               audio_url: apiIdea.audio_url || apiIdea.audioUrl || null,
               created_at: apiIdea.createdAt
             };
+            savedReportRef.current = { id: loaded.id, value: apiIdea.businessIdeaMarkdown || '' };
             setNote(loaded);
             if (apiIdea.prdContent) {
               setPrdContent(apiIdea.prdContent);
@@ -1116,6 +748,9 @@ function FullIdeaPage({ user, session }) {
         }
       }
       else {
+        if (routeIdentityRef.current.id !== id || routeIdentityRef.current.userId !== user?.id) return;
+        rawTranscriptRef.current = { id: data?.id, owner: data?.user_id, value: data?.transcript };
+        const savedReportSource = data?.business_idea;
         if (data?.business_idea) {
           let idea = data.business_idea.trim();
           try {
@@ -1153,11 +788,12 @@ function FullIdeaPage({ user, session }) {
           setPrdContent(data.prd_content);
         }
         
+        savedReportRef.current = { id: data?.id, value: savedReportSource };
         setNote(data);
       }
     };
     fetchNote();
-  }, [id]);
+  }, [id, user?.id]);
 
   const copyIdea = async () => {
     if (note) {
@@ -1201,192 +837,88 @@ function FullIdeaPage({ user, session }) {
     setTimeout(() => setCopied(''), 1500);
   };
 
+  const applySavedContext = snapshot => {
+    if (routeIdentityRef.current.id !== id || routeIdentityRef.current.userId !== user?.id || rawTranscriptRef.current?.id !== snapshot.id || rawTranscriptRef.current?.owner !== user?.id || snapshot.user_id !== user?.id) return;
+    rawTranscriptRef.current = { id: snapshot.id, owner: snapshot.user_id, value: snapshot.transcript };
+    const context = readIdeaContext(snapshot.transcript);
+    setNote(previous => previous?.id === snapshot.id ? { ...previous, transcript: context.supported ? context.combined : savedText(snapshot.transcript) } : previous);
+  };
+  const openContextPanel = event => {
+    event.preventDefault();
+    const panel = document.getElementById('idea-context');
+    if (panel) { panel.open = true; panel.scrollIntoView({ block: 'start', behavior: 'smooth' }); panel.querySelector('summary')?.focus({ preventScroll: true }); }
+  };
+  const applyGeneratedReport = (snapshot, idea, ownerId) => {
+    if (routeIdentityRef.current.id !== snapshot.id || routeIdentityRef.current.userId !== ownerId) return;
+    savedReportRef.current = { id: snapshot.id, value: idea };
+    rawTranscriptRef.current = { id: snapshot.id, owner: ownerId, value: snapshot.transcript };
+    const context = readIdeaContext(snapshot.transcript);
+    setNote(previous => previous?.id === snapshot.id ? { ...previous, business_idea: idea, transcript: context.supported ? context.combined : previous.transcript, title: extractTitle({ business_idea: idea }) || previous.title, summary: extractSummary({ business_idea: idea }) || previous.summary } : previous);
+    setUnsavedGeneration(null);
+    setActiveTab('cockpit');
+  };
   const handleGenerateIdea = async () => {
-    if (!note || generatingIdea) return;
-    const transcriptText = (() => {
-      const raw = note.transcript || note.transcription || '';
-      if (!raw) return note.business_idea || '';
-      try {
-        const parsed = JSON.parse(raw);
-        if (typeof parsed === 'object' && parsed !== null) {
-          return parsed.data || parsed.text || JSON.stringify(parsed);
-        }
-        return String(parsed);
-      } catch {
-        return raw;
-      }
-    })();
-
-    if (!transcriptText || !transcriptText.trim()) {
-      alert('This note does not have any content yet to structure.');
-      return;
-    }
-
+    if (!canDevelopNote || generatingIdea || generatingPRD || contextSaving || generationPendingRef.current) return;
+    generationPendingRef.current = true;
+    const ownerId = user.id;
     try {
-      setGeneratingIdea(true);
-      await runGeneration({
-        ideaId: note.id,
-        title: note.title || 'Startup Blueprint',
-        type: note.business_idea ? 'regenerate' : 'generate',
-        execute: async () => {
-          const response = await fetch(workflowUrl('summarize'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: transcriptText.trim() }),
-          });
-          if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`Server responded with ${response.status}: ${errText}`);
-          }
-          const data = await response.json();
-          const rawIdea = data.idea || data.text;
-          if (typeof rawIdea !== 'string' || !rawIdea.trim()) {
-            throw new Error('Webhook response did not include a valid idea.');
-          }
-          const idea = rawIdea.replace(/^[^\w#*]+/, '').trim();
-          const extractedTitle = extractTitle({ business_idea: idea });
-          const extractedSummary = extractSummary({ business_idea: idea });
-
-          setNote(prev => ({
-            ...prev,
-            business_idea: idea,
-            title: extractedTitle || prev.title,
-            summary: extractedSummary || prev.summary
-          }));
-
-          if (String(note.id).startsWith('idea_')) {
-            try {
-              const { data: sessionData } = await supabase.auth.getSession();
-              const token = sessionData?.session?.access_token;
-              const headers = { 'Content-Type': 'application/json' };
-              if (token) headers['Authorization'] = `Bearer ${token}`;
-              await fetch(`/api/v1/ideas/${note.id}`, {
-                method: 'PATCH',
-                headers,
-                body: JSON.stringify({
-                  business_idea: idea,
-                  title: extractedTitle,
-                  summary: extractedSummary
-                })
-              });
-            } catch (err) {
-              console.error('Failed to update ambient idea business_idea on server:', err);
-            }
-          } else {
-            await supabase
-              .from('voice_notes')
-              .update({ business_idea: idea })
-              .eq('id', note.id);
-          }
-          setActiveTab('cockpit');
-
-          return {
-            id: note.id,
-            title: extractedTitle || note.title,
-            summary: extractedSummary || note.summary,
-            url: `/idea/${note.id}`
-          };
-        }
-      });
-    } catch (err) {
-      console.error('Error generating idea:', err);
-      alert(err.message || 'Failed to generate business idea. Please try again.');
-    } finally {
-      setGeneratingIdea(false);
-    }
+      setGeneratingIdea(true); setIdeaError(null);
+      const snapshot = await loadOwnedIdea(note.id, ownerId);
+      const context = readIdeaContext(snapshot.transcript);
+      if (!context.supported) throw new GenerationError(context.reason, 'unsupported');
+      const source = context.combined.trim() || savedText(snapshot.business_idea).trim();
+      requireGenerationInput(source);
+      if (!source) throw new GenerationError('No saved text is available to develop. Add details first.', 'empty_source');
+      await runGeneration({ ideaId: snapshot.id, title: note.title || 'Idea', type: snapshot.business_idea ? 'regenerate' : 'generate', execute: async () => {
+        const data = await generationJson(workflowUrl('summarize'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: source }) }, 'idea generation');
+        const idea = generationText(data, ['idea', 'text'], 'idea generation').replace(/^[^\w#*]+/, '').trim();
+        const pending = { snapshot, text: idea, ownerId };
+        if (routeIdentityRef.current.id === snapshot.id && routeIdentityRef.current.userId === ownerId) setUnsavedGeneration(pending);
+        await saveGeneratedReport(snapshot, idea, ownerId);
+        applyGeneratedReport(snapshot, idea, ownerId);
+        return { id: snapshot.id, title: extractTitle({ business_idea: idea }), summary: extractSummary({ business_idea: idea }), url: `/idea/${snapshot.id}` };
+      }});
+    } catch (error) { if (routeIdentityRef.current.id === id && routeIdentityRef.current.userId === ownerId) setIdeaError(generationMessage(error)); }
+    finally { generationPendingRef.current = false; setGeneratingIdea(false); }
   };
-
+  const retryReportSave = async () => {
+    if (!unsavedGeneration || generatingIdea || generatingPRD || contextSaving || generationPendingRef.current || unsavedGeneration.ownerId !== user?.id) return;
+    generationPendingRef.current = true;
+    setGeneratingIdea(true); setIdeaError(null);
+    try { const { snapshot, text, ownerId } = unsavedGeneration; await saveGeneratedReport(snapshot, text, ownerId); applyGeneratedReport(snapshot, text, ownerId); }
+    catch (error) { setIdeaError(generationMessage(error)); }
+    finally { generationPendingRef.current = false; setGeneratingIdea(false); }
+  };
   const handleCreatePRD = async () => {
-    if (!note || generatingPRD) return;
-    
+    if (!canDevelopNote || generatingPRD || generatingIdea || contextSaving || generationPendingRef.current) return;
+    generationPendingRef.current = true;
+    const ownerId = user.id;
     try {
-      setGeneratingPRD(true);
-      setPrdError(null);
-      
-      // Get content for the PRD
-      const title = note.title || (note.business_idea?.split('\n')[0]) || 'Untitled Idea';
-      const content = note.business_idea || note.transcript || '';
-      let generatedPRD = '';
-
-      if (String(note.id).startsWith('idea_')) {
-        // Native GoodIdea backend endpoint for ambient harness ideas
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData?.session?.access_token;
-        const headers = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-
-        const res = await fetch(`/api/v1/ideas/${note.id}/prd`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({})
-        });
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || `Server responded with ${res.status}`);
-        }
-
-        const data = await res.json();
-        generatedPRD = data.prdContent;
-      } else {
-        // Format the request body to include the chatInput field expected by n8n
-        const requestBody = {
-          chatInput: `Generate a PRD for the following business idea titled "${title}": \n\n${content}`,
-          metadata: {
-            noteId: note.id,
-            title: title
-          }
-        };
-        
-        // Call n8n webhook with production URL
-        const response = await fetch(workflowUrl('prd'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Server responded with ${response.status}: ${errorText}`);
-        }
-        
-        // Get the response data
-        const data = await response.json();
-        console.log('Response data:', data);
-        
-        // Check for content in text, prd, or output fields
-        if (!data.text && !data.prd && !data.output) {
-          throw new Error('No PRD content received from server');
-        }
-        
-        // Use either text, prd, or output field depending on n8n workflow response format
-        generatedPRD = data.text || data.prd || data.output || `# PRD for ${title}\n\nUnable to generate PRD content.`;
-        
-        // Save PRD to database
-        const { error: updateError } = await supabase
-          .from('voice_notes')
-          .update({ prd_content: generatedPRD })
-          .eq('id', note.id);
-          
-        if (updateError) {
-          console.error('Error saving PRD to database:', updateError);
-        } else {
-          console.log('PRD saved to database successfully');
-        }
-      }
-      
-      setPrdContent(generatedPRD);
-      setActiveTab('prd'); // Switch to PRD tab after generation
-      
-    } catch (error) {
-      console.error('Error generating PRD:', error);
-      setPrdError(error.message || 'Failed to generate PRD. Please try again later.');
-    } finally {
-      setGeneratingPRD(false);
-    }
+      setGeneratingPRD(true); setPrdError(null);
+      const snapshot = await loadOwnedIdea(note.id, ownerId);
+      const content = savedText(snapshot.business_idea).trim();
+      if (!content) throw new GenerationError('Create a report before generating a product spec.', 'empty_source');
+      requireGenerationInput(content);
+      const title = note.title || 'Idea';
+      const data = await generationJson(workflowUrl('prd'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chatInput: `Generate a PRD for the following business idea titled "${title}": \n\n${content}`, metadata: { noteId: snapshot.id, title } }) }, 'product spec');
+      const text = generationText(data, ['text', 'prd', 'output'], 'product spec');
+      if (routeIdentityRef.current.id === snapshot.id && routeIdentityRef.current.userId === ownerId) setUnsavedSpec({ snapshot, text, ownerId });
+      await saveGeneratedSpec(snapshot, text, ownerId);
+      if (routeIdentityRef.current.id === snapshot.id && routeIdentityRef.current.userId === ownerId) { setPrdContent(text); setUnsavedSpec(null); setActiveTab('prd'); }
+    } catch (error) { if (routeIdentityRef.current.id === id && routeIdentityRef.current.userId === ownerId) setPrdError(generationMessage(error)); }
+    finally { generationPendingRef.current = false; setGeneratingPRD(false); }
+  };
+  const retrySpecSave = async () => {
+    if (!unsavedSpec || generatingPRD || generatingIdea || contextSaving || generationPendingRef.current || unsavedSpec.ownerId !== user?.id) return;
+    generationPendingRef.current = true;
+    setGeneratingPRD(true); setPrdError(null);
+    try { const { snapshot, text, ownerId } = unsavedSpec; await saveGeneratedSpec(snapshot, text, ownerId); if (routeIdentityRef.current.id === snapshot.id && routeIdentityRef.current.userId === ownerId) { setPrdContent(text); setUnsavedSpec(null); setActiveTab('prd'); } }
+    catch (error) { setPrdError(generationMessage(error)); }
+    finally { generationPendingRef.current = false; setGeneratingPRD(false); }
   };
 
-  const verdict = reportSummary?.brutalTruth?.verdict || 'EVALUATING DEMAND';
+  const savedFact = value => typeof value === 'string' ? value.trim() : typeof value === 'number' && Number.isFinite(value) ? String(value) : '';
+  const verdict = savedFact(reportSummary?.brutalTruth?.verdict);
   const isStrongBuild = verdict.includes('STRONG') || verdict.includes('HIGH CONFIDENCE');
   const isTrapOrRisk = verdict.includes('TRAP') || verdict.includes('RISK') || verdict.includes('WARNING');
   const verdictStyle = isStrongBuild 
@@ -1395,7 +927,13 @@ function FullIdeaPage({ user, session }) {
     ? 'bg-rose-50 text-rose-800 border-rose-300'
     : 'bg-amber-50 text-amber-800 border-amber-300';
 
-  const categoryName = reportSummary?.marketPosition || 'AI Engineering Venture';
+  const categoryName = savedFact(reportSummary?.marketPosition);
+  const savedVitals = [
+    ['Viability grade', [savedFact(reportSummary?.brutalTruth?.score), savedFact(reportSummary?.brutalTruth?.grade)].filter(Boolean).join(' · ')],
+    ['Primary audience', savedFact(reportSummary?.persona?.label)],
+    ['Execution loop', savedFact(reportSummary?.scorecard?.executionDifficulty)],
+    ['Distribution wedge', savedFact(reportSummary?.scorecard?.gtmScore)],
+  ].filter(([, value]) => value !== '');
   const ideaTitle = note ? extractTitle(note) : 'Loading idea...';
 
   return (
@@ -1406,8 +944,8 @@ function FullIdeaPage({ user, session }) {
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.8)_0%,_rgba(255,255,255,0)_60%)]"></div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <div className="flex items-center space-x-3 sm:space-x-4">
+          <div className="idea-detail-header-row flex justify-between items-center h-20">
+            <div className="idea-detail-header-brand flex items-center space-x-3 sm:space-x-4">
               <Link to="/" className="flex items-center group transition">
                 <img 
                   src="/goodideas.png" 
@@ -1418,31 +956,33 @@ function FullIdeaPage({ user, session }) {
               <span className="hidden sm:inline-block text-white/30 text-lg font-light">/</span>
               <Link
                 to="/"
+                onClick={clearDirectEntryContext}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-white/90 hover:text-white bg-white/10 hover:bg-white/20 border border-white/20 transition backdrop-blur-sm cursor-pointer"
               >
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                <span>Back to Ideas</span>
+                <span>Back to library</span>
               </Link>
             </div>
 
             {/* Right side actions in global header */}
-            <div className="flex items-center space-x-2 sm:space-x-3">
-              {note?.audio_url ? (
+            <div className="idea-detail-header-actions flex items-center space-x-2 sm:space-x-3">
+              {(note?.audio_url || (Number.isFinite(note?.duration) && note.duration > 0)) ? (
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-100 bg-white/10 border border-white/20 px-2.5 py-1 rounded-full">
-                  🎙️ Voice Memo
+                  Voice capture
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-200 bg-white/10 border border-white/20 px-2.5 py-1 rounded-full">
-                  ⚡ Text Monologue
+                  Text capture
                 </span>
               )}
 
+              <a href="#idea-context" onClick={openContextPanel} className="inline-flex min-h-11 items-center px-3 rounded-full text-sm font-semibold bg-white/10 border border-white/20 text-white">Add to idea</a>
               {(note?.transcript || note?.transcription || note?.business_idea) && (
                 <button
                   onClick={handleGenerateIdea}
-                  disabled={generatingIdea}
+                  disabled={!canDevelopNote || generatingIdea || generatingPRD || contextSaving}
                   className="inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-bold border border-white/20 bg-white/10 hover:bg-white/20 text-white transition shadow-sm cursor-pointer disabled:opacity-50"
                   title={note?.business_idea ? 'Regenerate idea' : 'Generate idea'}
                 >
@@ -1457,7 +997,7 @@ function FullIdeaPage({ user, session }) {
                   ) : (
                     <>
                       <ArrowPathIcon className="h-3.5 w-3.5 mr-1 text-white" />
-                      <span>Regenerate</span>
+                      <span>{note?.business_idea ? 'Regenerate' : 'Generate idea'}</span>
                     </>
                   )}
                 </button>
@@ -1487,6 +1027,8 @@ function FullIdeaPage({ user, session }) {
                   onClick={() => setShowMoreActions(prev => !prev)}
                   className="inline-flex items-center px-3 py-1.5 rounded-full border border-white/20 bg-white/10 text-xs font-semibold text-white hover:bg-white/20 transition shadow-sm cursor-pointer"
                   title="More actions"
+                  aria-label="More actions"
+                  aria-expanded={showMoreActions}
                 >
                   <svg className="h-3.5 w-3.5 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
@@ -1501,7 +1043,7 @@ function FullIdeaPage({ user, session }) {
                           handleCreatePRD();
                           setShowMoreActions(false);
                         }}
-                        disabled={generatingPRD}
+                        disabled={!canDevelopNote || generatingPRD}
                         className="w-full flex items-center px-3.5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
                       >
                         Create Product Requirement Document
@@ -1516,84 +1058,14 @@ function FullIdeaPage({ user, session }) {
       </header>
 
       {/* Main Page Canvas with Dashboard Gradient */}
-      <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-slate-100 to-white min-h-[calc(100vh-5rem)]">
+      <main className="idea-reading-canvas flex-1 py-8 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-slate-100 to-white min-h-[calc(100vh-5rem)]">
+        {ideaError && <div role="alert" className="max-w-7xl mx-auto mb-5 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><p>{ideaError}</p><p className="mt-1">Your original content is still shown below.</p></div>}
+        {note && !canDevelopNote && <p className="max-w-7xl mx-auto mb-5 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">You can read this idea. Generating an idea or product document isn’t available for this note here.</p>}
         <div className="max-w-6xl mx-auto space-y-6">
-          {/* Main Hero Card in clean White with subtle border & shadow */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 space-y-5">
-            {/* Sector, Verdict, and TAM badges */}
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
-                {categoryName}
-              </span>
-              
-              <span className={`inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider border shadow-xs ${verdictStyle}`}>
-                <span>{isStrongBuild ? '🔥' : isTrapOrRisk ? '💀' : '⚡'}</span>
-                <span>{verdict}</span>
-              </span>
-
-              {reportSummary?.tam && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                  <span className="text-[10px] uppercase font-bold text-slate-500">TAM:</span>
-                  <span>{reportSummary.tam}</span>
-                </span>
-              )}
-
-              {note?.created_at && (
-                <span className="text-xs text-slate-400 font-medium ml-auto">
-                  {new Date(note.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                </span>
-              )}
-            </div>
-
-            {/* Title */}
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight font-display">
-              {ideaTitle}
-            </h1>
-
-            {/* Quick Vital Signs Ribbon */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-1">
-              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Viability Grade</span>
-                <span className="text-xs sm:text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
-                  <span className="text-emerald-500 font-black">●</span>
-                  <span>{reportSummary?.brutalTruth?.score || '8.8/10'} ({reportSummary?.brutalTruth?.grade || 'Strong Build'})</span>
-                </span>
-              </div>
-              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Primary Audience</span>
-                <span className="text-xs sm:text-sm font-extrabold text-slate-900 truncate block" title={reportSummary?.persona?.label}>
-                  {reportSummary?.persona?.label || 'Indie Creators'}
-                </span>
-              </div>
-              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Execution Loop</span>
-                <span className="text-xs sm:text-sm font-extrabold text-slate-900 truncate block">
-                  {reportSummary?.scorecard?.executionDifficulty || 'Weekend Prototype'}
-                </span>
-              </div>
-              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Distribution Wedge</span>
-                <span className="text-xs sm:text-sm font-extrabold text-slate-900 truncate block">
-                  High Organic Pull (Zero-CAC)
-                </span>
-              </div>
-            </div>
-
-            {/* Founder Elevator Pitch Callout */}
-            {(reportSummary?.elevatorPitch || note?.summary) && (
-              <div className="p-4 sm:p-5 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50/90 via-amber-50/50 to-transparent text-slate-800 text-sm sm:text-base leading-relaxed flex items-start gap-3.5 shadow-xs">
-                <div className="p-2 rounded-xl bg-amber-100 text-amber-700 border border-amber-200 flex-shrink-0 mt-0.5">
-                  <SparklesIcon className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-amber-900 mb-1">Founder Elevator Pitch & Wedge</div>
-                  <p className="font-medium text-slate-800 m-0 leading-relaxed">
-                    {reportSummary?.elevatorPitch || note?.summary}
-                  </p>
-                </div>
-              </div>
-            )}
-
+          <section className="idea-reading-identity" aria-labelledby="idea-reading-title">
+            <div className="idea-reading-eyebrow"><IdeaIdentity developed={Boolean(savedText(note?.business_idea).trim())} pinned={note?.is_featured === true || note?.is_featured === 'true'} voice={Boolean(note?.audio_url)} />{note?.created_at && <time>{new Date(note.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</time>}</div>
+            <h1 id="idea-reading-title">{ideaTitle}</h1>
+            {(reportSummary?.elevatorPitch || note?.summary) && <p className="idea-reading-pitch">{reportSummary?.elevatorPitch || note?.summary}</p>}
             {/* Audio Memo Capsule */}
             {note?.audio_url && (
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 px-4 bg-slate-50 rounded-xl border border-slate-200">
@@ -1605,100 +1077,30 @@ function FullIdeaPage({ user, session }) {
               </div>
             )}
 
-            {/* Segmented Pill Tabs matching Dashboard */}
-            <div className="pt-2 border-t border-slate-100">
-              <div className="inline-flex items-center gap-1.5 p-1 bg-slate-100 border border-slate-200 rounded-full shadow-inner flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('cockpit')}
-                  className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                    activeTab === 'cockpit'
-                      ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent'
-                  }`}
-                  aria-pressed={activeTab === 'cockpit'}
-                >
-                  <BoltIcon className="w-3.5 h-3.5 mr-1.5 text-current" />
-                  <span>Venture Cockpit</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('launch_kit')}
-                  className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                    activeTab === 'launch_kit'
-                      ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent'
-                  }`}
-                  aria-pressed={activeTab === 'launch_kit'}
-                >
-                  <RocketLaunchIcon className="w-3.5 h-3.5 mr-1.5 text-current" />
-                  <span>Launch Kit</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('prd')}
-                  className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                    activeTab === 'prd'
-                      ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent'
-                  }`}
-                  aria-pressed={activeTab === 'prd'}
-                >
-                  <DocumentCheckIcon className="w-3.5 h-3.5 mr-1.5 text-current" />
-                  <span>Product Spec (PRD)</span>
-                  {!prdContent && (
-                    <span className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-bold leading-none ${
-                      activeTab === 'prd' ? 'bg-indigo-700 text-white' : 'bg-slate-200 text-slate-600'
-                    }`}>
-                      Draft
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('dossier')}
-                  className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                    activeTab === 'dossier'
-                      ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent'
-                  }`}
-                  aria-pressed={activeTab === 'dossier'}
-                >
-                  <BookOpenIcon className="w-3.5 h-3.5 mr-1.5 text-current" />
-                  <span>Full Architectural Dossier</span>
-                </button>
-
-                {note?.transcript && (
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('transcript')}
-                    className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                      activeTab === 'transcript'
-                        ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent'
-                    }`}
-                    aria-pressed={activeTab === 'transcript'}
-                  >
-                    <DocumentTextIcon className="w-3.5 h-3.5 mr-1.5 text-current" />
-                    <span>Raw Monologue</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
+          </section>
+          <nav className="idea-reading-nav" aria-label="Idea content">
+            {[
+              ['cockpit', 'Overview', BoltIcon], ['dossier', 'Report', BookOpenIcon],
+              ['prd', 'Product spec', DocumentCheckIcon], ['launch_kit', 'Build prompt', RocketLaunchIcon],
+              ...(note?.transcript ? [['transcript', 'Original note', DocumentTextIcon]] : []),
+            ].map(([tab, label, Icon]) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} aria-pressed={activeTab === tab}><Icon aria-hidden="true" />{label}{tab === 'prd' && !prdContent && <span className="idea-reading-missing">Not created</span>}</button>)}
+          </nav>
+          <div className="idea-reading-output" aria-label="Saved idea content">
+          {unsavedGeneration && <div className="idea-reading-unavailable" role="status"><p>A generated report is kept on this page while its save is unconfirmed.</p><button onClick={retryReportSave} disabled={generatingIdea || contextSaving}>Check or retry report save</button><button onClick={() => navigator.clipboard.writeText(unsavedGeneration.text)}>Copy generated report</button></div>}
+          {unsavedSpec && <div className="idea-reading-unavailable" role="status"><p>A generated product spec is kept on this page while its save is unconfirmed.</p><button onClick={retrySpecSave} disabled={generatingPRD || contextSaving}>Check or retry product spec save</button><button onClick={() => navigator.clipboard.writeText(unsavedSpec.text)}>Copy generated product spec</button></div>}
+          <IdeaContextPanel key={`${id}:${user?.id || 'public'}`} id={id} userId={user?.id} raw={rawTranscriptRef.current?.id === id ? rawTranscriptRef.current.value : null} allowed={canDevelopNote && rawTranscriptRef.current?.id === id && rawTranscriptRef.current.owner === user?.id} busy={generatingIdea || generatingPRD || isGenerating} onSaved={applySavedContext} onBusyChange={value => { if (routeIdentityRef.current.id === id && routeIdentityRef.current.userId === user?.id) setContextSaving(value); }} />
+          {activeTab === 'cockpit' && note && !savedText(note.business_idea).trim() && <div className="idea-reading-unavailable" role="status"><h2>This is a capture</h2><p>No report has been saved for this capture.</p>{savedText(note.transcript).trim() && <button onClick={() => setActiveTab('transcript')}>Read original note</button>}{savedText(prdContent).trim() && <button onClick={() => setActiveTab('prd')}>Read product spec</button>}</div>}
           {/* Tab Panel 1: Venture Cockpit */}
           <div className={`space-y-6 ${activeTab === 'cockpit' ? 'block' : 'hidden'}`}>
             {note ? (
               <>
+                {savedVitals.some(([label]) => label !== 'Primary audience') && <dl className="idea-reading-facts">{savedVitals.filter(([label]) => label !== 'Primary audience').map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
                 <VentureBentoCockpit
                   summary={reportSummary}
                   onOpenLaunchKit={() => setActiveTab('launch_kit')}
                   onOpenPRD={() => setActiveTab('prd')}
                 />
+                {(categoryName !== '' || savedFact(reportSummary?.tam) !== '') && <dl className="idea-reading-facts" aria-label="Saved market context">{[['Market position', categoryName], ['TAM', savedFact(reportSummary?.tam)]].filter(([, value]) => value !== '').map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
 
                 {reportSummary?.domainBlueprint && (
                   <DomainBlueprintShowcase blueprint={reportSummary.domainBlueprint} />
@@ -1736,14 +1138,14 @@ function FullIdeaPage({ user, session }) {
           <div className={`space-y-6 ${activeTab === 'prd' ? 'block' : 'hidden'}`}>
             {prdContent ? (
               <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm prose max-w-none text-slate-800">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={ideaMarkdownComponents}>{prdContent}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={readingMarkdownComponents}>{prdContent}</ReactMarkdown>
               </div>
             ) : (
               <div className="bg-white border border-slate-200 rounded-2xl p-8 sm:p-12 text-center max-w-xl mx-auto shadow-sm">
                 <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mx-auto mb-4 text-2xl">
                   📋
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">Product Requirement Document (PRD)</h3>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Product spec</h3>
                 {prdError ? (
                   <div className="text-rose-600 mb-4 text-xs font-medium">
                     <p className="font-semibold">Error generating PRD:</p>
@@ -1756,7 +1158,7 @@ function FullIdeaPage({ user, session }) {
                 )}
                 <button
                   onClick={handleCreatePRD}
-                  disabled={generatingPRD}
+                  disabled={!canDevelopNote || generatingPRD}
                   className="inline-flex items-center px-6 py-2.5 rounded-full text-xs font-bold shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 transition cursor-pointer disabled:opacity-50"
                 >
                   {generatingPRD ? (
@@ -1782,34 +1184,14 @@ function FullIdeaPage({ user, session }) {
           <div className={`space-y-6 ${activeTab === 'dossier' ? 'block' : 'hidden'}`}>
             {note?.business_idea ? (
               <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm prose max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={ideaMarkdownComponents}>{note.business_idea}</ReactMarkdown>
-              </div>
-            ) : note?.transcript ? (
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm space-y-4">
-                <div className="p-4 sm:p-5 rounded-xl border border-indigo-200 bg-indigo-50/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-sm">Raw capture waiting for your decision</h4>
-                    <p className="mt-1 text-slate-600 text-xs">
-                      Not every note needs to be organized. If this idea is worthy, convert it into a structured startup plan backed by market research.
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleGenerateIdea}
-                    disabled={generatingIdea}
-                    className="inline-flex items-center px-4 py-2 rounded-full text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition flex-shrink-0 cursor-pointer disabled:opacity-50"
-                  >
-                    <SparklesIcon className="h-3.5 w-3.5 mr-1.5 text-white" />
-                    Generate Business Idea
-                  </button>
-                </div>
-                <div className="p-4 border border-slate-200 rounded-xl bg-slate-50">
-                  <p className="text-slate-800 whitespace-pre-wrap font-sans text-sm">{note.transcript}</p>
-                </div>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={readingMarkdownComponents}>{note.business_idea}</ReactMarkdown>
               </div>
             ) : (
-              <p className="text-slate-500 italic text-center py-8">No dossier content available for this note.</p>
+              <div className="idea-reading-unavailable" role="status"><h2>No report saved for this note</h2><p>A report hasn’t been created here.</p>{note?.transcript && <button onClick={() => setActiveTab('transcript')}>Read original note</button>}{note?.transcript && <button onClick={handleGenerateIdea} disabled={!canDevelopNote || generatingIdea || generatingPRD || contextSaving}>Develop idea</button>}</div>
             )}
           </div>
+
+          {activeTab === 'transcript' && note && !savedText(note.transcript).trim() && <div className="idea-reading-unavailable" role="status"><h2>No original text saved for this note</h2><p>This note has no saved transcript or original text.</p>{savedText(note.business_idea).trim() && <button onClick={() => setActiveTab('dossier')}>Read report</button>}{savedText(prdContent).trim() && <button onClick={() => setActiveTab('prd')}>Read product spec</button>}<Link to="/" onClick={clearDirectEntryContext}>Back to library</Link></div>}
 
           {/* Tab Panel 5: Raw Monologue */}
           {note?.transcript && (
@@ -1818,25 +1200,26 @@ function FullIdeaPage({ user, session }) {
                 <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
                   <div>
                     <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-                      <span>🎙️</span> Original Brainstorm Monologue
+                      <span>🎙️</span> Original note
                     </h3>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      {note.audio_url ? 'Speech-to-text transcript' : 'Captured via ambient coding harness (text-only)'}
+                      {note.audio_url ? 'Speech-to-text transcript' : 'Saved text capture'}
                     </p>
                   </div>
                   <button
-                    onClick={() => navigator.clipboard.writeText(note.transcript)}
+                    onClick={() => navigator.clipboard.writeText(rawTranscriptRef.current?.id === id && readIdeaContext(rawTranscriptRef.current.value).supported ? readIdeaContext(rawTranscriptRef.current.value).original : note.transcript)}
                     className="inline-flex items-center px-3.5 py-1.5 rounded-full border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition shadow-sm cursor-pointer"
                   >
-                    Copy Monologue
+                    Copy original
                   </button>
                 </div>
                 <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 font-sans text-sm text-slate-800 whitespace-pre-wrap leading-relaxed shadow-inner">
-                  {note.transcript}
+                  {rawTranscriptRef.current?.id === id && readIdeaContext(rawTranscriptRef.current.value).supported ? readIdeaContext(rawTranscriptRef.current.value).original : note.transcript}
                 </div>
               </div>
             </div>
           )}
+          </div>
         </div>
       </main>
     </div>
@@ -1846,23 +1229,36 @@ function FullIdeaPage({ user, session }) {
 function App() {
   const [notes, setNotes] = useState([]);
   const [loadingNotes, setLoadingNotes] = useState(true);
+  const [notesError, setNotesError] = useState(null);
+  const [notesRevision, setNotesRevision] = useState(0);
   const { user, session, logout, authError, loading } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
+  const visibleNotes = notes.filter(note => note.user_id === user?.id);
 
   useEffect(() => {
+    if (!user?.id) {
+      setNotes([]);
+      setLoadingNotes(false);
+      setNotesError(null);
+      return;
+    }
     let active = true;
     const fetchNotes = async () => {
       setLoadingNotes(true);
+      setNotesError(null);
+      const loadErrors = [];
       try {
         let rawSupabaseNotes = [];
         const { data, error } = await supabase
           .from('voice_notes')
-          .select('*')
+.select('*')
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false });
         if (error) {
           console.error('Fetch notes error:', error);
+          loadErrors.push('Saved voice notes could not be loaded.');
         } else if (data) {
-          rawSupabaseNotes = [...data];
+          rawSupabaseNotes = data.filter(note => note.user_id === user.id);
         }
 
         const seenIds = new Set();
@@ -1874,7 +1270,7 @@ function App() {
           const idStr = String(n.id);
           if (seenIds.has(idStr)) continue;
           seenIds.add(idStr);
-          deduplicated.push(n);
+          deduplicated.push({ ...n, recordSource: 'voice_notes', mirrorCheck: 'unverified' });
         }
 
         // 2. Also merge any ideas ingested via the GoodIdea harness API
@@ -1885,13 +1281,21 @@ function App() {
           const res = await fetch('/api/v1/ideas?limit=100', { headers });
           if (res.ok) {
             const apiData = await res.json();
-            const ideasList = apiData.ideas || [];
+            if (!Array.isArray(apiData.ideas)) throw new Error('Invalid idea list.');
+            const ideasList = apiData.ideas;
+            // This list is scoped to the current account. Completeness only excludes known
+            // account-visible mirrors; foreign or ownerless copies may still exist.
+            const completeAccountList = Number.isInteger(apiData.total) && apiData.total >= 0 && apiData.total === ideasList.length && (apiData.offset === 0 || apiData.offset === undefined);
+            for (const note of deduplicated) {
+              const mirror = ideasList.find(idea => idea.supabaseId && String(idea.supabaseId) === String(note.id));
+              note.mirrorCheck = mirror ? 'mirrored' : completeAccountList ? 'no-owned-mirror-seen' : 'unverified';
+            }
 
             for (const i of ideasList) {
               if (!i || !i.id) continue;
               // Filter out seed/initial welcome mock ideas
               if (i.id === 'idea_initial_welcome') continue;
-              if (i.author && i.author.toLowerCase() === 'alex') continue;
+              if (i.userId !== user.id) continue;
 
               const idStr = String(i.id);
               const supaIdStr = i.supabaseId ? String(i.supabaseId) : null;
@@ -1904,6 +1308,8 @@ function App() {
 
               deduplicated.push({
                 id: i.id,
+                recordSource: 'ambient',
+                mirrorCheck: 'unverified',
                 user_id: i.userId,
                 title: i.title,
                 author: i.author,
@@ -1913,14 +1319,18 @@ function App() {
                 business_idea: i.businessIdeaMarkdown || '',
                 prd_content: i.prdContent || null,
                 audio_url: i.audio_url || i.audioUrl || null,
-                archived: i.status === 'archived',
+                archived: i.archived === true || i.archived === 'true' || i.status === 'archived',
+                status: i.status,
                 is_featured: i.isFeatured,
                 created_at: i.createdAt,
                 updated_at: i.updatedAt
               });
             }
+          } else {
+            throw new Error('Idea library request failed.');
           }
         } catch (err) {
+          loadErrors.push('Some ideas could not be loaded.');
           console.warn('Harness ideas fetch error:', err);
         }
 
@@ -1937,9 +1347,11 @@ function App() {
 
         if (active) {
           setNotes(deduplicated);
+          setNotesError(loadErrors.length ? loadErrors.join(' ') : null);
         }
       } catch (err) {
         console.error('fetchNotes error:', err);
+        if (active) setNotesError('Your library could not be loaded. Please retry.');
       } finally {
         if (active) {
           setLoadingNotes(false);
@@ -1953,22 +1365,25 @@ function App() {
       .channel('public:voice_notes')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'voice_notes' },
+        { event: 'INSERT', schema: 'public', table: 'voice_notes', filter: `user_id=eq.${user.id}` },
         (payload) => {
-          console.log('🔥🔥🔥 REALTIME INSERT EVENT:', payload);
+          if (payload.new?.user_id !== user.id) return;
           setNotes((prev) => {
             const filtered = prev.filter(note => !(note.id && note.id.toString().startsWith('temp-')) && note.id !== payload.new.id);
-            return [payload.new, ...filtered];
+            return [{ ...payload.new, recordSource: 'voice_notes', mirrorCheck: 'unverified' }, ...filtered];
           });
         }
       )
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'voice_notes' },
+        { event: 'UPDATE', schema: 'public', table: 'voice_notes', filter: `user_id=eq.${user.id}` },
         (payload) => {
-          console.log('Note updated:', payload.new);
+          if (payload.new?.user_id !== user.id) {
+            setNotes(previous => previous.filter(note => note.id !== payload.new?.id));
+            return;
+          }
           setNotes((prev) =>
-            prev.map((note) => (note.id === payload.new.id ? payload.new : note))
+            prev.map((note) => (note.id === payload.new.id ? { ...note, ...payload.new } : note))
           );
         }
       )
@@ -1976,7 +1391,7 @@ function App() {
         'postgres_changes',
         { event: 'DELETE', schema: 'public', table: 'voice_notes' },
         (payload) => {
-          console.log('Note deleted:', payload.old);
+
           setNotes((prev) => prev.filter((note) => note.id !== payload.old.id));
         }
       )
@@ -1986,7 +1401,7 @@ function App() {
       active = false;
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, notesRevision]);
 
   const signOut = async () => {
     setSigningOut(true);
@@ -2014,7 +1429,7 @@ function App() {
           path="/"
           element={
             user ? (
-              <Dashboard notes={notes} setNotes={setNotes} user={user} loadingNotes={loadingNotes} />
+              <Dashboard notes={visibleNotes} setNotes={setNotes} user={user} loadingNotes={loadingNotes} notesError={notesError} onReloadNotes={() => setNotesRevision(value => value + 1)} />
             ) : (
               <LandingPage />
             )
@@ -2024,7 +1439,7 @@ function App() {
           path="/integrations"
           element={
             user ? (
-              <Dashboard notes={notes} setNotes={setNotes} user={user} initialOpenIntegrations={true} loadingNotes={loadingNotes} />
+              <Dashboard notes={visibleNotes} setNotes={setNotes} user={user} initialOpenIntegrations={true} loadingNotes={loadingNotes} notesError={notesError} onReloadNotes={() => setNotesRevision(value => value + 1)} />
             ) : (
               <LandingPage />
             )

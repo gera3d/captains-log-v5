@@ -1,5 +1,6 @@
 import { isMockStaging } from '../runtimeConfig';
 import React, { useState, useEffect } from 'react';
+import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { useAuth } from '../contexts/AuthContext';
 import {
   KeyIcon,
@@ -202,13 +203,13 @@ export default function IntegrationsModal({ isOpen, onClose, onIdeaCreated }) {
 
   if (!isOpen) return null;
   if (isMockStaging) return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" role="dialog" aria-modal="true">
-      <div className="max-w-lg rounded-xl bg-slate-900 p-6 text-white">
-        <h2 className="text-xl font-bold">Integrations unavailable in mock staging</h2>
+    <Dialog open={isOpen} onClose={onClose} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
+      <DialogPanel className="max-w-lg rounded-xl bg-slate-900 p-6 text-white">
+        <DialogTitle className="text-xl font-bold">Integrations unavailable in mock staging</DialogTitle>
         <p className="my-4">API keys, coding-agent ingestion, OAuth and external integrations are disconnected. Use the synthetic dashboard to preview changes. No production instructions or credentials are provided here.</p>
-        <button className="rounded bg-indigo-600 px-4 py-2" onClick={onClose}>Close</button>
-      </div>
-    </div>
+        <button data-autofocus className="rounded bg-indigo-600 px-4 py-2 min-h-11" onClick={onClose}>Close</button>
+      </DialogPanel>
+    </Dialog>
   );
 
   const keyDisplay = activeKey || 'gi_live_YOUR_API_KEY_HERE';
@@ -274,13 +275,11 @@ curl -s -X POST "${integrationOrigin}/api/v1/ideas/ingest" \\
   -d '{"transcript": "We are building an AI voice note app that automatically writes startup PRDs and syncs them to coding agents."}'`;
 
   return (
-    <div
+    <Dialog open={isOpen} onClose={onClose}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto animate-fade-in"
-      role="dialog"
-      aria-modal="true"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="relative bg-[#0f172a] border border-slate-700/80 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden text-slate-100 my-auto">
+      <DialogPanel className="relative bg-[#0f172a] border border-slate-700/80 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden text-slate-100 my-auto">
         
         {/* Header */}
         <div className="bg-gradient-to-r from-[#2d1b8c] via-[#1e3a8a] to-[#0f172a] px-6 py-5 flex items-center justify-between border-b border-indigo-500/20">
@@ -289,9 +288,9 @@ curl -s -X POST "${integrationOrigin}/api/v1/ideas/ingest" \\
               ⚡
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white tracking-wide flex items-center gap-2">
+              <DialogTitle className="text-xl font-bold text-white tracking-wide flex items-center gap-2">
                 Harness Integrations & API Keys
-              </h2>
+              </DialogTitle>
               <p className="text-xs text-indigo-200/80">
                 Connect Google Antigravity, Cursor, or Claude Code to automatically capture ideas into your account.
               </p>
@@ -637,7 +636,7 @@ curl -s -X POST "${integrationOrigin}/api/v1/ideas/ingest" \\
           </button>
         </div>
 
-      </div>
-    </div>
+      </DialogPanel>
+    </Dialog>
   );
 }

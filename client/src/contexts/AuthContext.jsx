@@ -40,8 +40,6 @@ export function AuthProvider({ children }) {
     })();
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("[AuthContext] onAuthStateChange event:", event);
-      console.log("[AuthContext] onAuthStateChange session:", session);
       setSession(session);
       setUser(session?.user || null);
       setLoading(false);

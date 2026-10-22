@@ -36,7 +36,7 @@ export default function CommunitySignals({ communitySignals }) {
         </div>
 
         <span className="text-xs text-slate-500 font-medium">
-          Zero-CAC Organic Discovery
+          Saved distribution notes
         </span>
       </div>
 

@@ -80,25 +80,25 @@ function parseScorecardFromMarkdown(markdown) {
   const exec = getRowVal(/\|\s*\*\*Execution Difficulty\*\*\s*\|\s*\*\*?([^\*\|\n]+)\*\*?/i);
   const gtm = getRowVal(/\|\s*\*\*Go-To-Market Traction\*\*\s*\|\s*\*\*?([^\*\|\n]+)\*\*?/i);
 
-  if (!opp && !prob && !feas && !why) return null;
+  if (!opp && !prob && !feas && !why && !exec && !gtm) return null;
 
-  const toNum = (str, fallback) => {
-    if (!str) return fallback;
+  const toNum = str => {
+    if (!str) return null;
     const m = str.match(/(\d+(?:\.\d+)?)/);
-    return m ? parseFloat(m[1]) : fallback;
+    return m ? parseFloat(m[1]) : null;
   };
 
   return {
-    opportunityScore: toNum(opp, 9),
-    opportunityLabel: oppLabel ? oppLabel.trim() : 'Exceptional',
-    problemSeverity: toNum(prob, 9),
-    problemLabel: probLabel ? probLabel.trim() : 'Severe Hair-on-Fire Pain',
-    feasibility: toNum(feas, 8),
-    feasibilityLabel: feasLabel ? feasLabel.trim() : 'Turnkey MVP Loop',
-    whyNow: toNum(why, 9),
-    whyNowLabel: whyLabel ? whyLabel.trim() : 'Regulatory / AI Catalyst',
-    executionDifficulty: exec ? exec.trim() : '3/10 (Weekend Prototype)',
-    gtmScore: gtm ? gtm.trim() : '8/10 (High Organic Pull)'
+    opportunityScore: toNum(opp),
+    opportunityLabel: oppLabel ? oppLabel.trim() : null,
+    problemSeverity: toNum(prob),
+    problemLabel: probLabel ? probLabel.trim() : null,
+    feasibility: toNum(feas),
+    feasibilityLabel: feasLabel ? feasLabel.trim() : null,
+    whyNow: toNum(why),
+    whyNowLabel: whyLabel ? whyLabel.trim() : null,
+    executionDifficulty: exec ? exec.trim() : null,
+    gtmScore: gtm ? gtm.trim() : null
   };
 }
 
@@ -115,8 +115,8 @@ function parseCommunitySignalsFromMarkdown(markdown) {
   for (const m of text.matchAll(/-\s+\*\*\[?(?:r\/)?([A-Za-z0-9_]+)\]?(?:\([^)]+\))?\*\*(?:\s*\(([^)]+)\))?(?:\s*[—–-]\s*(.+))?/g)) {
     subreddits.push({
       name: `r/${m[1]}`,
-      members: m[2] ? m[2].trim() : 'Active community',
-      reason: m[3] ? m[3].trim() : 'Target audience discussions and pain points'
+      members: m[2] ? m[2].trim() : null,
+      reason: m[3] ? m[3].trim() : null
     });
   }
 
@@ -124,7 +124,7 @@ function parseCommunitySignalsFromMarkdown(markdown) {
   for (const m of text.matchAll(/-\s+\*\*"([^"]+)"\*\*(?:\s*[—–-]\s*_?([^_\n]+)_?)?/g)) {
     youtubeThemes.push({
       query: m[1].trim(),
-      intent: m[2] ? m[2].trim() : 'Workflow guidance'
+      intent: m[2] ? m[2].trim() : null
     });
   }
 
@@ -165,45 +165,9 @@ function parseBrutalTruth(markdown, scorecard) {
     }
   }
 
-  const opp = scorecard?.opportunityScore || 9;
-  const prob = scorecard?.problemSeverity || 9;
-  const feas = scorecard?.feasibility || 8;
-  const why = scorecard?.whyNow || 9;
-  const avg = ((opp + prob + feas + why) / 4).toFixed(1);
+  if (!bluePoints.length && !redPoints.length) return null;
+  return { superpowers: bluePoints.slice(0, 3), fatalTraps: redPoints.slice(0, 3) };
 
-  let verdictGrade = 'STRONG BUILD SIGNAL';
-  let tone = 'emerald';
-  let verdictSummary = 'High-conviction venture signal: Solve this acute user pain with a locked 48-hour prototype loop.';
-
-  if (avg >= 8.0) {
-    verdictGrade = 'STRONG BUILD SIGNAL';
-    tone = 'emerald';
-    verdictSummary = 'High-conviction venture signal: Solve this acute user pain with a locked 48-hour prototype loop.';
-  } else if (avg >= 6.5) {
-    verdictGrade = 'VIABLE TECHNICAL WEDGE';
-    tone = 'amber';
-    verdictSummary = 'Promising niche utility, but vulnerable to model platform shifts if switching costs are not locked early.';
-  } else {
-    verdictGrade = 'HIGH PLATFORM RISK';
-    tone = 'rose';
-    verdictSummary = 'Severe dependency on model physics or thin wrapper logic. Pivot to a proprietary data schema before spending compute.';
-  }
-
-  return {
-    score: `${avg}/10`,
-    scoreNum: parseFloat(avg),
-    grade: verdictGrade,
-    tone,
-    verdictSummary,
-    superpowers: bluePoints.length > 0 ? bluePoints.slice(0, 3) : [
-      'Captures directing intent in a stateful continuity graph above commoditizing video APIs.',
-      'Saved character reference bibles create durable switching costs.'
-    ],
-    fatalTraps: redPoints.length > 0 ? redPoints.slice(0, 3) : [
-      'Two-character physical contact remains a major bottleneck in generative diffusion video.',
-      'Direct video generation burns expensive credits on unusable floaty motion.'
-    ]
-  };
 }
 
 function unescapeMarkdown(raw) {
@@ -505,8 +469,8 @@ export function parseIdeaReportSummary(rawInput) {
   markdown = unescapeMarkdown(markdown);
 
   const quoteBlocks = extractQuoteBlocks(markdown);
-  const metrics = [];
-  let persona = null;
+  const metrics = Array.isArray(parsedReport?.metrics) ? [...parsedReport.metrics] : [];
+  let persona = parsedReport?.persona || null;
   let dataGap = null;
   for (const block of quoteBlocks) {
     const metric = parseMetricBlock(block);
@@ -543,8 +507,8 @@ export function parseIdeaReportSummary(rawInput) {
         const lines = targetMatch[0].split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#') && !l.startsWith('---'));
         if (lines.length > 0) {
           persona = {
-            label: lines[0].replace(/^[-*0-9.]\s*|\*\*/g, '').split(/[:.]/)[0].trim() || 'Target Customers',
-            job: lines.slice(0, 2).join(' ').replace(/[*_]/g, '').trim() || 'Early adopter customers.'
+            label: lines[0].replace(/^[-*0-9.]\s*|\*\*/g, '').split(/[:.]/)[0].trim(),
+            job: lines.slice(0, 2).join(' ').replace(/[*_]/g, '').trim()
           };
         }
       }
@@ -586,88 +550,13 @@ export function parseIdeaReportSummary(rawInput) {
   // Market Position
   const posMatch = markdown.match(/>\s*\*\*Strategic Market Position:\*\*\s*([^\n]+)/i) ||
                    markdown.match(/>\s*\*\*Strategic Framework Positioning:\*\*\s*([^\n]+)/i);
-  const marketPosition = parsedReport?.marketPosition || (posMatch ? posMatch[1].trim() : '⚡ Technical Wedge');
+  const marketPosition = parsedReport?.marketPosition ?? (posMatch ? posMatch[1].trim() : null);
 
-  // Scorecard
-  let scorecard = parsedReport?.scorecard || parseScorecardFromMarkdown(markdown);
-  if (!scorecard && (persona || blueTeam.present || keywordCount > 0)) {
-    // Intelligent fallback for legacy notes so scorecard cards render gracefully
-    scorecard = {
-      opportunityScore: 9,
-      opportunityLabel: 'Strong Market Pull',
-      problemSeverity: 9,
-      problemLabel: 'Severe Workflow Pain',
-      feasibility: 8,
-      feasibilityLabel: 'Feasible MVP Loop',
-      whyNow: 9,
-      whyNowLabel: 'AI / Platform Shift',
-      executionDifficulty: '3/10 (Weekend Prototype)',
-      gtmScore: '8/10 (High Organic Pull)'
-    };
-  }
-
-  // Community Signals
-  let communitySignals = parsedReport?.communitySignals || parseCommunitySignalsFromMarkdown(markdown);
-  if (!communitySignals && persona?.label) {
-    // Contextual fallback for older notes
-    communitySignals = {
-      subreddits: [
-        { name: 'r/SaaS', members: '480k+ members', reason: 'Founders and early adopters discussing automated tools' },
-        { name: 'r/SideProject', members: '290k+ members', reason: 'High-intent builders evaluating new indie products' }
-      ],
-      youtubeThemes: [
-        { query: `how to build ${persona.label.toLowerCase()} software`, intent: 'Builder walkthrough' }
-      ],
-      organicWedges: [
-        'Free interactive mini-calculator with instant results',
-        'Transparent building-in-public devlog shared on Reddit'
-      ]
-    };
-  }
-
-  // Builder Kit
-  let builderKit = parsedReport?.builderKit || parseBuilderKitFromMarkdown(markdown);
-  if (!builderKit) {
-    const titleMatch = markdown.match(/^#\s+([^\n]+)/);
-    const summaryMatch = markdown.match(/>\s*\*\*Elevator Pitch:\*\*\s*([^\n]+)/);
-    const title = titleMatch ? titleMatch[1].replace(/^[^\w]+/, '').trim() : 'Venture Concept';
-    const summary = summaryMatch ? summaryMatch[1].trim() : 'Automated workflow tool for creators and builders.';
-
-    let cleanHeadline = '';
-    const jobText = (persona?.job || '').trim();
-    if (jobText) {
-      if (/^(direct|build|automate|create|scale|manage|streamline|track|generate|eliminate)\b/i.test(jobText)) {
-        cleanHeadline = `The Modern Way to ${jobText.replace(/\.$/, '')}.`;
-      } else {
-        cleanHeadline = `The Modern Way to Solve ${jobText.replace(/\.$/, '')}.`;
-      }
-    } else {
-      cleanHeadline = `The Modern Platform for ${title}.`;
-    }
-
-    const targetAudience = persona?.label ? `${persona.label}s` : 'your team';
-
-    builderKit = {
-      landingPageCopy: {
-        headline: cleanHeadline,
-        subheadline: summary,
-        ctaText: 'Get Early Access — Free',
-        valueProps: [
-          'Eliminate manual friction with automated intelligent workflows',
-          'Deterministic accuracy and instant visual validation',
-          'Zero setup required — get started in under 60 seconds'
-        ]
-      },
-      adHooks: [
-        { angle: 'Pain Hook', hook: `Still struggling with manual workarounds as an ${persona?.label || 'Indie Creator'}? Stop wasting hours.` },
-        { angle: 'Contrarian Hook', hook: `Most tools charge $100+/mo for complex features you will never use. Here is the lightweight fix.` },
-        { angle: 'Mechanism Hook', hook: `We streamlined the entire workflow into a 3-step automated loop. Try it free.` }
-      ],
-      mvpSystemPrompt: `You are the Lead Engineer and System Architect for ${title}. Your goal is to build an MVP that addresses the following customer profile: "${persona?.label || 'Target User'}" who needs to "${persona?.job || 'accomplish their core workflow'}". Scaffold the Next.js API routes, state management, and core logic with clean TypeScript and modern Tailwind styling.`
-    };
-  }
-
-  const brutalTruth = parseBrutalTruth(markdown, scorecard);
+  // Structured values are supplied only by saved fields or actual Markdown.
+  const scorecard = parsedReport?.scorecard || parseScorecardFromMarkdown(markdown);
+  const communitySignals = parsedReport?.communitySignals || parseCommunitySignalsFromMarkdown(markdown);
+  const builderKit = parsedReport?.builderKit || parseBuilderKitFromMarkdown(markdown);
+  const brutalTruth = parsedReport?.brutalTruth || parseBrutalTruth(markdown);
   const domainBlueprint = parseDomainBlueprint(markdown);
 
   // Elevator pitch extraction
@@ -685,7 +574,7 @@ export function parseIdeaReportSummary(rawInput) {
   }
 
   const wordCount = markdown.split(/\s+/).filter(Boolean).length;
-  const hasAnyStructure = metrics.length || persona || keywordCount || sourceCount || blueTeam.present || redTeam.present || scorecard || domainBlueprint || elevatorPitch || wordCount > 20;
+  const hasAnyStructure = metrics.length || persona || keywordCount || sourceCount || blueTeam.present || redTeam.present || scorecard || domainBlueprint || elevatorPitch || marketPosition || communitySignals || builderKit || brutalTruth || wordCount > 20;
   if (!hasAnyStructure) return null;
 
   return {
@@ -697,8 +586,8 @@ export function parseIdeaReportSummary(rawInput) {
     blueArgCount: blueTeam.argCount,
     redArgCount: redTeam.argCount,
     hasBlueRed: blueTeam.present && redTeam.present,
-    tam: tamMatch ? tamMatch[1].trim() : null,
-    som: somMatch ? somMatch[1].trim() : null,
+    tam: parsedReport?.tam ?? (tamMatch ? tamMatch[1].trim() : null),
+    som: parsedReport?.som ?? (somMatch ? somMatch[1].trim() : null),
     scorecard,
     marketPosition,
     communitySignals,

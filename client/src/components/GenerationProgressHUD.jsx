@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGeneration, STAGES, ESTIMATED_TOTAL_SECONDS } from '../contexts/GenerationContext';
 import { 
@@ -47,6 +47,17 @@ export default function GenerationProgressHUD() {
     notifyEnabled,
     toggleNotify
   } = useGeneration();
+
+  const [previewBannerHeight, setPreviewBannerHeight] = useState(0);
+  useEffect(() => {
+    const banner = document.querySelector('[data-staging-banner], [data-live-preview-banner]');
+    if (!banner) return;
+    const update = () => setPreviewBannerHeight(banner.getBoundingClientRect().height);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(banner);
+    return () => observer.disconnect();
+  }, []);
 
   if (!activeTask) return null;
 
@@ -145,10 +156,11 @@ export default function GenerationProgressHUD() {
   // 2. FULL EXPANDED PROGRESS MODAL (Matching Main Dashboard Signature Style)
   // =========================================================================
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in" style={{ paddingTop: previewBannerHeight + 16 }}>
       <div 
         className="relative w-full max-w-xl rounded-3xl bg-white border border-slate-200/90 shadow-2xl overflow-hidden animate-dropdown"
         onClick={(e) => e.stopPropagation()}
+        style={{ maxHeight: `calc(100dvh - ${previewBannerHeight + 32}px)`, overflowY: 'auto' }}
       >
         {/* Signature Header Bar (Matching GoodIdea Main Dashboard Header) */}
         <div className="relative bg-gradient-to-r from-[#2d1b8c] via-[#1e3a8a] to-[#1355b8] p-6 sm:p-7 text-white overflow-hidden">
@@ -170,11 +182,11 @@ export default function GenerationProgressHUD() {
               >
                 <MinusIcon className="w-5 h-5" />
               </button>
-              {isComplete && (
+              {(isComplete || isError) && (
                 <button
                   onClick={closeHUD}
-                  className="p-1.5 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
-                  title="Close"
+                  className="p-2.5 min-h-11 min-w-11 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                  title="Close" aria-label="Close generation status"
                 >
                   <XMarkIcon className="w-5 h-5" />
                 </button>
@@ -198,7 +210,7 @@ export default function GenerationProgressHUD() {
             </h3>
             <p className="text-xs sm:text-sm text-indigo-100/90 mt-1 font-normal leading-relaxed">
               {isComplete
-                ? 'Your verified domain blueprint, empirical market sizing, and builder brief are saved to your dashboard.'
+                ? 'Your generated report has been saved. Review its assumptions and sources in the idea.'
                 : isError
                   ? activeTask.error
                   : 'Transforming spoken brainstorm into an investor & builder-ready blueprint.'}
@@ -207,7 +219,7 @@ export default function GenerationProgressHUD() {
         </div>
 
         {/* Modal Body with Slate-50 Background */}
-        <div className="p-6 sm:p-7 bg-slate-50/70 space-y-4">
+        {!isError && <div className="p-6 sm:p-7 bg-slate-50/70 space-y-4">
           {/* Progress Bar & Real-Time Stats Card */}
           <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
             <div className="flex items-center justify-between text-xs font-semibold mb-2.5">
@@ -321,6 +333,7 @@ export default function GenerationProgressHUD() {
           </div>
         </div>
 
+        }
         {/* Footer: Notification Preferences & Action */}
         <div className="p-5 bg-white border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
           <div className="flex items-center gap-2.5">
@@ -354,7 +367,7 @@ export default function GenerationProgressHUD() {
           </div>
 
           <div>
-            {isComplete ? (
+            {isError ? <button type="button" onClick={closeHUD} className="min-h-11 px-4 py-2 rounded-lg bg-indigo-600 text-white font-semibold">Close and continue</button> : isComplete ? (
               <button
                 type="button"
                 onClick={handleViewBlueprint}

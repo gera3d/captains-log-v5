@@ -28,7 +28,7 @@ await context.route("**/*", (r) => {
   return r.continue();
 });
 await context.addInitScript((store) => {
-  localStorage.setItem("goodidea.mock-staging.v1", JSON.stringify(store));
+  localStorage.setItem("goodidea.mock-staging.v4", JSON.stringify(store));
   localStorage.setItem("dashboardOnboardingSeen", "true");
 }, fixtureStore);
 const page = await context.newPage();

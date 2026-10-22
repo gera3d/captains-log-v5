@@ -1,16 +1,18 @@
 // Browser-only synthetic preview. This is not Supabase, OAuth, or API qualification.
 import { isMockStaging } from './runtimeConfig';
+import dashboardPreview from './fixtures/dashboard-preview.json';
 
 // A reloadable public-page fixture, confined to the existing synthetic build.
 const previewSignedOut = isMockStaging && new URLSearchParams(window.location.search).get('preview') === 'homepage';
-const STORAGE_KEY = 'goodidea.mock-staging.v1';
+const STORAGE_KEY = 'goodidea.mock-staging.v4';
 const user = { id: 'mock-staging-user', email: 'preview@example.invalid', user_metadata: { full_name: 'Staging Preview', username: 'preview' } };
 const session = { user, access_token: 'mock-staging-only-not-a-real-token' };
 const listeners = new Set();
 const channels = new Set();
 function load() {
   const saved = localStorage.getItem(STORAGE_KEY);
-  return saved ? JSON.parse(saved) : { voice_notes: [{ id: 'mock-note-1', user_id: user.id, title: 'Synthetic staging idea', transcript: 'A local project notebook for testing the Good Idea interface.', summary: 'Synthetic data for private preview only.', created_at: '2026-10-16T12:00:00.000Z', archived: false, is_featured: false }], ideas: [] };
+  const store = saved ? JSON.parse(saved) : dashboardPreview;
+  return { ...store, voice_notes: (store.voice_notes || []).map(row => ({ transcript: null, business_idea: null, prd_content: null, ...row })) };
 }
 function save(store) { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); }
 function emit(event, row, old = {}) {
@@ -24,6 +26,7 @@ function query(table) {
   const chain = {
     select() { return chain; },
     eq(key, value) { filters.push(row => row[key] === value); return chain; },
+    is(key, value) { filters.push(row => row[key] === value); return chain; },
     order(key, options = {}) { sort = { key, ascending: options.ascending !== false }; return chain; },
     insert(rows) { operation = 'insert'; values = Array.isArray(rows) ? rows : [rows]; return chain; },
     update(row) { operation = 'update'; values = row; return chain; },
@@ -40,8 +43,9 @@ function query(table) {
           save(store);
           if (table === 'voice_notes') result.forEach(row => emit('INSERT', row));
         } else if (operation === 'update') {
-          store[table] = rows.map(row => result.includes(row) ? { ...row, ...values } : row);
-          result = store[table].filter(row => filters.every(matches => matches(row)));
+          const matchedIds = new Set(result.map(row => row.id));
+          store[table] = rows.map(row => matchedIds.has(row.id) ? { ...row, ...values } : row);
+          result = store[table].filter(row => matchedIds.has(row.id));
           save(store);
           if (table === 'voice_notes') result.forEach(row => emit('UPDATE', row));
         } else if (operation === 'delete') {
@@ -78,6 +82,30 @@ export function installStagingFetch() {
   window.fetch = async (input, options = {}) => {
     const url = new URL(typeof input === 'string' ? input : input.url, window.location.href);
     if (url.origin !== window.location.origin) throw new Error('Mock staging blocks external requests.');
+    if (url.pathname === '/__mock/graphql') {
+      const { query: document = '', variables = {} } = JSON.parse(options.body || '{}');
+      const scalar = name => ({ kind: 'SCALAR', name, ofType: null });
+      const object = name => ({ kind: 'OBJECT', name, ofType: null });
+      const recordsType = { kind: 'NON_NULL', name: null, ofType: { kind: 'LIST', name: null, ofType: { kind: 'NON_NULL', name: null, ofType: object('voice_notes') } } };
+      const names = ['id', 'user_id', 'transcript', 'business_idea', 'prd_content'];
+      if (document.includes('query SaveSupport')) return json({ data: { __schema: { mutationType: { fields: [{ name: 'updatevoice_notesCollection', args: [{ name: 'set', type: { kind: 'INPUT_OBJECT', name: 'voice_notesUpdateInput' } }, { name: 'filter', type: { kind: 'INPUT_OBJECT', name: 'voice_notesFilter' } }, { name: 'atMost', type: scalar('Int') }], type: object('voice_notesUpdateResponse') }] } } } });
+      if (document.includes('query SaveShape')) return json({ data: { set: { inputFields: names.map(name => ({ name })) }, filter: { inputFields: names.map(name => ({ name })) }, result: { fields: [{ name: 'affectedCount', type: scalar('Int') }, { name: 'records', type: recordsType }] } } });
+      if (document.includes('query SaveRecordShape')) return json({ data: { record: { fields: names.map(name => ({ name })) } } });
+      if (document.includes('mutation SaveIdea')) {
+        const store = load();
+        const { set = {}, filter = {} } = variables;
+        const matches = row => row.user_id === user.id && Object.entries(filter).every(([key, condition]) => Object.hasOwn(condition, 'eq') ? row[key] === condition.eq : condition.is === 'NULL' && row[key] === null);
+        const matched = store.voice_notes.filter(matches);
+        if (matched.length > 1) return json({ errors: [{ message: 'Synthetic atMost limit exceeded.' }] });
+        const ids = new Set(matched.map(row => row.id));
+        store.voice_notes = store.voice_notes.map(row => ids.has(row.id) ? { ...row, ...set } : row);
+        const records = store.voice_notes.filter(row => ids.has(row.id));
+        save(store);
+        records.forEach(row => emit('UPDATE', row));
+        return json({ data: { saved: { affectedCount: records.length, records } } });
+      }
+      return json({ errors: [{ message: 'Unsupported synthetic GraphQL operation.' }] });
+    }
     if (url.pathname.startsWith('/__mock/workflows/')) {
       if (url.pathname.endsWith('/summarize')) return json({ idea: mockIdea, text: mockIdea, mock: true });
       if (url.pathname.endsWith('/prd')) return json({ prd: mockPrd, text: mockPrd, mock: true });
@@ -87,7 +115,14 @@ export function installStagingFetch() {
     if (!url.pathname.startsWith('/api/')) return realFetch(input, options);
     const method = options.method || (input instanceof Request ? input.method : 'GET');
     const store = load();
-    if (url.pathname === '/api/v1/ideas' && method === 'GET') return json({ ideas: store.ideas });
+    if (url.pathname === '/api/v1/ideas' && method === 'GET') {
+      const limit = Math.min(Number(url.searchParams.get('limit')) || 20, 100);
+      const offset = Number(url.searchParams.get('offset')) || 0;
+      // Match the real authenticated list: another account's and ownerless
+      // ambient copies are outside this caller's visible list and total.
+      const ownedIdeas = store.ideas.filter(idea => idea.userId === user.id);
+      return json({ ideas: ownedIdeas.slice(offset, offset + limit), total: ownedIdeas.length, limit, offset });
+    }
     if (url.pathname === '/api/v1/ideas/ingest' && method === 'POST') {
       const body = JSON.parse(options.body || '{}');
       const idea = { id: `idea_${crypto.randomUUID()}`, userId: user.id, title: body.title || 'Synthetic local idea', transcript: body.transcript, summary: 'Local preview only', businessIdeaMarkdown: body.synthesize ? mockIdea : '', createdAt: new Date().toISOString(), tags: ['mock-staging'] };
