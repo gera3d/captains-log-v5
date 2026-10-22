@@ -182,11 +182,11 @@ export default function GenerationProgressHUD() {
               >
                 <MinusIcon className="w-5 h-5" />
               </button>
-              {isComplete && (
+              {(isComplete || isError) && (
                 <button
                   onClick={closeHUD}
-                  className="p-1.5 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
-                  title="Close"
+                  className="p-2.5 min-h-11 min-w-11 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                  title="Close" aria-label="Close generation status"
                 >
                   <XMarkIcon className="w-5 h-5" />
                 </button>
@@ -210,7 +210,7 @@ export default function GenerationProgressHUD() {
             </h3>
             <p className="text-xs sm:text-sm text-indigo-100/90 mt-1 font-normal leading-relaxed">
               {isComplete
-                ? 'Your verified domain blueprint, empirical market sizing, and builder brief are saved to your dashboard.'
+                ? 'Your generated report has been saved. Review its assumptions and sources in the idea.'
                 : isError
                   ? activeTask.error
                   : 'Transforming spoken brainstorm into an investor & builder-ready blueprint.'}
@@ -219,7 +219,7 @@ export default function GenerationProgressHUD() {
         </div>
 
         {/* Modal Body with Slate-50 Background */}
-        <div className="p-6 sm:p-7 bg-slate-50/70 space-y-4">
+        {!isError && <div className="p-6 sm:p-7 bg-slate-50/70 space-y-4">
           {/* Progress Bar & Real-Time Stats Card */}
           <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
             <div className="flex items-center justify-between text-xs font-semibold mb-2.5">
@@ -333,6 +333,7 @@ export default function GenerationProgressHUD() {
           </div>
         </div>
 
+        }
         {/* Footer: Notification Preferences & Action */}
         <div className="p-5 bg-white border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
           <div className="flex items-center gap-2.5">
@@ -366,7 +367,7 @@ export default function GenerationProgressHUD() {
           </div>
 
           <div>
-            {isComplete ? (
+            {isError ? <button type="button" onClick={closeHUD} className="min-h-11 px-4 py-2 rounded-lg bg-indigo-600 text-white font-semibold">Close and continue</button> : isComplete ? (
               <button
                 type="button"
                 onClick={handleViewBlueprint}

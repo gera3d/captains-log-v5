@@ -1,3 +1,6 @@
+import { loadOwnedIdea, saveGeneratedReport } from '../utils/ideaContextStore';
+import { readIdeaContext } from '../utils/ideaContext';
+import { generationJson, generationText, generationMessage, GenerationError, requireGenerationInput } from '../utils/generationRequest';
 import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import ActiveIdeas from './ActiveIdeas';
@@ -163,24 +166,20 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
     if (!ownsNote(note) || loadingIdea[note.id]) return;
     setLoadingIdea(previous => ({ ...previous, [note.id]: true }));
     setFeedback(null);
-    let transcript = note.transcript || note.transcription || '';
     try {
-      try {
-        const parsed = JSON.parse(transcript);
-        transcript = typeof parsed === 'object' && parsed !== null ? parsed.data || parsed.text || JSON.stringify(parsed) : String(parsed);
-      } catch { /* Plain text is already usable. */ }
-      if (!transcript.trim()) throw new Error('This note has no text to develop yet.');
+      const snapshot = await loadOwnedIdea(note.id, user.id);
+      const material = readIdeaContext(snapshot.transcript);
+      if (!material.supported) throw new GenerationError(material.reason, 'unsupported');
+      const transcript = material.combined;
+      requireGenerationInput(transcript);
+      if (!transcript.trim()) throw new GenerationError('This note has no saved text to develop yet.', 'empty_source');
       await runGeneration({
         ideaId: note.id, title: extractTitle(note), type: 'generate',
         execute: async () => {
-          const response = await fetch(workflowUrl('summarize'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: transcript.trim() }) });
-          if (!response.ok) throw new Error('The idea could not be generated. Please retry.');
-          const result = await response.json();
-          const content = result.idea || result.text;
-          if (typeof content !== 'string' || !content.trim()) throw new Error('No idea was returned. Please retry.');
+          const result = await generationJson(workflowUrl('summarize'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: transcript.trim() }) });
+          const content = generationText(result, ['idea', 'text'], 'idea generation');
           const idea = content.replace(/^[^\w#*]+/, '').trim();
-          const { data, error } = await supabase.from('voice_notes').update({ business_idea: idea, status: 'active' }).eq('id', note.id).eq('user_id', user.id).select('id').single();
-          if (error || data?.id !== note.id) throw new Error('The generated idea could not be saved. Please retry.');
+          await saveGeneratedReport(snapshot, idea, user.id);
           const title = extractTitle({ business_idea: idea });
           const summary = extractSummary({ business_idea: idea });
           setNotes(previous => previous.map(row => row.id === note.id ? { ...row, business_idea: idea, title: title || row.title, summary: summary || row.summary, status: 'active' } : row));
@@ -188,7 +187,7 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
         },
       });
     } catch (error) {
-      setFeedback({ type: 'error', text: error.message || 'The idea could not be generated. Please retry.' });
+      setFeedback({ type: 'error', text: generationMessage(error) });
     } finally {
       setLoadingIdea(previous => ({ ...previous, [note.id]: false }));
     }

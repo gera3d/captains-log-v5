@@ -1,3 +1,4 @@
+import { generationMessage } from '../utils/generationRequest';
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 
 const GenerationContext = createContext(null);
@@ -260,10 +261,10 @@ export function GenerationProvider({ children }) {
 
       return result;
     } catch (err) {
-      console.error('[GenerationContext] Execution error:', err);
+      console.error('[GenerationContext] Generation failed:', err?.code || 'generation_failed');
       setActiveTask(prev => ({
         ...prev,
-        error: err.message || 'Generation failed. Please try again.',
+        error: generationMessage(err),
         isComplete: false
       }));
       if (typeof document !== 'undefined') {

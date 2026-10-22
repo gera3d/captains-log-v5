@@ -1,3 +1,7 @@
+import IdeaContextPanel from './components/IdeaContextPanel';
+import { readIdeaContext } from './utils/ideaContext';
+import { loadOwnedIdea, saveGeneratedReport, saveGeneratedSpec } from './utils/ideaContextStore';
+import { generationJson, generationText, generationMessage, GenerationError, requireGenerationInput } from './utils/generationRequest';
 import { workflowUrl } from './runtimeConfig';
 import { artifactTabs, clearLibraryContext } from './utils/libraryContext';
 import IdeaIdentity from './components/IdeaIdentity';
@@ -610,7 +614,13 @@ function FullIdeaPage({ user, session }) {
   const clearDirectEntryContext = () => { if (location.state?.libraryUserId !== user?.id) clearLibraryContext(user?.id); };
   const [note, setNote] = useState(null);
   const savedReportRef = useRef(null);
-  const canDevelopNote = Boolean(user?.id && note?.user_id === user.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(note.id));
+  const rawTranscriptRef = useRef(null);
+  const routeIdentityRef = useRef(null);
+  routeIdentityRef.current = { id, userId: user?.id };
+  const [unsavedGeneration, setUnsavedGeneration] = useState(null);
+  const [unsavedSpec, setUnsavedSpec] = useState(null);
+  const [contextSaving, setContextSaving] = useState(false);
+  const canDevelopNote = Boolean(user?.id && note?.id === id && note?.user_id === user.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(note.id));
   const [copied, setCopied] = useState('');
   const [generatingPRD, setGeneratingPRD] = useState(false);
   const [generatingIdea, setGeneratingIdea] = useState(false);
@@ -635,6 +645,8 @@ function FullIdeaPage({ user, session }) {
   useEffect(() => {
     const fetchNote = async () => {
       savedReportRef.current = null;
+      rawTranscriptRef.current = null;
+      setUnsavedGeneration(null); setUnsavedSpec(null); setContextSaving(false);
       // 1. Direct fetch from API for ambient harness ideas (avoids invalid postgres UUID/bigint query)
       if (String(id).startsWith('idea_')) {
         try {
@@ -735,6 +747,8 @@ function FullIdeaPage({ user, session }) {
         }
       }
       else {
+        if (routeIdentityRef.current.id !== id || routeIdentityRef.current.userId !== user?.id) return;
+        rawTranscriptRef.current = { id: data?.id, owner: data?.user_id, value: data?.transcript };
         const savedReportSource = data?.business_idea;
         if (data?.business_idea) {
           let idea = data.business_idea.trim();
@@ -778,7 +792,7 @@ function FullIdeaPage({ user, session }) {
       }
     };
     fetchNote();
-  }, [id]);
+  }, [id, user?.id]);
 
   const copyIdea = async () => {
     if (note) {
@@ -822,165 +836,80 @@ function FullIdeaPage({ user, session }) {
     setTimeout(() => setCopied(''), 1500);
   };
 
-  const handleGenerateIdea = async () => {
-    if (!canDevelopNote || generatingIdea) return;
-    const transcriptText = (() => {
-      const raw = note.transcript || note.transcription || '';
-      if (!raw) return note.business_idea || '';
-      try {
-        const parsed = JSON.parse(raw);
-        if (typeof parsed === 'object' && parsed !== null) {
-          return parsed.data || parsed.text || JSON.stringify(parsed);
-        }
-        return String(parsed);
-      } catch {
-        return raw;
-      }
-    })();
-
-    if (!transcriptText || !transcriptText.trim()) {
-      alert('This note does not have any content yet to structure.');
-      return;
-    }
-
-    try {
-      setGeneratingIdea(true);
-      setIdeaError(null);
-      await runGeneration({
-        ideaId: note.id,
-        title: note.title || 'Startup Blueprint',
-        type: note.business_idea ? 'regenerate' : 'generate',
-        execute: async () => {
-          const response = await fetch(workflowUrl('summarize'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: transcriptText.trim() }),
-          });
-          if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`Server responded with ${response.status}: ${errText}`);
-          }
-          const data = await response.json();
-          const rawIdea = data.idea || data.text;
-          if (typeof rawIdea !== 'string' || !rawIdea.trim()) {
-            throw new Error('Webhook response did not include a valid idea.');
-          }
-          const idea = rawIdea.replace(/^[^\w#*]+/, '').trim();
-          const extractedTitle = extractTitle({ business_idea: idea });
-          const extractedSummary = extractSummary({ business_idea: idea });
-
-          const { data: savedIdea, error: saveError } = await supabase
-            .from('voice_notes')
-            .update({ business_idea: idea })
-            .eq('id', note.id).eq('user_id', user.id)
-            .select('id,business_idea').single();
-          if (saveError || savedIdea?.id !== note.id || savedIdea.business_idea !== idea) {
-            throw new Error('The generated idea could not be saved. Please retry.');
-          }
-          savedReportRef.current = { id: note.id, value: idea };
-          setNote(prev => ({ ...prev, business_idea: idea, title: extractedTitle || prev.title, summary: extractedSummary || prev.summary }));
-          setActiveTab('cockpit');
-
-          return {
-            id: note.id,
-            title: extractedTitle || note.title,
-            summary: extractedSummary || note.summary,
-            url: `/idea/${note.id}`
-          };
-        }
-      });
-    } catch (err) {
-      console.error('Error generating idea:', err);
-      setIdeaError(err.message || 'Failed to generate business idea. Please try again.');
-    } finally {
-      setGeneratingIdea(false);
-    }
+  const applySavedContext = snapshot => {
+    if (routeIdentityRef.current.id !== id || routeIdentityRef.current.userId !== user?.id || rawTranscriptRef.current?.id !== snapshot.id || rawTranscriptRef.current?.owner !== user?.id || snapshot.user_id !== user?.id) return;
+    rawTranscriptRef.current = { id: snapshot.id, owner: snapshot.user_id, value: snapshot.transcript };
+    const context = readIdeaContext(snapshot.transcript);
+    setNote(previous => previous?.id === snapshot.id ? { ...previous, transcript: context.supported ? context.combined : savedText(snapshot.transcript) } : previous);
   };
-
-  const handleCreatePRD = async () => {
-    if (!canDevelopNote || generatingPRD) return;
-    
+  const openContextPanel = event => {
+    event.preventDefault();
+    const panel = document.getElementById('idea-context');
+    if (panel) { panel.open = true; panel.scrollIntoView({ block: 'start', behavior: 'smooth' }); panel.querySelector('summary')?.focus({ preventScroll: true }); }
+  };
+  const applyGeneratedReport = (snapshot, idea, ownerId) => {
+    if (routeIdentityRef.current.id !== snapshot.id || routeIdentityRef.current.userId !== ownerId) return;
+    savedReportRef.current = { id: snapshot.id, value: idea };
+    rawTranscriptRef.current = { id: snapshot.id, owner: ownerId, value: snapshot.transcript };
+    const context = readIdeaContext(snapshot.transcript);
+    setNote(previous => previous?.id === snapshot.id ? { ...previous, business_idea: idea, transcript: context.supported ? context.combined : previous.transcript, title: extractTitle({ business_idea: idea }) || previous.title, summary: extractSummary({ business_idea: idea }) || previous.summary } : previous);
+    setUnsavedGeneration(null);
+    setActiveTab('cockpit');
+  };
+  const handleGenerateIdea = async () => {
+    if (!canDevelopNote || generatingIdea || contextSaving) return;
+    const ownerId = user.id;
     try {
-      setGeneratingPRD(true);
-      setPrdError(null);
-      
-      // Get content for the PRD
-      const title = note.title || (note.business_idea?.split('\n')[0]) || 'Untitled Idea';
-      const content = note.business_idea || note.transcript || '';
-      let generatedPRD = '';
-
-      if (String(note.id).startsWith('idea_')) {
-        // Native GoodIdea backend endpoint for ambient harness ideas
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData?.session?.access_token;
-        const headers = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-
-        const res = await fetch(`/api/v1/ideas/${note.id}/prd`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({})
-        });
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || `Server responded with ${res.status}`);
-        }
-
-        const data = await res.json();
-        generatedPRD = data.prdContent;
-      } else {
-        // Format the request body to include the chatInput field expected by n8n
-        const requestBody = {
-          chatInput: `Generate a PRD for the following business idea titled "${title}": \n\n${content}`,
-          metadata: {
-            noteId: note.id,
-            title: title
-          }
-        };
-        
-        // Call n8n webhook with production URL
-        const response = await fetch(workflowUrl('prd'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Server responded with ${response.status}: ${errorText}`);
-        }
-        
-        // Get the response data
-        const data = await response.json();
-        console.log('Response data:', data);
-        
-        // Check for content in text, prd, or output fields
-        if (!data.text && !data.prd && !data.output) {
-          throw new Error('No PRD content received from server');
-        }
-        
-        // Use either text, prd, or output field depending on n8n workflow response format
-        generatedPRD = data.text || data.prd || data.output || `# PRD for ${title}\n\nUnable to generate PRD content.`;
-        
-        // Save PRD to database
-        const { data: savedPRD, error: updateError } = await supabase
-          .from('voice_notes')
-          .update({ prd_content: generatedPRD })
-          .eq('id', note.id).eq('user_id', user.id).select('id').single();
-          
-        if (updateError || savedPRD?.id !== note.id) throw new Error('The product document could not be saved. Please retry.');
-      }
-      
-      setPrdContent(generatedPRD);
-      setActiveTab('prd'); // Switch to PRD tab after generation
-      
-    } catch (error) {
-      console.error('Error generating PRD:', error);
-      setPrdError(error.message || 'Failed to generate PRD. Please try again later.');
-    } finally {
-      setGeneratingPRD(false);
-    }
+      setGeneratingIdea(true); setIdeaError(null);
+      const snapshot = await loadOwnedIdea(note.id, ownerId);
+      const context = readIdeaContext(snapshot.transcript);
+      if (!context.supported) throw new GenerationError(context.reason, 'unsupported');
+      const source = context.combined.trim() || savedText(snapshot.business_idea).trim();
+      requireGenerationInput(source);
+      if (!source) throw new GenerationError('No saved text is available to develop. Add details first.', 'empty_source');
+      await runGeneration({ ideaId: snapshot.id, title: note.title || 'Idea', type: snapshot.business_idea ? 'regenerate' : 'generate', execute: async () => {
+        const data = await generationJson(workflowUrl('summarize'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: source }) }, 'idea generation');
+        const idea = generationText(data, ['idea', 'text'], 'idea generation').replace(/^[^\w#*]+/, '').trim();
+        const pending = { snapshot, text: idea, ownerId };
+        if (routeIdentityRef.current.id === snapshot.id && routeIdentityRef.current.userId === ownerId) setUnsavedGeneration(pending);
+        await saveGeneratedReport(snapshot, idea, ownerId);
+        applyGeneratedReport(snapshot, idea, ownerId);
+        return { id: snapshot.id, title: extractTitle({ business_idea: idea }), summary: extractSummary({ business_idea: idea }), url: `/idea/${snapshot.id}` };
+      }});
+    } catch (error) { if (routeIdentityRef.current.id === id && routeIdentityRef.current.userId === ownerId) setIdeaError(generationMessage(error)); }
+    finally { setGeneratingIdea(false); }
+  };
+  const retryReportSave = async () => {
+    if (!unsavedGeneration || generatingIdea || contextSaving || unsavedGeneration.ownerId !== user?.id) return;
+    setGeneratingIdea(true); setIdeaError(null);
+    try { const { snapshot, text, ownerId } = unsavedGeneration; await saveGeneratedReport(snapshot, text, ownerId); applyGeneratedReport(snapshot, text, ownerId); }
+    catch (error) { setIdeaError(generationMessage(error)); }
+    finally { setGeneratingIdea(false); }
+  };
+  const handleCreatePRD = async () => {
+    if (!canDevelopNote || generatingPRD || contextSaving) return;
+    const ownerId = user.id;
+    try {
+      setGeneratingPRD(true); setPrdError(null);
+      const snapshot = await loadOwnedIdea(note.id, ownerId);
+      const content = savedText(snapshot.business_idea).trim();
+      if (!content) throw new GenerationError('Create a report before generating a product spec.', 'empty_source');
+      requireGenerationInput(content);
+      const title = note.title || 'Idea';
+      const data = await generationJson(workflowUrl('prd'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chatInput: `Generate a PRD for the following business idea titled "${title}": \n\n${content}`, metadata: { noteId: snapshot.id, title } }) }, 'product spec');
+      const text = generationText(data, ['text', 'prd', 'output'], 'product spec');
+      if (routeIdentityRef.current.id === snapshot.id && routeIdentityRef.current.userId === ownerId) setUnsavedSpec({ snapshot, text, ownerId });
+      await saveGeneratedSpec(snapshot, text, ownerId);
+      if (routeIdentityRef.current.id === snapshot.id && routeIdentityRef.current.userId === ownerId) { setPrdContent(text); setUnsavedSpec(null); setActiveTab('prd'); }
+    } catch (error) { if (routeIdentityRef.current.id === id && routeIdentityRef.current.userId === ownerId) setPrdError(generationMessage(error)); }
+    finally { setGeneratingPRD(false); }
+  };
+  const retrySpecSave = async () => {
+    if (!unsavedSpec || generatingPRD || contextSaving || unsavedSpec.ownerId !== user?.id) return;
+    setGeneratingPRD(true); setPrdError(null);
+    try { const { snapshot, text, ownerId } = unsavedSpec; await saveGeneratedSpec(snapshot, text, ownerId); if (routeIdentityRef.current.id === snapshot.id && routeIdentityRef.current.userId === ownerId) { setPrdContent(text); setUnsavedSpec(null); setActiveTab('prd'); } }
+    catch (error) { setPrdError(generationMessage(error)); }
+    finally { setGeneratingPRD(false); }
   };
 
   const savedFact = value => typeof value === 'string' ? value.trim() : typeof value === 'number' && Number.isFinite(value) ? String(value) : '';
@@ -1044,10 +973,11 @@ function FullIdeaPage({ user, session }) {
                 </span>
               )}
 
+              <a href="#idea-context" onClick={openContextPanel} className="inline-flex min-h-11 items-center px-3 rounded-full text-sm font-semibold bg-white/10 border border-white/20 text-white">Add to idea</a>
               {(note?.transcript || note?.transcription || note?.business_idea) && (
                 <button
                   onClick={handleGenerateIdea}
-                  disabled={!canDevelopNote || generatingIdea}
+                  disabled={!canDevelopNote || generatingIdea || contextSaving}
                   className="inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-bold border border-white/20 bg-white/10 hover:bg-white/20 text-white transition shadow-sm cursor-pointer disabled:opacity-50"
                   title={note?.business_idea ? 'Regenerate idea' : 'Generate idea'}
                 >
@@ -1151,6 +1081,9 @@ function FullIdeaPage({ user, session }) {
             ].map(([tab, label, Icon]) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} aria-pressed={activeTab === tab}><Icon aria-hidden="true" />{label}{tab === 'prd' && !prdContent && <span className="idea-reading-missing">Not created</span>}</button>)}
           </nav>
           <div className="idea-reading-output" aria-label="Saved idea content">
+          {unsavedGeneration && <div className="idea-reading-unavailable" role="status"><p>A generated report is kept on this page while its save is unconfirmed.</p><button onClick={retryReportSave} disabled={generatingIdea || contextSaving}>Check or retry report save</button><button onClick={() => navigator.clipboard.writeText(unsavedGeneration.text)}>Copy generated report</button></div>}
+          {unsavedSpec && <div className="idea-reading-unavailable" role="status"><p>A generated product spec is kept on this page while its save is unconfirmed.</p><button onClick={retrySpecSave} disabled={generatingPRD || contextSaving}>Check or retry product spec save</button><button onClick={() => navigator.clipboard.writeText(unsavedSpec.text)}>Copy generated product spec</button></div>}
+          <IdeaContextPanel key={`${id}:${user?.id || 'public'}`} id={id} userId={user?.id} raw={rawTranscriptRef.current?.id === id ? rawTranscriptRef.current.value : null} allowed={canDevelopNote && rawTranscriptRef.current?.id === id && rawTranscriptRef.current.owner === user?.id} busy={generatingIdea || generatingPRD || isGenerating} onSaved={applySavedContext} onBusyChange={value => { if (routeIdentityRef.current.id === id && routeIdentityRef.current.userId === user?.id) setContextSaving(value); }} />
           {activeTab === 'cockpit' && note && !savedText(note.business_idea).trim() && <div className="idea-reading-unavailable" role="status"><h2>This is a capture</h2><p>No report has been saved for this capture.</p>{savedText(note.transcript).trim() && <button onClick={() => setActiveTab('transcript')}>Read original note</button>}{savedText(prdContent).trim() && <button onClick={() => setActiveTab('prd')}>Read product spec</button>}</div>}
           {/* Tab Panel 1: Venture Cockpit */}
           <div className={`space-y-6 ${activeTab === 'cockpit' ? 'block' : 'hidden'}`}>
@@ -1249,7 +1182,7 @@ function FullIdeaPage({ user, session }) {
                 <ReactMarkdown remarkPlugins={[remarkGfm]} components={readingMarkdownComponents}>{note.business_idea}</ReactMarkdown>
               </div>
             ) : (
-              <div className="idea-reading-unavailable" role="status"><h2>No report saved for this note</h2><p>A report hasn’t been created here.</p>{note?.transcript && <button onClick={() => setActiveTab('transcript')}>Read original note</button>}{note?.transcript && <button onClick={handleGenerateIdea} disabled={!canDevelopNote || generatingIdea}>Develop idea</button>}</div>
+              <div className="idea-reading-unavailable" role="status"><h2>No report saved for this note</h2><p>A report hasn’t been created here.</p>{note?.transcript && <button onClick={() => setActiveTab('transcript')}>Read original note</button>}{note?.transcript && <button onClick={handleGenerateIdea} disabled={!canDevelopNote || generatingIdea || contextSaving}>Develop idea</button>}</div>
             )}
           </div>
 
@@ -1269,14 +1202,14 @@ function FullIdeaPage({ user, session }) {
                     </p>
                   </div>
                   <button
-                    onClick={() => navigator.clipboard.writeText(note.transcript)}
+                    onClick={() => navigator.clipboard.writeText(rawTranscriptRef.current?.id === id && readIdeaContext(rawTranscriptRef.current.value).supported ? readIdeaContext(rawTranscriptRef.current.value).original : note.transcript)}
                     className="inline-flex items-center px-3.5 py-1.5 rounded-full border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition shadow-sm cursor-pointer"
                   >
                     Copy original
                   </button>
                 </div>
                 <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 font-sans text-sm text-slate-800 whitespace-pre-wrap leading-relaxed shadow-inner">
-                  {note.transcript}
+                  {rawTranscriptRef.current?.id === id && readIdeaContext(rawTranscriptRef.current.value).supported ? readIdeaContext(rawTranscriptRef.current.value).original : note.transcript}
                 </div>
               </div>
             </div>

@@ -1,3 +1,4 @@
+import { generationJson, transcriptionText } from '../utils/generationRequest';
 import { workflowUrl } from '../runtimeConfig';
 // TODO[progress-md][P1][VoiceRecorder] See progress.md for all open voice recording tasks
 import React, { useState, useRef, useEffect } from 'react';
@@ -8,6 +9,7 @@ console.log('[VoiceRecorder][DEBUG] VoiceRecorder component loaded');
 
 export default function VoiceRecorder({ onNoteSaved, compact = false, onStatusChange }) {
   const [status, setStatus] = useState('idle');
+  const [transcriptionWarning, setTranscriptionWarning] = useState('');
   const mountedRef = useRef(true);
   const streamRef = useRef(null);
   const startingRef = useRef(false);
@@ -142,29 +144,11 @@ export default function VoiceRecorder({ onNoteSaved, compact = false, onStatusCh
         try {
           const formData = new FormData();
           formData.append('file', blob, fileName);
-          const response = await fetch(workflowUrl('transcribe'), {
-            method: 'POST',
-            body: formData,
-          });
-          const responseText = await response.text();
-          let transcriptArray = [];
-          try {
-            transcriptArray = JSON.parse(responseText);
-          } catch {
-            transcriptArray = [];
-          }
-          if (Array.isArray(transcriptArray)) {
-            transcriptText = transcriptArray.map(item => {
-              if (typeof item === 'object' && item !== null) {
-                if (item.text) return item.text;
-                if (item.data) return item.data;
-                return JSON.stringify(item);
-              } else {
-                return String(item);
-              }
-            }).join(' ');
-          }
-        } catch (err) {}
+          const result = await generationJson(workflowUrl('transcribe'), { method: 'POST', body: formData }, 'transcription');
+          transcriptText = transcriptionText(result);
+        } catch {
+          if (mountedRef.current) setTranscriptionWarning('Transcription is unavailable. Your recording can still be saved without text.');
+        }
 
         if (!mountedRef.current) return;
         const audio = new Audio(publicUrl);
@@ -264,6 +248,7 @@ export default function VoiceRecorder({ onNoteSaved, compact = false, onStatusCh
     event.preventDefault();
     if (status !== 'idle' || startingRef.current) return;
     startingRef.current = true;
+    setTranscriptionWarning('');
     reportStatus('preparing');
     try {
       const { data: userData } = await supabase.auth.getUser();
@@ -421,6 +406,7 @@ export default function VoiceRecorder({ onNoteSaved, compact = false, onStatusCh
           animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
       `}</style>
-    </div>
+    {transcriptionWarning && <p role="status" className="mt-3 text-sm text-blue-100">{transcriptionWarning}</p>}
+</div>
   );
 }
