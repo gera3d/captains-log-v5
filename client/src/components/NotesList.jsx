@@ -94,10 +94,9 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
       const { data, error } = await supabase.from('voice_notes').update({ is_featured: featured }).eq('id', note.id).eq('user_id', user.id).select('id,is_featured').single();
       if (error || data?.id !== note.id || data.is_featured !== featured) throw new Error('The pin change could not be confirmed. Please retry.');
       setNotes(previous => previous.map(row => row.id === note.id ? { ...row, is_featured: featured } : row));
-      pinFocusRef.current = note.id;
       setFeedback({ type: 'success', text: `“${extractTitle(note)}” ${featured ? 'pinned.' : 'unpinned.'}` });
     } catch (error) { setFeedback({ type: 'error', text: error.message }); }
-    finally { setPending(null); pendingRef.current = false; }
+    finally { pinFocusRef.current = note.id; setPending(null); pendingRef.current = false; }
   };
 
   useEffect(() => {

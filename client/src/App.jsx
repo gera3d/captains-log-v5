@@ -622,7 +622,7 @@ function FullIdeaPage({ user, session }) {
   const activeTab = Object.hasOwn(artifactTabs, requestedArtifact) ? artifactTabs[requestedArtifact] : 'cockpit';
   const setActiveTab = tab => {
     const artifact = Object.keys(artifactTabs).find(key => artifactTabs[key] === tab) || 'overview';
-    setArtifactParams({ artifact }, { replace: true, preventScrollReset: true });
+    setArtifactParams({ artifact }, { replace: true, preventScrollReset: true, state: location.state?.libraryUserId === user?.id ? { libraryUserId: user.id } : null });
   };
   const [prdError, setPrdError] = useState(null);
   const [showMoreActions, setShowMoreActions] = useState(false);
@@ -1151,11 +1151,12 @@ function FullIdeaPage({ user, session }) {
             ].map(([tab, label, Icon]) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} aria-pressed={activeTab === tab}><Icon aria-hidden="true" />{label}{tab === 'prd' && !prdContent && <span className="idea-reading-missing">Not created</span>}</button>)}
           </nav>
           <div className="idea-reading-output" aria-label="Saved idea content">
+          {activeTab === 'cockpit' && note && !savedText(note.business_idea).trim() && <div className="idea-reading-unavailable" role="status"><h2>This is a capture</h2><p>No report has been saved for this capture.</p>{savedText(note.transcript).trim() && <button onClick={() => setActiveTab('transcript')}>Read original note</button>}{savedText(prdContent).trim() && <button onClick={() => setActiveTab('prd')}>Read product spec</button>}</div>}
           {/* Tab Panel 1: Venture Cockpit */}
           <div className={`space-y-6 ${activeTab === 'cockpit' ? 'block' : 'hidden'}`}>
             {note ? (
               <>
-                {savedVitals.some(([label]) => label !== 'Primary audience') && <dl className="idea-reading-facts">{savedVitals.filter(([label]) => label !== 'Primary audience').map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
+                {(savedVitals.some(([label]) => label !== 'Primary audience') || categoryName !== '' || savedFact(reportSummary?.tam) !== '') && <dl className="idea-reading-facts">{[...savedVitals.filter(([label]) => label !== 'Primary audience'), ['Market position', categoryName], ['TAM', savedFact(reportSummary?.tam)]].filter(([, value]) => value !== '').map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
                 <VentureBentoCockpit
                   summary={reportSummary}
                   onOpenLaunchKit={() => setActiveTab('launch_kit')}
