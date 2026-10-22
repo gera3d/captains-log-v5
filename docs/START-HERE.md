@@ -38,6 +38,8 @@ Production builds require explicit `VITE_SUPABASE_URL`, browser-safe `VITE_SUPAB
 
 ## Private previews and checks
 
+Gera now requests the current dashboard with real account data for manual testing. [Real-data preview581](https://command.why57.com/AIW/issues/AIW-581) tracks the bounded **Sample data / My real data** switch and current verification. Read [REAL-DATA-PREVIEW.md](REAL-DATA-PREVIEW.md) for separate-origin startup and limitations. The current source runs sample5194 and real5177; normal Google sign-in and the real owner library/pinned collection were observed on5177. No real idea writes, mic or AI were exercised. Previous mock-only handoffs remain synthetic evidence; this request authorizes real-account manual preview, not deployment or backend changes.
+
 [Beta preview](http://127.0.0.1:5193/?preview=homepage) is a transient private Mac Pro mock preview. Check its process before assuming it is running. [BETA-RELAUNCH.md](BETA-RELAUNCH.md) defines beta flags, offline fixture, build matrix and capture/check commands. [VISUAL-STORY.md](VISUAL-STORY.md) records accepted visual assets and output evidence. Automated checks intercept or mock external traffic and must not perform real authentication, recording, data writes or AI calls.
 
 From `client`, `npm run dev:staging` / `build:staging` / `preview:staging` use synthetic browser-local data on strict loopback5176. `npm run check:staging` checks that isolated workflow. Mock mode does not qualify real auth, storage or AI.
