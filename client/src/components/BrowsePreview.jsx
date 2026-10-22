@@ -10,7 +10,8 @@ export function browseText(value, depth = 0) {
   if (!text) return '';
   const fenced = text.match(/^```(?:json|text|markdown)?\s*\n([\s\S]*?)\n```$/i);
   if (fenced) text = fenced[1].trim();
-  text = text.replace(/^(?:saved response|response|result)\s*:\s*(?=[{"\[])/i, '');
+  const labelled = text.match(/^[\p{L}][\p{L}\p{N} _()/-]{0,47}:\s*([\s\S]+)$/u);
+  if (labelled && /^[{["]/.test(labelled[1])) return browseText(labelled[1], depth + 1);
   try {
     const parsed = JSON.parse(text);
     if (typeof parsed === 'string') return browseText(parsed, depth + 1);
@@ -44,8 +45,10 @@ export function browseExcerpt(value, limit = 150) {
   return /[.!?]$/.test(cut) ? cut : `${cut.replace(/[,:;.…]+$/, '')}…`;
 }
 function proseBlocks(value) {
-  return browseText(value).replace(/```[\s\S]*?```/g, '').split(/\n\s*\n|\n(?=\s*(?:[-*]\s+|\d+[.)]\s+))/)
-    .map(plainBrowseText).filter(Boolean);
+  return browseText(value).replace(/```[\s\S]*?```/g, '').split('\n').filter(line => {
+    const emphasis = line.trim().match(/^(\*\*|__)([^\n]+)\1$/);
+    return !emphasis || /[.!?]$/.test(emphasis[2].trim());
+  }).join('\n').split(/\n\s*\n|\n(?=\s*(?:[-*]\s+|\d+[.)]\s+))/).map(plainBrowseText).filter(Boolean);
 }
 export function browseSummary(note, limit = 150) {
   const explicit = plainBrowseText(note.summary);
@@ -63,7 +66,10 @@ function documentInstruction(text) {
   const description = /\b(?:document|report|specification|prd)\b[^.!?]*\b(?:describes?|outlines?|covers?|requirements?|implementation|presentation|details?)\b/i.test(thought);
   const processPreface = /^(?:begin|start|focus|think|consider)\b/i.test(thought) && /\b(?:situation|context|process|workflow|approach|scope)\b/i.test(thought);
   const documentLabel = /^(?:[\p{L}-]+\s+){0,4}(?:report|product specification|specification|prd)\.?$/iu.test(thought);
-  return (instruction && documentObject) || description || processPreface || documentLabel;
+  const administrativeContainer = /\b(?:document|file|pages?|report|specification|prd|appendix)\b/i.test(thought);
+  const administrativeContent = /\b(?:requirements?|background|references?|supporting (?:material|information)|contents?|revisions?|versions?)\b/i.test(thought);
+  const collectionDescription = /\b(?:collected|included|provided|contained|outlined|covered|described|documented|summari[sz]ed|set out)\b/i.test(thought);
+  return (instruction && documentObject) || description || processPreface || documentLabel || (administrativeContainer && administrativeContent && collectionDescription);
 }
 const comparable = value => plainBrowseText(value).toLocaleLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim();
 export function browseArtifact(note) {
@@ -77,7 +83,13 @@ export function browseArtifact(note) {
     const candidates = meaningful.flatMap(section => {
       const prose = proseBlocks(section.body);
       const rows = section.body.split('\n').filter(line => /^\s*\|/.test(line)).map(line => line.trim().replace(/^\||\|$/g, '').split('|').map(cell => cell.trim())).filter(row => !row.every(cell => /^[-: ]+$/.test(cell)));
-      return [...prose, ...(rows.length > 1 && !/^(?:state|status|version|owner|revision|created(?: at| by| on)?|updated(?: at| by| on)?|section|type)$/i.test(rows[0][0]) ? [rows[1].filter(Boolean).slice(0, 2).join(': ')] : [])];
+      const metadataHeader = /^(?:state|status|version|owner|revision|created(?: at| by| on)?|updated(?: at| by| on)?|section|type)$/i;
+      const actionColumn = rows[0]?.findIndex(cell => /^(?:(?:user|customer) )?(?:action|behaviou?r|task|step|interaction|support)$/i.test(cell)) ?? -1;
+      const attributes = /^(?:attribute|field|property)$/i.test(rows[0]?.[0] || '') && rows.slice(1).every(row => metadataHeader.test(row[0]));
+      const metadata = actionColumn < 0 && (metadataHeader.test(rows[0]?.[0] || '') || attributes);
+      const row = rows[1];
+      const tableCue = row && !metadata ? actionColumn > 0 ? row[actionColumn] : row.filter(Boolean).slice(0, 2).join(': ') : '';
+      return [...prose, ...(tableCue ? [tableCue] : [])];
     });
     candidates.push(...proseBlocks(text));
     for (const candidate of candidates.flatMap(value => value.split(/(?<=[.!?])\s+(?=[\p{Lu}\d])/u))) {

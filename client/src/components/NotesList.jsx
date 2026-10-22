@@ -104,11 +104,16 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
     if (pending || !pinFocusRef.current) return;
     const id = pinFocusRef.current;
     pinFocusRef.current = null;
-    requestAnimationFrame(() => {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
       const retained = document.getElementById(`pin-${id}`);
-      const fallback = document.querySelector('.original-note .browse-management > summary') || libraryTitleRef.current;
-      (retained || fallback)?.focus({ preventScroll: true });
-    });
+      if (retained) { retained.focus({ preventScroll: true }); return; }
+      const candidates = [...document.querySelectorAll('.original-note .browse-management > summary')];
+      const distance = node => Math.abs(node.getBoundingClientRect().top - window.innerHeight / 2);
+      const fallback = candidates.sort((left, right) => distance(left) - distance(right))[0] || libraryTitleRef.current;
+      fallback?.focus({ preventScroll: true });
+      const rect = fallback?.getBoundingClientRect();
+      if (rect && (rect.top < 8 || rect.bottom > window.innerHeight - 8)) fallback.scrollIntoView({ block: 'center', behavior: 'instant' });
+    }));
   }, [pending, notes]);
 
   const handleToggleArchive = async note => {
