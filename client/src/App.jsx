@@ -9,6 +9,8 @@ import { workflowUrl } from './runtimeConfig';
 // TODO[progress-md][P1][App] See progress.md for all open UI polish, loading, error, and browser test tasks
 
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { Dialog, DialogPanel, DialogTitle, Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
+import { savedText } from './components/NotePreview';
 import LoadingSpinner from './components/LoadingSpinner';
 import { supabase } from './supabaseClient';
 import { Routes, Route, useNavigate, Link } from 'react-router-dom';
@@ -55,8 +57,9 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
     const savedPersona = localStorage.getItem('userPersona');
     return savedPersona || "Innovator";
   });
-  const [showPersonaDropdown, setShowPersonaDropdown] = useState(false);
+  const personaButtonRef = useRef(null);
   const [showCustomPersonaModal, setShowCustomPersonaModal] = useState(false);
+  const closeCustomPersona = () => { setShowCustomPersonaModal(false); requestAnimationFrame(() => personaButtonRef.current?.focus()); };
   const [customPersonaName, setCustomPersonaName] = useState('');
   const [customPersonaGoals, setCustomPersonaGoals] = useState('');
   const [customPersonaIcon, setCustomPersonaIcon] = useState('🔮');
@@ -70,6 +73,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
   const [monologueText, setMonologueText] = useState('');
   const [monologueTitle, setMonologueTitle] = useState('');
   const [isSubmittingMonologue, setIsSubmittingMonologue] = useState(false);
+  const monologuePendingRef = useRef(false);
   const [monologueStatus, setMonologueStatus] = useState(null); // { type: 'success' | 'error', message: string }
   
   // Load custom personas from localStorage
@@ -152,17 +156,22 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
   };
 
   const handleMonologueSubmit = async (synthesizeIdea = false) => {
+    if (monologuePendingRef.current) return;
     if (!monologueText.trim()) {
       setMonologueStatus({ type: 'error', message: 'Please enter your monologue or idea text first.' });
       return;
     }
 
+    monologuePendingRef.current = true;
     setIsSubmittingMonologue(true);
     setMonologueStatus(null);
 
     const submitAction = async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData?.user?.id || authData.user.id !== effectiveUser?.id) throw new Error('Your current account could not be confirmed. Your text is kept.');
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
+      if (sessionError || !token || sessionData.session.user?.id !== authData.user.id) throw new Error('Your session could not be confirmed. Your text is kept.');
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -183,7 +192,11 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
         throw new Error(errJson.error || `Server responded with ${res.status}`);
       }
 
-      const createdIdea = await res.json();
+      const createdIdea = await res.json().catch(() => null);
+      const { data: currentAuth, error: currentAuthError } = await supabase.auth.getUser();
+      if (!createdIdea || Array.isArray(createdIdea) || typeof createdIdea.id !== 'string' || !/^idea_[A-Za-z0-9_-]+$/.test(createdIdea.id) || createdIdea.userId !== authData.user.id || createdIdea.success === false || ['title', 'summary', 'transcript', 'businessIdeaMarkdown'].some(key => createdIdea[key] != null && typeof createdIdea[key] !== 'string') || (createdIdea.tags != null && (!Array.isArray(createdIdea.tags) || createdIdea.tags.some(tag => typeof tag !== 'string'))) || currentAuthError || currentAuth?.user?.id !== authData.user.id || (synthesizeIdea && !savedText(createdIdea.businessIdeaMarkdown).trim())) {
+        throw new Error('Save could not be confirmed. Your text is kept; refresh before retrying.');
+      }
       
       const newFormattedNote = {
         id: createdIdea.id,
@@ -204,8 +217,8 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
       setMonologueStatus({
         type: 'success',
         message: synthesizeIdea
-          ? '🎉 Idea captured and structured!'
-          : '✅ Raw monologue captured! You can generate a business idea from it whenever you choose.'
+          ? 'Idea and report saved. Open it to read the result. Later development and management are not available for this text source here yet.'
+          : 'Note saved. Open it to read your original. Later development and management are not available for this text source here yet.'
       });
 
       return {
@@ -231,6 +244,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
       setMonologueStatus({ type: 'error', message: err.message || 'Failed to capture monologue.' });
     } finally {
       setIsSubmittingMonologue(false);
+      monologuePendingRef.current = false;
     }
   };
 
@@ -246,7 +260,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
       
       setCustomPersonas([...customPersonas, newPersona]);
       setSelectedPersona(newPersona.label);
-      setShowCustomPersonaModal(false);
+      closeCustomPersona();
       setCustomPersonaName('');
       setCustomPersonaGoals('');
       setCustomPersonaIcon('🔮');
@@ -293,30 +307,27 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                   <span className="mx-1">the</span>
                   
                   {/* Only the persona with its icon in the dropdown button */}
-                  <div className="relative">
-                    <button 
-                      onClick={() => setShowPersonaDropdown(!showPersonaDropdown)}
+                  <Popover className="relative">{({ open, close }) => <>
+                    <PopoverButton ref={personaButtonRef}
                       className="flex items-center text-white font-medium rounded-full px-3 py-1 transition-all duration-200 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10"
-                      aria-haspopup="listbox"
-                      aria-expanded={showPersonaDropdown}
                     >
                       <span className="mr-1">
                         {personas.find(p => p.label === selectedPersona)?.icon || '💡'}
                       </span>
                       <span className="font-semibold">{selectedPersona}</span>
                       <svg 
-                        className={`ml-1.5 h-4 w-4 transition-transform duration-300 ${showPersonaDropdown ? 'transform rotate-180' : ''}`} 
+                        className={`ml-1.5 h-4 w-4 transition-transform duration-300 ${open ? 'transform rotate-180' : ''}`}
                         fill="none" 
                         stroke="currentColor" 
                         viewBox="0 0 24 24"
                       >
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                       </svg>
-                    </button>
+                    </PopoverButton>
                     
                     {/* Dropdown content remains the same */}
-                    {showPersonaDropdown && (
-                      <div 
+                    {open && (
+                      <PopoverPanel static
                         className="absolute mt-2 w-64 right-0 origin-top-right animate-dropdown z-30"
                         onWheel={(e) => e.stopPropagation()}
                       >
@@ -338,7 +349,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                                   }`}
                                   onClick={() => {
                                     setSelectedPersona(persona.label);
-                                    setShowPersonaDropdown(false);
+                                    close();
                                   }}
                                   onMouseEnter={(e) => {
                                     // Create tooltip element
@@ -379,10 +390,11 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                                     </svg>
                                   )}
                                   
+                                </button>
                                   {/* Delete button for custom personas */}
                                   {persona.isCustom && (
                                     <button 
-                                      className="absolute right-2 top-2 text-gray-400 hover:text-red-500 p-1"
+                                      aria-label={`Delete persona ${persona.label}`} className="absolute right-2 top-2 text-gray-500 hover:text-red-600 p-1 min-h-11 min-w-11"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         deleteCustomPersona(persona.id);
@@ -393,7 +405,6 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                                       </svg>
                                     </button>
                                   )}
-                                </button>
                               </div>
                             ))}
                           </div>
@@ -404,7 +415,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                               className="w-full py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-md text-sm font-medium flex items-center justify-center transition-colors"
                               onClick={() => {
                                 setShowCustomPersonaModal(true);
-                                setShowPersonaDropdown(false);
+                                close();
                               }}
                             >
                               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -414,9 +425,9 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                             </button>
                           </div>
                         </div>
-                      </div>
+                      </PopoverPanel>
                     )}
-                  </div>
+                  </>}</Popover>
                 </div>
                 
                 {/* Integrations & Harness API Modal Button */}
@@ -462,14 +473,14 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                 </div>
                 {captureTab === 'voice' ? <VoiceRecorderCard onNoteSaved={onNoteSaved} footerText="Your original stays saved. Develop it when you’re ready." className="original-voice-card !mt-0 !mb-0" onStatusChange={status => { voiceStatusRef.current = status; setVoiceStatus(status); }} /> :
                   <div className="original-text-card dashboard-text">
-                    <h3>Write a note</h3><p className="dashboard-hint">Type or paste the rough thought. Develop it when you’re ready.</p>
+                    <h3>Write a note</h3><p className="dashboard-hint">Type or paste a rough thought. Save the original, or generate a report now. Later development and management of text notes are not available here yet.</p>
                     <label htmlFor="capture-title-input">Title <span>(optional)</span></label>
                     <input id="capture-title-input" value={monologueTitle} onChange={e => setMonologueTitle(e.target.value)} disabled={isSubmittingMonologue} placeholder="Give your idea a name" />
                     <label htmlFor="capture-idea-input">Your idea</label>
                     <textarea id="capture-idea-input" ref={ideaComposerRef} value={monologueText} onChange={e => setMonologueText(e.target.value)} disabled={isSubmittingMonologue} placeholder="What are you thinking about?" rows={6} />
                     <div className="original-text-actions"><button className="dashboard-primary" onClick={() => handleMonologueSubmit(false)} disabled={isSubmittingMonologue || !monologueText.trim()}>{isSubmittingMonologue ? 'Saving…' : 'Save note'}</button>
                     <button className="dashboard-secondary" onClick={() => handleMonologueSubmit(true)} disabled={isSubmittingMonologue || !monologueText.trim()}><SparklesIcon aria-hidden="true" />Generate business idea</button></div>
-                    <p className="dashboard-hint">Saving and developing never feature an idea automatically.</p>
+                    <p className="dashboard-hint">Saving or generating never pins an idea automatically.</p>
                   </div>}
                 {monologueStatus && <p role={monologueStatus.type === 'error' ? 'alert' : 'status'} className={`capture-feedback ${monologueStatus.type}`}>{monologueStatus.message}</p>}
               </section>} />
@@ -479,14 +490,15 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
 
       {!effectiveUser && <LandingPage />}
 
-      {showCustomPersonaModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-dropdown">
+      <Dialog open={showCustomPersonaModal} onClose={closeCustomPersona} className="persona-dialog relative z-50">
+        <div className="fixed inset-0 bg-black/50" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center p-4 overflow-y-auto">
+          <DialogPanel className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="font-medium text-lg text-gray-900">Create Your Own Persona</h3>
+              <DialogTitle className="font-medium text-lg text-gray-900">Create Your Own Persona</DialogTitle>
               <button 
-                onClick={() => setShowCustomPersonaModal(false)}
-                className="text-gray-400 hover:text-gray-500"
+                onClick={closeCustomPersona}
+                aria-label="Close persona dialog" className="text-gray-500 hover:text-gray-700 min-h-11 min-w-11 flex items-center justify-center"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -501,7 +513,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                 </label>
                 <input
                   type="text"
-                  id="personaName"
+                  id="personaName" data-autofocus
                   placeholder="e.g., UX Specialist"
                   value={customPersonaName}
                   onChange={(e) => setCustomPersonaName(e.target.value)}
@@ -513,12 +525,13 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Choose Icon
                 </label>
-                <div className="grid grid-cols-8 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {["🔮", "🎯", "🧠", "🌟", "📈", "🛠️", "🧩", "✨"].map(icon => (
                     <button
                       key={icon}
                       type="button"
-                      className={`h-10 w-10 flex items-center justify-center text-xl rounded-md ${
+                      aria-label={`Choose ${icon} icon`} aria-pressed={customPersonaIcon === icon}
+                      className={`min-h-11 min-w-0 w-full flex items-center justify-center text-xl rounded-md ${
                         customPersonaIcon === icon 
                           ? 'bg-indigo-100 border-2 border-indigo-500' 
                           : 'bg-gray-100 hover:bg-gray-200'
@@ -548,7 +561,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
               <div className="flex justify-end space-x-2.5">
                 <button
                   type="button"
-                  onClick={() => setShowCustomPersonaModal(false)}
+                  onClick={closeCustomPersona}
                   className="px-4 py-1.5 rounded-full border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition cursor-pointer"
                 >
                   Cancel
@@ -565,9 +578,9 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
                 </button>
               </div>
             </div>
-          </div>
+          </DialogPanel>
         </div>
-      )}
+      </Dialog>
 
       <footer className="bg-slate-900 text-white py-8 px-4 md:px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center">
@@ -949,7 +962,8 @@ function FullIdeaPage({ user, session }) {
     }
   };
 
-  const verdict = reportSummary?.brutalTruth?.verdict || 'EVALUATING DEMAND';
+  const savedFact = value => typeof value === 'string' ? value.trim() : typeof value === 'number' && Number.isFinite(value) ? String(value) : '';
+  const verdict = savedFact(reportSummary?.brutalTruth?.verdict);
   const isStrongBuild = verdict.includes('STRONG') || verdict.includes('HIGH CONFIDENCE');
   const isTrapOrRisk = verdict.includes('TRAP') || verdict.includes('RISK') || verdict.includes('WARNING');
   const verdictStyle = isStrongBuild 
@@ -958,7 +972,13 @@ function FullIdeaPage({ user, session }) {
     ? 'bg-rose-50 text-rose-800 border-rose-300'
     : 'bg-amber-50 text-amber-800 border-amber-300';
 
-  const categoryName = reportSummary?.marketPosition || 'AI Engineering Venture';
+  const categoryName = savedFact(reportSummary?.marketPosition);
+  const savedVitals = [
+    ['Viability grade', [savedFact(reportSummary?.brutalTruth?.score), savedFact(reportSummary?.brutalTruth?.grade)].filter(Boolean).join(' · ')],
+    ['Primary audience', savedFact(reportSummary?.persona?.label)],
+    ['Execution loop', savedFact(reportSummary?.scorecard?.executionDifficulty)],
+    ['Distribution wedge', savedFact(reportSummary?.scorecard?.gtmScore)],
+  ].filter(([, value]) => value !== '');
   const ideaTitle = note ? extractTitle(note) : 'Loading idea...';
 
   return (
@@ -1090,18 +1110,18 @@ function FullIdeaPage({ user, session }) {
             {/* Sector, Verdict, and TAM badges */}
             <div className="flex flex-wrap items-center gap-2.5">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
-                {categoryName}
+                {categoryName || (savedText(note?.business_idea).trim() ? 'Developed idea' : 'Capture')}
               </span>
               
-              <span className={`inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider border shadow-xs ${verdictStyle}`}>
+              {verdict && <span className={`inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider border shadow-xs ${verdictStyle}`}>
                 <span>{isStrongBuild ? '🔥' : isTrapOrRisk ? '💀' : '⚡'}</span>
                 <span>{verdict}</span>
-              </span>
+              </span>}
 
-              {reportSummary?.tam && (
+              {savedFact(reportSummary?.tam) !== '' && (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
                   <span className="text-[10px] uppercase font-bold text-slate-500">TAM:</span>
-                  <span>{reportSummary.tam}</span>
+                  <span>{savedFact(reportSummary.tam)}</span>
                 </span>
               )}
 
@@ -1117,34 +1137,7 @@ function FullIdeaPage({ user, session }) {
               {ideaTitle}
             </h1>
 
-            {/* Quick Vital Signs Ribbon */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-1">
-              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Viability Grade</span>
-                <span className="text-xs sm:text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
-                  <span className="text-emerald-500 font-black">●</span>
-                  <span>{reportSummary?.brutalTruth?.score || '8.8/10'} ({reportSummary?.brutalTruth?.grade || 'Strong Build'})</span>
-                </span>
-              </div>
-              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Primary Audience</span>
-                <span className="text-xs sm:text-sm font-extrabold text-slate-900 truncate block" title={reportSummary?.persona?.label}>
-                  {reportSummary?.persona?.label || 'Indie Creators'}
-                </span>
-              </div>
-              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Execution Loop</span>
-                <span className="text-xs sm:text-sm font-extrabold text-slate-900 truncate block">
-                  {reportSummary?.scorecard?.executionDifficulty || 'Weekend Prototype'}
-                </span>
-              </div>
-              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Distribution Wedge</span>
-                <span className="text-xs sm:text-sm font-extrabold text-slate-900 truncate block">
-                  High Organic Pull (Zero-CAC)
-                </span>
-              </div>
-            </div>
+            {savedVitals.length > 0 && <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-1">{savedVitals.map(([label, value]) => <div key={label} className="bg-slate-50 border border-slate-200 rounded-xl p-3"><dt className="text-xs font-medium text-slate-500 mb-1">{label}</dt><dd className="text-sm font-semibold text-slate-900">{value}</dd></div>)}</dl>}
 
             {/* Founder Elevator Pitch Callout */}
             {(reportSummary?.elevatorPitch || note?.summary) && (
@@ -1153,7 +1146,7 @@ function FullIdeaPage({ user, session }) {
                   <SparklesIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-amber-900 mb-1">Founder Elevator Pitch & Wedge</div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-amber-900 mb-1">{reportSummary?.elevatorPitch ? 'Saved elevator pitch' : 'Saved summary'}</div>
                   <p className="font-medium text-slate-800 m-0 leading-relaxed">
                     {reportSummary?.elevatorPitch || note?.summary}
                   </p>

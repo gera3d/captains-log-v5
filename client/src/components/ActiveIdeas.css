@@ -51,3 +51,36 @@
  .active-capture-original { font-size:16px; line-height:27px; }
  .active-ideas-state { padding:24px; }
 }
+/* The selected lead is one saved-work surface, not a peer paragraph pair. */
+.active-idea-card::before { display:none; }
+.active-idea-card.is-lead { padding:22px 24px 0; border-radius:18px; background:#fff; }
+.active-lead-title { font-size:27px; line-height:34px; }
+.active-lead-summary { margin-top:12px; padding:0; font-size:15px; line-height:24px; max-width:65ch; }
+.active-idea-card>.saved-artifact { margin:20px -24px 0; padding:18px 24px; border-left:0; border-top:1px solid #dbe3ee; }
+.active-idea-card .saved-artifact-sections { grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+.active-idea-card .saved-artifact-sections>section+section { border-left:1px solid #dbe3ee; padding-left:20px; }
+.active-idea-footer { border-top:1px solid #e2e8f0; margin:0 -24px; padding:12px 24px; border-radius:0 0 18px 18px; }
+.active-idea-card.is-capture .active-idea-footer { margin-top:18px; }
+.active-idea-card.is-support { padding:16px 20px; border-radius:12px; }
+.active-support-body { grid-template-columns:minmax(0,1fr) 16px; gap:12px; }
+.active-support-body h3 { grid-column:1; font-size:18px; line-height:25px; }
+.active-support-body>div { grid-column:1; }
+.active-support-arrow { grid-column:2; grid-row:1; }
+.active-support-body .active-idea-availability { margin-top:8px; }
+@media(min-width:701px) and (max-width:1099px) {
+ .active-idea-card.is-lead { padding:20px 20px 0; }
+ .active-lead-title { font-size:24px; line-height:31px; }
+ .active-idea-card>.saved-artifact { margin-left:-20px; margin-right:-20px; padding:16px 20px; }
+ .active-idea-card .saved-artifact-sections { grid-template-columns:minmax(0,1fr); gap:14px; }
+ .active-idea-card .saved-artifact-sections>section+section { border-left:0; padding-left:0; border-top:1px solid #dbe3ee; padding-top:12px; }
+ .active-idea-footer { margin-left:-20px; margin-right:-20px; padding:12px 20px; }
+}
+@media(max-width:700px) {
+ .active-idea-card.is-lead { padding:20px 20px 0; }
+ .active-lead-title { font-size:24px; line-height:31px; }
+ .active-idea-card>.saved-artifact { margin-left:-20px; margin-right:-20px; padding:18px 20px; }
+ .active-idea-card .saved-artifact-sections { grid-template-columns:minmax(0,1fr); gap:16px; }
+ .active-idea-card .saved-artifact-sections>section+section { border-left:0; padding-left:0; }
+ .active-idea-footer { margin-left:-20px; margin-right:-20px; padding:12px 20px; }
+ .active-support-body { grid-template-columns:minmax(0,1fr); }
+}

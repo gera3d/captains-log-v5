@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import ActiveIdeas from './ActiveIdeas';
 import IdeaIdentity from './IdeaIdentity';
+import SavedArtifactPreview from './SavedArtifactPreview';
 import remarkGfm from 'remark-gfm';
 import { ideaMarkdownComponents } from '../utils/ideaMarkdownComponents';
 import { savedText, formatDuration, ReportBadges, RecordingPlayer } from './NotePreview';
@@ -14,6 +15,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useGeneration } from '../contexts/GenerationContext';
 import { extractTitle, extractSummary } from '../utils/extractTitle';
 
+const hasReport = note => Boolean(savedText(note.business_idea).trim());
 const isArchived = note => note.archived === true || note.archived === 'true' || note.status === 'archived';
 
 export default function NotesList({ notes = [], setNotes, loadingNotes = false, notesError = null, onReloadNotes, onRecord, onWrite, capture }) {
@@ -45,8 +47,8 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
   const query = search.trim().toLocaleLowerCase();
   const activeNotes = notes.filter(note => !isArchived(note));
   const isFeatured = note => note.is_featured === true || note.is_featured === 'true';
-  const captures = activeNotes.filter(note => !note.business_idea?.trim());
-  const ideas = activeNotes.filter(note => note.business_idea?.trim());
+  const captures = activeNotes.filter(note => !hasReport(note));
+  const ideas = activeNotes.filter(note => hasReport(note));
   const featuredNotes = activeNotes.filter(isFeatured);
   const archivedNotes = notes.filter(isArchived);
   const views = [
@@ -88,7 +90,7 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
       if (error || !data || data.id !== note.id || data.archived !== archived || data.status !== (archived ? 'archived' : 'active')) throw new Error('The change could not be confirmed. Refresh the library, then retry.');
       setNotes(previous => previous.map(row => row.id === note.id ? { ...row, archived, status: archived ? 'archived' : 'active' } : row));
       setFocusAfterMutation(true);
-      setFeedback({ type: 'success', text: `“${extractTitle(note)}” ${archived ? 'archived. Find it in Archived.' : `restored to ${note.business_idea?.trim() ? 'Ideas' : 'Captures'}.`}` });
+      setFeedback({ type: 'success', text: `“${extractTitle(note)}” ${archived ? 'archived. Find it in Archived.' : `restored to ${hasReport(note) ? 'Ideas' : 'Captures'}.`}` });
     } catch (error) {
       setFeedback({ type: 'error', text: `${archived ? 'Archive' : 'Restore'} failed. ${error.message}` });
     } finally {
@@ -154,7 +156,7 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
     }
   };
 
-  const noteIdentity = note => <IdeaIdentity developed={Boolean(savedText(note.business_idea).trim())} pinned={isFeatured(note)} voice={Boolean(note.audio_url || formatDuration(note.duration))} />;
+  const noteIdentity = note => <IdeaIdentity developed={hasReport(note)} pinned={isFeatured(note)} voice={Boolean(note.audio_url || formatDuration(note.duration))} />;
   const noteMeta = note => {
     const date = new Date(note.created_at || note.createdAt);
     const voice = Boolean(note.audio_url || formatDuration(note.duration));
@@ -170,16 +172,19 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
     const transcript = savedText(note.transcript || note.transcription);
     const summary = extractSummary({ ...note, business_idea: report }) || transcript;
     return <article key={note.id} className={`original-note ${report.trim() ? 'is-developed' : 'is-capture'}`} aria-labelledby={`note-${note.id}`}>
+      <div className="original-note-composition"><div className="original-note-content">
       {noteIdentity(note)}
-      <div className="original-note-heading"><div><div className="original-note-title"><h3 id={`note-${note.id}`}><Link to={`/idea/${note.id}`}>{title}</Link></h3></div>{noteMeta(note)}</div><Link className={`original-open ${!report && transcript && ownsNote(note) && !isArchived(note) ? 'is-secondary' : ''}`} to={`/idea/${note.id}`} aria-label={`Open ${title}`}>Open note<ChevronRightIcon aria-hidden="true" /></Link></div>
-      {summary && <p className="original-note-summary">{summary}</p>}
+      <div className="original-note-heading"><div><div className="original-note-title"><h3 id={`note-${note.id}`}><Link to={`/idea/${note.id}`}>{title}</Link></h3></div>{noteMeta(note)}</div></div>
+      {(report ? summary : transcript || summary) && <p className="original-note-summary">{report ? summary : transcript || summary}</p>}
       <div className="original-report-context"><ReportBadges text={report} />{note.prd_content?.trim() && <span className="original-artifact"><DocumentCheckIcon aria-hidden="true" />Product spec saved</span>}</div>
-      <div className="original-disclosures">
+      <Link className={`original-open ${!report && transcript && ownsNote(note) && !isArchived(note) ? 'is-secondary' : ''}`} to={`/idea/${note.id}`} aria-label={`Open ${title}`}>Open note<ChevronRightIcon aria-hidden="true" /></Link>
+      </div>{report && <SavedArtifactPreview note={note} preferSpec omitText={summary} />}</div>
+      <div className="original-note-footer"><div className="original-disclosures">
         {report && <details className="original-report"><summary><BookOpenIcon aria-hidden="true" />Read report<ChevronRightIcon className="original-disclosure-arrow" aria-hidden="true" /></summary><div className="prose prose-sm prose-slate max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]} components={ideaMarkdownComponents}>{report}</ReactMarkdown></div></details>}
         {transcript && <details className="original-transcript"><summary><DocumentTextIcon aria-hidden="true" />{note.audio_url || formatDuration(note.duration) ? 'Transcript' : 'Original note'}<ChevronRightIcon className="original-disclosure-arrow" aria-hidden="true" /></summary><p>{transcript}</p></details>}
       </div>
       <RecordingPlayer note={note} title={title} />
-      {!report && transcript && <p className="original-next-step">Keep this as a note, or develop it into a structured idea when you’re ready.</p>}
+      {!report && transcript && <p className="original-next-step">{ownsNote(note) && !isArchived(note) ? 'Keep this as a note, or choose Develop idea for a structured report.' : 'Your original is saved. Later development is not available for this source here yet.'}</p>}
       <div className="original-note-actions">
         {ownsNote(note) && !report && transcript && !isArchived(note) && <button className="original-develop" onClick={() => handleGenerateIdea(note)} disabled={pending !== null || loadingIdea[note.id]}><SparklesIcon aria-hidden="true" />{loadingIdea[note.id] ? 'Generating…' : 'Develop idea'}</button>}
         <button className={isFeatured(note) ? 'original-feature-action is-featured' : 'original-feature-action'} onClick={() => handleFeature(note)} disabled={pending !== null || !canFeature(note)} aria-label={`${isFeatured(note) ? 'Unpin' : 'Pin'} ${title}`}><BookmarkIcon aria-hidden="true" />{isFeatured(note) ? 'Unpin' : 'Pin'}</button>
@@ -187,6 +192,7 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
         <button className="original-delete" onClick={() => { setDeleteError(null); setDeleteTarget(note); }} disabled={pending !== null || !canDelete(note)} aria-label={`Delete ${title}`}><TrashIcon aria-hidden="true" />{canDelete(note) ? 'Delete' : 'Delete unavailable'}</button>
       </div>
       {!canArchive(note) && <p className="original-unavailable">Management isn’t available for this idea here yet. You can still open and read it.</p>}
+      </div>
     </article>;
   };
   const showLibrary = nextView => {

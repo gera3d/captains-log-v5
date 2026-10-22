@@ -5,6 +5,7 @@ import { DocumentTextIcon, BookOpenIcon, DocumentCheckIcon, ChevronRightIcon, Mi
 import { savedText, formatDuration } from './NotePreview';
 import { extractTitle, extractSummary } from '../utils/extractTitle';
 import IdeaIdentity from './IdeaIdentity';
+import SavedArtifactPreview from './SavedArtifactPreview';
 import './ActiveIdeas.css';
 
 const archived = note => note.archived === true || note.archived === 'true' || note.status === 'archived';
@@ -23,28 +24,6 @@ function savedPreview(note) {
   const summary = extractSummary({ business_idea: report });
   return { label: 'From the report', text: excerpt(summary), report: true };
 }
-function documentSection(note, summary) {
-  const report = savedText(note.business_idea).trim();
-  const comparable = text => text.replace(/[*_#>]/g, '').replace(/elevator pitch\s*:/ig, '').replace(/\s+/g, ' ').trim().toLowerCase();
-  const headings = [...report.matchAll(/^#{1,6}\s+(.+)$/gm)];
-  for (let index = 0; index < headings.length; index++) {
-    const match = headings[index];
-    if (!match[0].startsWith('##') || /sources|limits|keywords|might search/i.test(match[1])) continue;
-    const body = report.slice(match.index + match[0].length, headings[index + 1]?.index ?? report.length).trim();
-    const blocks = body.split(/\n\s*\n/).filter(block => block.trim() && !/^\s*\|/m.test(block));
-    const block = blocks.find(value => comparable(value) !== comparable(summary));
-    if (!block) continue;
-    const bullets = block.split(/\n(?=\s*[-*]\s)/).filter(Boolean);
-    let text = bullets.slice(0, 1).join('\n').trim();
-    if (text.split(/\s+/).length > 80) {
-      const sentence = text.match(/^[\s\S]{1,450}?[.!?](?=\s|$)/)?.[0];
-      text = sentence || excerpt(text);
-    }
-    if (!text || comparable(text) === comparable(summary)) continue;
-    return { heading: match[1].replace(/[*_]/g, '').trim(), text };
-  }
-  return null;
-}
 const Reading = ({ children }) => <ReactMarkdown allowedElements={['p','strong','em','ul','ol','li','blockquote']} unwrapDisallowed>{children}</ReactMarkdown>;
 function Availability({ note }) {
   const report = Boolean(savedText(note.business_idea).trim());
@@ -61,15 +40,12 @@ export default function ActiveIdeas({ notes, userId, loading, error, onChoose, o
         const lead = index === 0;
         const preview = savedPreview(note);
         const summary = extractSummary({ ...note, business_idea: savedText(note.business_idea), transcript: savedText(note.transcript || note.transcription) }) || preview.text;
-        const section = lead && preview.report ? documentSection(note, preview.text) : null;
         return <Link className={`active-idea-card ${lead ? 'is-lead' : 'is-support'} ${preview.report ? 'is-developed' : 'is-capture'}`} key={note.id} to={`/idea/${note.id}`} aria-label={`Open active idea ${extractTitle(note)}`}>
           <IdeaIdentity developed={preview.report} pinned={featured(note)} voice={Boolean(note.audio_url || formatDuration(note.duration))} />
           {lead ? <>
             <h3 className="active-lead-title">{extractTitle(note)}</h3>
-            {preview.report ? (section || preview.text) && <div className={`active-lead-body ${section ? 'has-document' : 'single-document'}`}>
-              {section && preview.text && <div className="active-lead-summary"><Reading>{preview.text}</Reading></div>}
-              <div className="active-report-pane">{section && <h4>{section.heading}</h4>}<Reading>{section?.text || preview.text}</Reading></div>
-            </div> : preview.text && <div className="active-capture-original"><Reading>{preview.text}</Reading></div>}
+            {preview.text && <div className={preview.report ? 'active-lead-summary' : 'active-capture-original'}><Reading>{preview.text}</Reading></div>}
+            {preview.report && <SavedArtifactPreview note={note} omitText={preview.text} />}
             <div className="active-idea-footer"><Availability note={note} /><span className="active-idea-open">Open idea<ChevronRightIcon aria-hidden="true" /></span></div>
           </> : <div className="active-support-body"><h3>{extractTitle(note)}</h3><div><p className="active-idea-summary">{excerpt(summary)}</p><Availability note={note} /></div><ChevronRightIcon className="active-support-arrow" aria-hidden="true" /></div>}
         </Link>;
