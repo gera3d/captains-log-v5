@@ -601,6 +601,7 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
 function FullIdeaPage({ user, session }) {
   const { id } = useParams();
   const [note, setNote] = useState(null);
+  const savedReportRef = useRef(null);
   const canDevelopNote = Boolean(user?.id && note?.user_id === user.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(note.id));
   const [copied, setCopied] = useState('');
   const [generatingPRD, setGeneratingPRD] = useState(false);
@@ -613,12 +614,13 @@ function FullIdeaPage({ user, session }) {
   const [showMoreActions, setShowMoreActions] = useState(false);
 
   const reportSummary = useMemo(
-    () => parseIdeaReportSummary(note?.business_idea),
-    [note?.business_idea]
+    () => parseIdeaReportSummary(note?.id === id ? (savedReportRef.current?.id === id ? savedReportRef.current.value : note.business_idea) : null),
+    [note, id]
   );
 
   useEffect(() => {
     const fetchNote = async () => {
+      savedReportRef.current = null;
       // 1. Direct fetch from API for ambient harness ideas (avoids invalid postgres UUID/bigint query)
       if (String(id).startsWith('idea_')) {
         try {
@@ -654,6 +656,7 @@ function FullIdeaPage({ user, session }) {
               audio_url: apiIdea.audio_url || apiIdea.audioUrl || null,
               created_at: apiIdea.createdAt
             };
+            savedReportRef.current = { id: loaded.id, value: apiIdea.businessIdeaMarkdown || '' };
             setNote(loaded);
             if (apiIdea.prdContent) {
               setPrdContent(apiIdea.prdContent);
@@ -706,6 +709,7 @@ function FullIdeaPage({ user, session }) {
               audio_url: apiIdea.audio_url || apiIdea.audioUrl || null,
               created_at: apiIdea.createdAt
             };
+            savedReportRef.current = { id: loaded.id, value: apiIdea.businessIdeaMarkdown || '' };
             setNote(loaded);
             if (apiIdea.prdContent) {
               setPrdContent(apiIdea.prdContent);
@@ -717,6 +721,7 @@ function FullIdeaPage({ user, session }) {
         }
       }
       else {
+        const savedReportSource = data?.business_idea;
         if (data?.business_idea) {
           let idea = data.business_idea.trim();
           try {
@@ -754,6 +759,7 @@ function FullIdeaPage({ user, session }) {
           setPrdContent(data.prd_content);
         }
         
+        savedReportRef.current = { id: data?.id, value: savedReportSource };
         setNote(data);
       }
     };
@@ -857,6 +863,7 @@ function FullIdeaPage({ user, session }) {
           if (saveError || savedIdea?.id !== note.id || savedIdea.business_idea !== idea) {
             throw new Error('The generated idea could not be saved. Please retry.');
           }
+          savedReportRef.current = { id: note.id, value: idea };
           setNote(prev => ({ ...prev, business_idea: idea, title: extractedTitle || prev.title, summary: extractedSummary || prev.summary }));
           setActiveTab('cockpit');
 
