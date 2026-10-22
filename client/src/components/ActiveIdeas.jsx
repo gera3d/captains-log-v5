@@ -32,7 +32,7 @@ export default function ActiveIdeas({ notes, userId, loading, error, onChoose, o
       <div className="active-idea-gallery">{visible.map((note, index) => {
         const lead = index === 0;
         const preview = savedPreview(note);
-        const summary = browseSummary(note, lead ? 115 : 85) || browseExcerpt(preview.text, lead ? 115 : 85);
+        const summary = browseSummary(note, lead ? 150 : 105) || browseExcerpt(preview.text, lead ? 150 : 105);
         const artifact = browseArtifact(note);
         return <div className="active-idea-entry" key={note.id}><Link id={`active-${note.id}`} onClick={onOpen} state={{ libraryUserId }} className={`active-idea-card ${lead ? 'is-lead' : 'is-support'} ${preview.report ? 'is-developed' : 'is-capture'}`} key={note.id} to={`/idea/${note.id}`} aria-label={`Open active idea ${extractTitle(note)}`}>
           <IdeaIdentity developed={preview.report} pinned={featured(note)} voice={Boolean(note.audio_url || formatDuration(note.duration))} />
