@@ -7,6 +7,7 @@ import remarkGfm from 'remark-gfm';
 import { ideaMarkdownComponents } from '../utils/ideaMarkdownComponents';
 import { savedText, formatDuration, ReportBadges, RecordingPlayer } from './NotePreview';
 import { Link } from 'react-router-dom';
+import { readLibraryContext, saveLibraryContext, clearLibraryContext } from '../utils/libraryContext';
 import { Dialog, DialogPanel, DialogTitle, Description } from '@headlessui/react';
 import { MagnifyingGlassIcon, ArchiveBoxIcon, ArrowUturnLeftIcon, TrashIcon, SparklesIcon, MicrophoneIcon, LightBulbIcon, BookmarkIcon, Squares2X2Icon, DocumentTextIcon, DocumentCheckIcon, BookOpenIcon, ChevronRightIcon, PencilSquareIcon } from '@heroicons/react/16/solid';
 import { supabase } from '../supabaseClient';
@@ -19,8 +20,30 @@ const hasReport = note => Boolean(savedText(note.business_idea).trim());
 const isArchived = note => note.archived === true || note.archived === 'true' || note.status === 'archived';
 
 export default function NotesList({ notes = [], setNotes, loadingNotes = false, notesError = null, onReloadNotes, onRecord, onWrite, capture }) {
-  const [view, setView] = useState('workspace');
-  const [search, setSearch] = useState('');
+  const { user } = useAuth();
+  const initialContext = useRef(readLibraryContext(user?.id));
+  const [view, setView] = useState(initialContext.current?.view || 'workspace');
+  const [search, setSearch] = useState(initialContext.current?.search || '');
+  const restoreContext = useRef(initialContext.current);
+  const pinFocusRef = useRef(null);
+  useEffect(() => {
+    const context = readLibraryContext(user?.id);
+    setView(context?.view || 'workspace'); setSearch(context?.search || '');
+    restoreContext.current = context;
+  }, [user?.id]);
+  useEffect(() => {
+    if (loadingNotes || !restoreContext.current) return;
+    const context = restoreContext.current;
+    const frame = requestAnimationFrame(() => requestAnimationFrame(() => {
+      for (const id of context.disclosures || []) { const details = document.getElementById(id); if (details?.tagName === 'DETAILS') details.open = true; }
+      const origin = context.focus && document.getElementById(context.focus);
+      if (origin) { window.scrollTo({ top: context.scroll, behavior: 'instant' }); origin.focus({ preventScroll: true }); }
+      restoreContext.current = null;
+      clearLibraryContext(user?.id);
+    }));
+    return () => cancelAnimationFrame(frame);
+  }, [loadingNotes, notes, view, search]);
+  const rememberOpen = event => saveLibraryContext(user?.id, { view, search, focus: event.currentTarget.id, disclosures: [...document.querySelectorAll('.original-note details[open][id]')].map(item => item.id) });
   const [loadingIdea, setLoadingIdea] = useState({});
   const [pending, setPending] = useState(null);
   const pendingRef = useRef(false);
@@ -38,7 +61,6 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
     return () => cancelAnimationFrame(frame);
   }, [deleteTarget, focusAfterMutation]);
   const [deleteError, setDeleteError] = useState(null);
-  const { user } = useAuth();
   const ownsNote = note => note?.recordSource === 'voice_notes' && note.user_id === user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(note.id);
   const canDelete = note => ownsNote(note) && note.mirrorCheck === 'no-owned-mirror-seen';
   const canArchive = note => ownsNote(note) && note.mirrorCheck === 'no-owned-mirror-seen';
@@ -72,11 +94,22 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
       const { data, error } = await supabase.from('voice_notes').update({ is_featured: featured }).eq('id', note.id).eq('user_id', user.id).select('id,is_featured').single();
       if (error || data?.id !== note.id || data.is_featured !== featured) throw new Error('The pin change could not be confirmed. Please retry.');
       setNotes(previous => previous.map(row => row.id === note.id ? { ...row, is_featured: featured } : row));
-      if (view === 'workspace' || (view === 'featured' && !featured)) setFocusAfterMutation(true);
+      pinFocusRef.current = note.id;
       setFeedback({ type: 'success', text: `“${extractTitle(note)}” ${featured ? 'pinned.' : 'unpinned.'}` });
     } catch (error) { setFeedback({ type: 'error', text: error.message }); }
     finally { setPending(null); pendingRef.current = false; }
   };
+
+  useEffect(() => {
+    if (pending || !pinFocusRef.current) return;
+    const id = pinFocusRef.current;
+    pinFocusRef.current = null;
+    requestAnimationFrame(() => {
+      const retained = document.getElementById(`pin-${id}`);
+      const fallback = document.querySelector('.original-note .original-feature-action') || libraryTitleRef.current;
+      (retained || fallback)?.focus({ preventScroll: true });
+    });
+  }, [pending, notes]);
 
   const handleToggleArchive = async note => {
     if (pendingRef.current) return;
@@ -174,20 +207,20 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
     return <article key={note.id} className={`original-note ${report.trim() ? 'is-developed' : 'is-capture'}`} aria-labelledby={`note-${note.id}`}>
       <div className="original-note-composition"><div className="original-note-content">
       {noteIdentity(note)}
-      <div className="original-note-heading"><div><div className="original-note-title"><h3 id={`note-${note.id}`}><Link to={`/idea/${note.id}`}>{title}</Link></h3></div>{noteMeta(note)}</div></div>
+      <div className="original-note-heading"><div><div className="original-note-title"><h3 id={`note-${note.id}`}><Link id={`title-${note.id}`} onClick={rememberOpen} state={{ libraryUserId: user?.id }} to={`/idea/${note.id}`}>{title}</Link></h3></div>{noteMeta(note)}</div></div>
       {(report ? summary : transcript || summary) && <p className="original-note-summary">{report ? summary : transcript || summary}</p>}
       <div className="original-report-context"><ReportBadges text={report} />{note.prd_content?.trim() && <span className="original-artifact"><DocumentCheckIcon aria-hidden="true" />Product spec saved</span>}</div>
-      <Link className={`original-open ${!report && transcript && ownsNote(note) && !isArchived(note) ? 'is-secondary' : ''}`} to={`/idea/${note.id}`} aria-label={`Open ${title}`}>Open note<ChevronRightIcon aria-hidden="true" /></Link>
-      </div>{report && <SavedArtifactPreview note={note} preferSpec omitText={summary} />}</div>
+      <Link className={`original-open ${!report && transcript && ownsNote(note) && !isArchived(note) ? 'is-secondary' : ''}`} id={`open-${note.id}`} onClick={rememberOpen} state={{ libraryUserId: user?.id }} to={`/idea/${note.id}`} aria-label={`Open ${title}`}>Open note<ChevronRightIcon aria-hidden="true" /></Link>
+      </div>{report && <SavedArtifactPreview note={note} preferSpec omitText={summary} action={savedText(note.prd_content).trim() ? <Link className="original-preview-open" aria-label={`Open product spec for ${title}`} id={`spec-${note.id}`} onClick={rememberOpen} state={{ libraryUserId: user?.id }} to={`/idea/${note.id}?artifact=spec`}>Open<ChevronRightIcon aria-hidden="true" /></Link> : null} />}</div>
       <div className="original-note-footer"><div className="original-disclosures">
-        {report && <details className="original-report"><summary><BookOpenIcon aria-hidden="true" />Read report<ChevronRightIcon className="original-disclosure-arrow" aria-hidden="true" /></summary><div className="prose prose-sm prose-slate max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]} components={ideaMarkdownComponents}>{report}</ReactMarkdown></div></details>}
-        {transcript && <details className="original-transcript"><summary><DocumentTextIcon aria-hidden="true" />{note.audio_url || formatDuration(note.duration) ? 'Transcript' : 'Original note'}<ChevronRightIcon className="original-disclosure-arrow" aria-hidden="true" /></summary><p>{transcript}</p></details>}
+        {report && <details id={`inline-report-${note.id}`} className="original-report"><summary><BookOpenIcon aria-hidden="true" />Read report<ChevronRightIcon className="original-disclosure-arrow" aria-hidden="true" /></summary><div className="original-report-reading"><Link id={`report-${note.id}`} onClick={rememberOpen} state={{ libraryUserId: user?.id }} to={`/idea/${note.id}?artifact=report`}>Open report page<ChevronRightIcon aria-hidden="true" /></Link><div className="prose prose-sm prose-slate max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]} components={ideaMarkdownComponents}>{report}</ReactMarkdown></div><button className="original-close-report" onClick={event => { const details = event.currentTarget.closest('details'); details.open = false; details.querySelector('summary').focus(); }}>Close report</button></div></details>}
+        {transcript && <details id={`inline-original-${note.id}`} className="original-transcript"><summary><DocumentTextIcon aria-hidden="true" />{note.audio_url || formatDuration(note.duration) ? 'Transcript' : 'Original note'}<ChevronRightIcon className="original-disclosure-arrow" aria-hidden="true" /></summary><p>{transcript}</p></details>}
       </div>
       <RecordingPlayer note={note} title={title} />
       {!report && transcript && <p className="original-next-step">{ownsNote(note) && !isArchived(note) ? 'Keep this as a note, or choose Develop idea for a structured report.' : 'Your original is saved. Later development is not available for this source here yet.'}</p>}
       <div className="original-note-actions">
         {ownsNote(note) && !report && transcript && !isArchived(note) && <button className="original-develop" onClick={() => handleGenerateIdea(note)} disabled={pending !== null || loadingIdea[note.id]}><SparklesIcon aria-hidden="true" />{loadingIdea[note.id] ? 'Generating…' : 'Develop idea'}</button>}
-        <button className={isFeatured(note) ? 'original-feature-action is-featured' : 'original-feature-action'} onClick={() => handleFeature(note)} disabled={pending !== null || !canFeature(note)} aria-label={`${isFeatured(note) ? 'Unpin' : 'Pin'} ${title}`}><BookmarkIcon aria-hidden="true" />{isFeatured(note) ? 'Unpin' : 'Pin'}</button>
+        <button id={`pin-${note.id}`} className={isFeatured(note) ? 'original-feature-action is-featured' : 'original-feature-action'} onClick={() => handleFeature(note)} disabled={pending !== null || !canFeature(note)} aria-label={`${isFeatured(note) ? 'Unpin' : 'Pin'} ${title}`}><BookmarkIcon aria-hidden="true" />{isFeatured(note) ? 'Unpin' : 'Pin'}</button>
         <button onClick={() => handleToggleArchive(note)} disabled={pending !== null || !canArchive(note)} aria-label={`${isArchived(note) ? 'Restore' : 'Archive'} ${title}`}>{isArchived(note) ? <ArrowUturnLeftIcon aria-hidden="true" /> : <ArchiveBoxIcon aria-hidden="true" />}{pending === note.id ? 'Saving…' : isArchived(note) ? 'Restore' : 'Archive'}</button>
         <button className="original-delete" onClick={() => { setDeleteError(null); setDeleteTarget(note); }} disabled={pending !== null || !canDelete(note)} aria-label={`Delete ${title}`}><TrashIcon aria-hidden="true" />{canDelete(note) ? 'Delete' : 'Delete unavailable'}</button>
       </div>
@@ -196,7 +229,7 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
     </article>;
   };
   const showLibrary = nextView => {
-    setView(nextView); setSearch('');
+    setView(nextView);
     requestAnimationFrame(() => { libraryTitleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); libraryTitleRef.current?.focus(); });
   };
   const emptyCopy = {
@@ -210,12 +243,12 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
     <div className="original-dashboard-content">
       <div className="original-top-grid">
         {capture}
-        <ActiveIdeas notes={notes} userId={user?.id} loading={loadingNotes} error={notesError} onChoose={() => showLibrary('workspace')} onViewAll={() => showLibrary('featured')} onRetry={onReloadNotes} />
+        <ActiveIdeas notes={notes} userId={user?.id} loading={loadingNotes} error={notesError} onChoose={() => showLibrary('workspace')} onViewAll={() => showLibrary('featured')} onRetry={onReloadNotes} onOpen={rememberOpen} libraryUserId={user?.id} />
       </div>
       <section id="all-notes-section" className="original-library" aria-labelledby="library-title">
         <div className="original-library-heading"><div><h1 id="library-title" ref={libraryTitleRef} tabIndex={-1}>Your captured notes &amp; ideas</h1></div><button className="original-write" onClick={onWrite}><PencilSquareIcon aria-hidden="true" />Write a note</button></div>
-        <div className="original-library-tools"><label className="original-search"><MagnifyingGlassIcon aria-hidden="true" /><span className="sr-only">Search ideas</span><input type="search" placeholder="Search your notes and ideas" value={search} onChange={event => setSearch(event.target.value)} /></label><button className="original-refresh" onClick={onReloadNotes} disabled={loadingNotes}>Refresh</button></div>
-        <div className="original-filter-band"><nav className="original-filters" aria-label="Filter notes">{views.map(item => <button key={item.id} className={view === item.id ? 'is-active' : ''} onClick={() => { setView(item.id); setSearch(''); }} aria-pressed={view === item.id}><item.icon aria-hidden="true" />{item.label}<span>{notesError || loadingNotes ? '—' : item.count}</span></button>)}</nav><span className="original-result-count" role="status">{notesError ? 'Results unavailable' : loadingNotes ? 'Loading…' : `${displayedNotes.length} ${displayedNotes.length === 1 ? 'note' : 'notes'}`}</span></div>
+        <div className="original-library-tools"><label className="original-search"><MagnifyingGlassIcon aria-hidden="true" /><span className="sr-only">Search ideas</span><input type="search" maxLength={500} placeholder="Search your notes and ideas" value={search} onChange={event => setSearch(event.target.value)} /></label><button className="original-refresh" onClick={onReloadNotes} disabled={loadingNotes}>Refresh</button></div>
+        <div className="original-filter-band"><nav className="original-filters" aria-label="Filter notes">{views.map(item => <button key={item.id} className={view === item.id ? 'is-active' : ''} onClick={() => setView(item.id)} aria-pressed={view === item.id}><item.icon aria-hidden="true" />{item.label}<span>{notesError || loadingNotes ? '—' : item.count}</span></button>)}</nav><span className="original-result-count" role="status">{notesError ? 'Results unavailable' : loadingNotes ? 'Loading…' : `${displayedNotes.length} ${displayedNotes.length === 1 ? 'note' : 'notes'}`}</span></div>
         {notesError && <div className="library-feedback error" role="alert"><p>{notesError} The library may be incomplete.</p><button onClick={onReloadNotes} disabled={loadingNotes}>Retry loading</button></div>}
         {feedback && <p className={`library-feedback ${feedback.type}`} role={feedback.type === 'error' ? 'alert' : 'status'}>{feedback.text}</p>}
         <h2 className="sr-only">{query ? 'Search results' : selectedView.label}</h2>

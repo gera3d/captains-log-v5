@@ -1,0 +1,54 @@
+/* Saved work reads as one workspace, from library to output. */
+.idea-reading-canvas { padding-top:24px; }
+.idea-reading-identity { padding:26px 30px 22px; background:white; border:1px solid #e2e8f0; border-radius:18px 18px 0 0; }
+.idea-reading-eyebrow { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+.idea-reading-eyebrow time { color:#64748b; font-size:13px; white-space:nowrap; }
+.idea-reading-identity h1 { color:#0f172a; font-size:34px; line-height:1.2; letter-spacing:-1px; font-weight:700; margin:14px 0 10px; overflow-wrap:anywhere; }
+.idea-reading-pitch { color:#475569; font-size:16px; line-height:26px; max-width:85ch; margin:0; }
+.idea-reading-nav { display:flex; flex-wrap:wrap; gap:4px; background:#fff; border:1px solid #e2e8f0; border-top:0; padding:10px 20px; border-radius:0 0 18px 18px; margin-top:0!important; }
+.idea-reading-nav button { min-height:44px; display:flex; align-items:center; justify-content:center; gap:8px; color:#475569; padding:10px 14px; font-size:14px; font-weight:600; border-radius:8px; }
+.idea-reading-nav button[aria-pressed=true] { color:#4338ca; background:#eef2ff; }
+.idea-reading-nav button:hover { background:#f1f5f9; }
+.idea-reading-nav button svg { width:24px; height:24px; flex:none; }
+.idea-reading-missing { font-size:11px; font-weight:400; color:#64748b; }
+.idea-reading-output { margin-top:20px!important; }
+.idea-reading-output>div>div.prose { padding:30px 36px; }
+.idea-reading-output .prose { font-size:16px; line-height:1.8; hyphens:none; overflow-wrap:anywhere; }
+.idea-reading-facts { display:flex; flex-wrap:wrap; gap:20px 40px; border-bottom:1px solid #e2e8f0; padding:0 0 18px; }
+.idea-reading-facts dt { font-size:13px; color:#64748b; }
+.idea-reading-facts dd { font-size:15px; font-weight:600; color:#0f172a; margin-top:4px; }
+.idea-reading-nav button:focus-visible,.idea-reading-identity a:focus-visible { outline:3px solid #4f46e5; outline-offset:2px; }
+@media(max-width:700px) {
+ .idea-reading-canvas { padding-top:18px; }
+ .idea-reading-identity { padding:20px; }
+ .idea-reading-identity h1 { font-size:28px; letter-spacing:-.6px; margin-top:14px; }
+ .idea-reading-pitch { font-size:15px; line-height:24px; }
+ .idea-reading-eyebrow { flex-wrap:wrap; gap:6px; }
+ .idea-reading-eyebrow .idea-identity-row { flex:1; }
+ .idea-reading-nav { padding:8px; gap:4px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .idea-reading-nav button { justify-content:flex-start; padding:9px 10px; font-size:13px; }
+ .idea-reading-nav button:last-child:nth-child(odd) { grid-column:1/-1; }
+ .idea-reading-missing { display:none; }
+ .idea-reading-output>div>div.prose { padding:20px; }
+}
+/* Stable stage/pin/date rows; the saved audience lives in analysis. */
+.idea-reading-eyebrow .idea-identity-row { flex:1; margin:0; justify-content:flex-start; align-items:center; }
+.idea-reading-eyebrow .idea-pin { margin-left:4px; }
+.idea-reading-table { margin:24px 0; }
+.idea-reading-table>div { max-width:100%; overflow-x:auto; border:1px solid #e2e8f0; border-radius:12px; background:#fff; }
+.idea-reading-table table { min-width:680px; width:100%; margin:0; table-layout:auto; }
+.idea-reading-table td,.idea-reading-table th { overflow-wrap:normal; word-break:normal; font-size:14px; line-height:22px; }
+.idea-reading-table th:first-child,.idea-reading-table td:first-child { min-width:110px; white-space:nowrap; }
+.idea-reading-table-hint { display:none; }
+.idea-reading-table>div:focus-visible { outline:3px solid #4f46e5; outline-offset:3px; }
+@media(max-width:700px) {
+ .idea-reading-eyebrow { display:block; }
+ .idea-reading-eyebrow .idea-identity-row { flex-wrap:nowrap; justify-content:space-between; gap:8px; }
+ .idea-reading-eyebrow .idea-stage { font-size:13px; }
+ .idea-reading-eyebrow time { display:block; margin-top:10px; font-size:12px; }
+ .idea-reading-table-hint { display:block; color:#64748b; font-size:12px; line-height:20px; margin:0 0 8px; }
+}
+.idea-reading-unavailable { padding:28px; border:1px solid #e2e8f0; border-radius:16px; background:white; color:#475569; }
+.idea-reading-unavailable h2 { font-size:20px; line-height:28px; color:#0f172a; font-weight:600; margin:0 0 8px; }
+.idea-reading-unavailable p { font-size:15px; line-height:24px; }
+.idea-reading-unavailable button,.idea-reading-unavailable a { display:inline-flex; align-items:center; min-height:44px; padding:8px 12px; margin:12px 8px 0 0; border-radius:8px; background:#eef2ff; color:#4338ca; font-size:14px; }

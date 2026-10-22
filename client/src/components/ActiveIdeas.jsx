@@ -30,7 +30,7 @@ function Availability({ note }) {
   const original = Boolean(savedText(note.transcript || note.transcription).trim());
   return <div className="active-idea-availability">{report && <span><BookOpenIcon aria-hidden="true" />Report</span>}{note.prd_content?.trim() && <span><DocumentCheckIcon aria-hidden="true" />Product spec</span>}{original && <span><DocumentTextIcon aria-hidden="true" />Original note</span>}{note.audio_url && <span><MicrophoneIcon aria-hidden="true" />Recording</span>}</div>;
 }
-export default function ActiveIdeas({ notes, userId, loading, error, onChoose, onViewAll, onRetry }) {
+export default function ActiveIdeas({ notes, userId, loading, error, onChoose, onViewAll, onRetry, onOpen, libraryUserId }) {
   const selected = notes.filter(note => note.user_id === userId && featured(note) && !archived(note));
   const visible = selected.slice(0, 3);
   return <section className="active-ideas" aria-labelledby="active-ideas-title">
@@ -40,15 +40,15 @@ export default function ActiveIdeas({ notes, userId, loading, error, onChoose, o
         const lead = index === 0;
         const preview = savedPreview(note);
         const summary = extractSummary({ ...note, business_idea: savedText(note.business_idea), transcript: savedText(note.transcript || note.transcription) }) || preview.text;
-        return <Link className={`active-idea-card ${lead ? 'is-lead' : 'is-support'} ${preview.report ? 'is-developed' : 'is-capture'}`} key={note.id} to={`/idea/${note.id}`} aria-label={`Open active idea ${extractTitle(note)}`}>
+        return <div className="active-idea-entry" key={note.id}><Link id={`active-${note.id}`} onClick={onOpen} state={{ libraryUserId }} className={`active-idea-card ${lead ? 'is-lead' : 'is-support'} ${preview.report ? 'is-developed' : 'is-capture'}`} key={note.id} to={`/idea/${note.id}`} aria-label={`Open active idea ${extractTitle(note)}`}>
           <IdeaIdentity developed={preview.report} pinned={featured(note)} voice={Boolean(note.audio_url || formatDuration(note.duration))} />
           {lead ? <>
             <h3 className="active-lead-title">{extractTitle(note)}</h3>
             {preview.text && <div className={preview.report ? 'active-lead-summary' : 'active-capture-original'}><Reading>{preview.text}</Reading></div>}
             {preview.report && <SavedArtifactPreview note={note} omitText={preview.text} />}
-            <div className="active-idea-footer"><Availability note={note} /><span className="active-idea-open">Open idea<ChevronRightIcon aria-hidden="true" /></span></div>
-          </> : <div className="active-support-body"><h3>{extractTitle(note)}</h3><div><p className="active-idea-summary">{excerpt(summary)}</p><Availability note={note} /></div><ChevronRightIcon className="active-support-arrow" aria-hidden="true" /></div>}
-        </Link>;
+
+          </> : <div className="active-support-body"><h3>{extractTitle(note)}</h3><div><p className="active-idea-summary">{excerpt(summary)}</p></div><ChevronRightIcon className="active-support-arrow" aria-hidden="true" /></div>}
+        </Link><nav className="active-artifact-links" aria-label={`Saved outputs for ${extractTitle(note)}`} >{preview.report && <Link id={`active-report-${note.id}`} onClick={onOpen} state={{ libraryUserId }} to={`/idea/${note.id}?artifact=report`}><BookOpenIcon aria-hidden="true" />Report</Link>}{savedText(note.prd_content).trim() && <Link id={`active-spec-${note.id}`} onClick={onOpen} state={{ libraryUserId }} to={`/idea/${note.id}?artifact=spec`}><DocumentCheckIcon aria-hidden="true" />Product spec</Link>}{savedText(note.transcript || note.transcription).trim() && <Link id={`active-original-${note.id}`} onClick={onOpen} state={{ libraryUserId }} to={`/idea/${note.id}?artifact=original`}><DocumentTextIcon aria-hidden="true" />Original note</Link>}{note.audio_url && <span><MicrophoneIcon aria-hidden="true" />Recording</span>}<Link className="active-footer-open" id={`active-overview-${note.id}`} onClick={onOpen} state={{ libraryUserId }} to={`/idea/${note.id}`}>Open idea<ChevronRightIcon aria-hidden="true" /></Link></nav></div>;
       })}</div>
       {selected.length > 3 && <button className="active-ideas-view-all" onClick={onViewAll}>View all {selected.length} active ideas<ChevronRightIcon aria-hidden="true" /></button>}
     </> : <div className="active-ideas-state"><BookmarkIcon aria-hidden="true" /><h3>Keep the ideas you want to return to</h3><p>Use Pin in your library to keep an idea here. A rough capture can be an active idea too.</p><button onClick={onChoose}>Choose from your library</button></div>}

@@ -1,4 +1,7 @@
 import { workflowUrl } from './runtimeConfig';
+import { artifactTabs, clearLibraryContext } from './utils/libraryContext';
+import IdeaIdentity from './components/IdeaIdentity';
+import './components/IdeaReading.css';
 /*
   ROOT-TODO[HIGH]: App Structure & Release
   - Main entry point for Captain's Log app.
@@ -13,7 +16,7 @@ import { Dialog, DialogPanel, DialogTitle, Popover, PopoverButton, PopoverPanel 
 import { savedText } from './components/NotePreview';
 import LoadingSpinner from './components/LoadingSpinner';
 import { supabase } from './supabaseClient';
-import { Routes, Route, useNavigate, Link } from 'react-router-dom';
+import { Routes, Route, useNavigate, Link, useSearchParams, useLocation } from 'react-router-dom';
 import NotesList from './components/NotesList';
 import './components/Dashboard.css';
 import './components/OriginalDashboard.css';
@@ -39,6 +42,9 @@ import CommunitySignals from './components/CommunitySignals';
 import BuilderPromptKit from './components/BuilderPromptKit';
 import VentureBentoCockpit from './components/VentureBentoCockpit';
 import DomainBlueprintShowcase from './components/DomainBlueprintShowcase';
+
+const readingMarkdownComponents = { ...ideaMarkdownComponents, table: ({ children }) => <div className="idea-reading-table"><p className="idea-reading-table-hint">Scroll horizontally to read all columns →</p><div role="region" aria-label="Saved table, scroll horizontally" tabIndex={0}><table>{children}</table></div></div> };
+
 
 /*
   TODO[MEDIUM]: Dashboard Onboarding
@@ -600,6 +606,8 @@ function Dashboard({ notes, setNotes, user, initialOpenIntegrations = false, loa
 
 function FullIdeaPage({ user, session }) {
   const { id } = useParams();
+  const location = useLocation();
+  const clearDirectEntryContext = () => { if (location.state?.libraryUserId !== user?.id) clearLibraryContext(user?.id); };
   const [note, setNote] = useState(null);
   const savedReportRef = useRef(null);
   const canDevelopNote = Boolean(user?.id && note?.user_id === user.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(note.id));
@@ -609,7 +617,13 @@ function FullIdeaPage({ user, session }) {
   const [ideaError, setIdeaError] = useState(null);
   const { runGeneration, isGenerating, activeTask } = useGeneration();
   const [prdContent, setPrdContent] = useState(null);
-  const [activeTab, setActiveTab] = useState('cockpit');
+  const [artifactParams, setArtifactParams] = useSearchParams();
+  const requestedArtifact = artifactParams.get('artifact');
+  const activeTab = Object.hasOwn(artifactTabs, requestedArtifact) ? artifactTabs[requestedArtifact] : 'cockpit';
+  const setActiveTab = tab => {
+    const artifact = Object.keys(artifactTabs).find(key => artifactTabs[key] === tab) || 'overview';
+    setArtifactParams({ artifact }, { replace: true, preventScrollReset: true });
+  };
   const [prdError, setPrdError] = useState(null);
   const [showMoreActions, setShowMoreActions] = useState(false);
 
@@ -1008,12 +1022,13 @@ function FullIdeaPage({ user, session }) {
               <span className="hidden sm:inline-block text-white/30 text-lg font-light">/</span>
               <Link
                 to="/"
+                onClick={clearDirectEntryContext}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-white/90 hover:text-white bg-white/10 hover:bg-white/20 border border-white/20 transition backdrop-blur-sm cursor-pointer"
               >
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                <span>Back to Ideas</span>
+                <span>Back to library</span>
               </Link>
             </div>
 
@@ -1021,11 +1036,11 @@ function FullIdeaPage({ user, session }) {
             <div className="idea-detail-header-actions flex items-center space-x-2 sm:space-x-3">
               {(note?.audio_url || (Number.isFinite(note?.duration) && note.duration > 0)) ? (
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-100 bg-white/10 border border-white/20 px-2.5 py-1 rounded-full">
-                  🎙️ Voice Memo
+                  Voice capture
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-200 bg-white/10 border border-white/20 px-2.5 py-1 rounded-full">
-                  ⚡ Text Monologue
+                  Text capture
                 </span>
               )}
 
@@ -1108,59 +1123,14 @@ function FullIdeaPage({ user, session }) {
       </header>
 
       {/* Main Page Canvas with Dashboard Gradient */}
-      <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-slate-100 to-white min-h-[calc(100vh-5rem)]">
+      <main className="idea-reading-canvas flex-1 py-8 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-slate-100 to-white min-h-[calc(100vh-5rem)]">
         {ideaError && <div role="alert" className="max-w-7xl mx-auto mb-5 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><p>{ideaError}</p><p className="mt-1">Your original content is still shown below.</p></div>}
         {note && !canDevelopNote && <p className="max-w-7xl mx-auto mb-5 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">You can read this idea. Generating an idea or product document isn’t available for this note here.</p>}
         <div className="max-w-6xl mx-auto space-y-6">
-          {/* Main Hero Card in clean White with subtle border & shadow */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 space-y-5">
-            {/* Sector, Verdict, and TAM badges */}
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
-                {categoryName || (savedText(note?.business_idea).trim() ? 'Developed idea' : 'Capture')}
-              </span>
-              
-              {verdict && <span className={`inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider border shadow-xs ${verdictStyle}`}>
-                <span>{isStrongBuild ? '🔥' : isTrapOrRisk ? '💀' : '⚡'}</span>
-                <span>{verdict}</span>
-              </span>}
-
-              {savedFact(reportSummary?.tam) !== '' && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                  <span className="text-[10px] uppercase font-bold text-slate-500">TAM:</span>
-                  <span>{savedFact(reportSummary.tam)}</span>
-                </span>
-              )}
-
-              {note?.created_at && (
-                <span className="text-xs text-slate-400 font-medium ml-auto">
-                  {new Date(note.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                </span>
-              )}
-            </div>
-
-            {/* Title */}
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight font-display">
-              {ideaTitle}
-            </h1>
-
-            {savedVitals.length > 0 && <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-1">{savedVitals.map(([label, value]) => <div key={label} className="bg-slate-50 border border-slate-200 rounded-xl p-3"><dt className="text-xs font-medium text-slate-500 mb-1">{label}</dt><dd className="text-sm font-semibold text-slate-900">{value}</dd></div>)}</dl>}
-
-            {/* Founder Elevator Pitch Callout */}
-            {(reportSummary?.elevatorPitch || note?.summary) && (
-              <div className="p-4 sm:p-5 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50/90 via-amber-50/50 to-transparent text-slate-800 text-sm sm:text-base leading-relaxed flex items-start gap-3.5 shadow-xs">
-                <div className="p-2 rounded-xl bg-amber-100 text-amber-700 border border-amber-200 flex-shrink-0 mt-0.5">
-                  <SparklesIcon className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-amber-900 mb-1">{reportSummary?.elevatorPitch ? 'Saved elevator pitch' : 'Saved summary'}</div>
-                  <p className="font-medium text-slate-800 m-0 leading-relaxed">
-                    {reportSummary?.elevatorPitch || note?.summary}
-                  </p>
-                </div>
-              </div>
-            )}
-
+          <section className="idea-reading-identity" aria-labelledby="idea-reading-title">
+            <div className="idea-reading-eyebrow"><IdeaIdentity developed={Boolean(savedText(note?.business_idea).trim())} pinned={note?.is_featured === true || note?.is_featured === 'true'} voice={Boolean(note?.audio_url)} />{note?.created_at && <time>{new Date(note.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</time>}</div>
+            <h1 id="idea-reading-title">{ideaTitle}</h1>
+            {(reportSummary?.elevatorPitch || note?.summary) && <p className="idea-reading-pitch">{reportSummary?.elevatorPitch || note?.summary}</p>}
             {/* Audio Memo Capsule */}
             {note?.audio_url && (
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 px-4 bg-slate-50 rounded-xl border border-slate-200">
@@ -1172,95 +1142,20 @@ function FullIdeaPage({ user, session }) {
               </div>
             )}
 
-            {/* Segmented Pill Tabs matching Dashboard */}
-            <div className="pt-2 border-t border-slate-100">
-              <div className="inline-flex items-center gap-1.5 p-1 bg-slate-100 border border-slate-200 rounded-full shadow-inner flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('cockpit')}
-                  className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                    activeTab === 'cockpit'
-                      ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent'
-                  }`}
-                  aria-pressed={activeTab === 'cockpit'}
-                >
-                  <BoltIcon className="w-3.5 h-3.5 mr-1.5 text-current" />
-                  <span>Venture Cockpit</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('launch_kit')}
-                  className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                    activeTab === 'launch_kit'
-                      ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent'
-                  }`}
-                  aria-pressed={activeTab === 'launch_kit'}
-                >
-                  <RocketLaunchIcon className="w-3.5 h-3.5 mr-1.5 text-current" />
-                  <span>Launch Kit</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('prd')}
-                  className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                    activeTab === 'prd'
-                      ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent'
-                  }`}
-                  aria-pressed={activeTab === 'prd'}
-                >
-                  <DocumentCheckIcon className="w-3.5 h-3.5 mr-1.5 text-current" />
-                  <span>Product Spec (PRD)</span>
-                  {!prdContent && (
-                    <span className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-bold leading-none ${
-                      activeTab === 'prd' ? 'bg-indigo-700 text-white' : 'bg-slate-200 text-slate-600'
-                    }`}>
-                      Draft
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('dossier')}
-                  className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                    activeTab === 'dossier'
-                      ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent'
-                  }`}
-                  aria-pressed={activeTab === 'dossier'}
-                >
-                  <BookOpenIcon className="w-3.5 h-3.5 mr-1.5 text-current" />
-                  <span>Full Architectural Dossier</span>
-                </button>
-
-                {note?.transcript && (
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('transcript')}
-                    className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                      activeTab === 'transcript'
-                        ? 'bg-indigo-600 text-white shadow-sm font-bold border border-indigo-600'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 border border-transparent'
-                    }`}
-                    aria-pressed={activeTab === 'transcript'}
-                  >
-                    <DocumentTextIcon className="w-3.5 h-3.5 mr-1.5 text-current" />
-                    <span>Raw Monologue</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
+          </section>
+          <nav className="idea-reading-nav" aria-label="Idea content">
+            {[
+              ['cockpit', 'Overview', BoltIcon], ['dossier', 'Report', BookOpenIcon],
+              ['prd', 'Product spec', DocumentCheckIcon], ['launch_kit', 'Build prompt', RocketLaunchIcon],
+              ...(note?.transcript ? [['transcript', 'Original note', DocumentTextIcon]] : []),
+            ].map(([tab, label, Icon]) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} aria-pressed={activeTab === tab}><Icon aria-hidden="true" />{label}{tab === 'prd' && !prdContent && <span className="idea-reading-missing">Not created</span>}</button>)}
+          </nav>
+          <div className="idea-reading-output" aria-label="Saved idea content">
           {/* Tab Panel 1: Venture Cockpit */}
           <div className={`space-y-6 ${activeTab === 'cockpit' ? 'block' : 'hidden'}`}>
             {note ? (
               <>
+                {savedVitals.some(([label]) => label !== 'Primary audience') && <dl className="idea-reading-facts">{savedVitals.filter(([label]) => label !== 'Primary audience').map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
                 <VentureBentoCockpit
                   summary={reportSummary}
                   onOpenLaunchKit={() => setActiveTab('launch_kit')}
@@ -1303,14 +1198,14 @@ function FullIdeaPage({ user, session }) {
           <div className={`space-y-6 ${activeTab === 'prd' ? 'block' : 'hidden'}`}>
             {prdContent ? (
               <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm prose max-w-none text-slate-800">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={ideaMarkdownComponents}>{prdContent}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={readingMarkdownComponents}>{prdContent}</ReactMarkdown>
               </div>
             ) : (
               <div className="bg-white border border-slate-200 rounded-2xl p-8 sm:p-12 text-center max-w-xl mx-auto shadow-sm">
                 <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mx-auto mb-4 text-2xl">
                   📋
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">Product Requirement Document (PRD)</h3>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Product spec</h3>
                 {prdError ? (
                   <div className="text-rose-600 mb-4 text-xs font-medium">
                     <p className="font-semibold">Error generating PRD:</p>
@@ -1349,34 +1244,14 @@ function FullIdeaPage({ user, session }) {
           <div className={`space-y-6 ${activeTab === 'dossier' ? 'block' : 'hidden'}`}>
             {note?.business_idea ? (
               <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm prose max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={ideaMarkdownComponents}>{note.business_idea}</ReactMarkdown>
-              </div>
-            ) : note?.transcript ? (
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm space-y-4">
-                <div className="p-4 sm:p-5 rounded-xl border border-indigo-200 bg-indigo-50/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-sm">Raw capture waiting for your decision</h4>
-                    <p className="mt-1 text-slate-600 text-xs">
-                      Not every note needs to be organized. If this idea is worthy, convert it into a structured startup plan backed by market research.
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleGenerateIdea}
-                    disabled={!canDevelopNote || generatingIdea}
-                    className="inline-flex items-center px-4 py-2 rounded-full text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition flex-shrink-0 cursor-pointer disabled:opacity-50"
-                  >
-                    <SparklesIcon className="h-3.5 w-3.5 mr-1.5 text-white" />
-                    Generate Business Idea
-                  </button>
-                </div>
-                <div className="p-4 border border-slate-200 rounded-xl bg-slate-50">
-                  <p className="text-slate-800 whitespace-pre-wrap font-sans text-sm">{note.transcript}</p>
-                </div>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={readingMarkdownComponents}>{note.business_idea}</ReactMarkdown>
               </div>
             ) : (
-              <p className="text-slate-500 italic text-center py-8">No dossier content available for this note.</p>
+              <div className="idea-reading-unavailable" role="status"><h2>No report saved for this note</h2><p>A report hasn’t been created here.</p>{note?.transcript && <button onClick={() => setActiveTab('transcript')}>Read original note</button>}{note?.transcript && <button onClick={handleGenerateIdea} disabled={!canDevelopNote || generatingIdea}>Develop idea</button>}</div>
             )}
           </div>
+
+          {activeTab === 'transcript' && note && !savedText(note.transcript).trim() && <div className="idea-reading-unavailable" role="status"><h2>No original text saved for this note</h2><p>This note has no saved transcript or original text.</p>{savedText(note.business_idea).trim() && <button onClick={() => setActiveTab('dossier')}>Read report</button>}{savedText(prdContent).trim() && <button onClick={() => setActiveTab('prd')}>Read product spec</button>}<Link to="/" onClick={clearDirectEntryContext}>Back to library</Link></div>}
 
           {/* Tab Panel 5: Raw Monologue */}
           {note?.transcript && (
@@ -1385,17 +1260,17 @@ function FullIdeaPage({ user, session }) {
                 <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
                   <div>
                     <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-                      <span>🎙️</span> Original Brainstorm Monologue
+                      <span>🎙️</span> Original note
                     </h3>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      {note.audio_url ? 'Speech-to-text transcript' : 'Captured via ambient coding harness (text-only)'}
+                      {note.audio_url ? 'Speech-to-text transcript' : 'Saved text capture'}
                     </p>
                   </div>
                   <button
                     onClick={() => navigator.clipboard.writeText(note.transcript)}
                     className="inline-flex items-center px-3.5 py-1.5 rounded-full border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition shadow-sm cursor-pointer"
                   >
-                    Copy Monologue
+                    Copy original
                   </button>
                 </div>
                 <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 font-sans text-sm text-slate-800 whitespace-pre-wrap leading-relaxed shadow-inner">
@@ -1404,6 +1279,7 @@ function FullIdeaPage({ user, session }) {
               </div>
             </div>
           )}
+          </div>
         </div>
       </main>
     </div>
