@@ -314,7 +314,7 @@ body:has(.original-dashboard) .dashboard-account button[aria-expanded] { min-hei
 body:has(.original-dashboard) .dashboard-account button[aria-expanded]>span.mr-1 { display:inline; }
 /* The existing detail actions reflow on phones instead of clipping the brand. */
 @media(max-width:700px) {
- .idea-detail-header-row { height:auto; min-height:80px; flex-wrap:wrap; gap:10px; padding:12px 0; }
+ .idea-detail-header-row.h-20 { height:auto; min-height:80px; flex-wrap:wrap; gap:10px; padding:12px 0; }
  .idea-detail-header-brand { width:100%; justify-content:space-between; gap:12px; }
  .idea-detail-header-brand>* { margin-left:0!important; }
  .idea-detail-header-brand>a:first-child { flex:none; min-height:44px; }
