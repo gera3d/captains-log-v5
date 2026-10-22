@@ -622,7 +622,7 @@ function FullIdeaPage({ user, session }) {
   const activeTab = Object.hasOwn(artifactTabs, requestedArtifact) ? artifactTabs[requestedArtifact] : 'cockpit';
   const setActiveTab = tab => {
     const artifact = Object.keys(artifactTabs).find(key => artifactTabs[key] === tab) || 'overview';
-    setArtifactParams({ artifact }, { replace: true, preventScrollReset: true, state: location.state?.libraryUserId === user?.id ? { libraryUserId: user.id } : null });
+    setArtifactParams({ artifact }, { replace: true, preventScrollReset: true, state: user?.id && location.state?.libraryUserId === user.id ? { libraryUserId: user.id } : null });
   };
   const [prdError, setPrdError] = useState(null);
   const [showMoreActions, setShowMoreActions] = useState(false);
