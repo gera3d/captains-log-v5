@@ -620,6 +620,7 @@ function FullIdeaPage({ user, session }) {
   const [unsavedGeneration, setUnsavedGeneration] = useState(null);
   const [unsavedSpec, setUnsavedSpec] = useState(null);
   const [contextSaving, setContextSaving] = useState(false);
+  const generationPendingRef = useRef(false);
   const canDevelopNote = Boolean(user?.id && note?.id === id && note?.user_id === user.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(note.id));
   const [copied, setCopied] = useState('');
   const [generatingPRD, setGeneratingPRD] = useState(false);
@@ -857,7 +858,8 @@ function FullIdeaPage({ user, session }) {
     setActiveTab('cockpit');
   };
   const handleGenerateIdea = async () => {
-    if (!canDevelopNote || generatingIdea || contextSaving) return;
+    if (!canDevelopNote || generatingIdea || generatingPRD || contextSaving || generationPendingRef.current) return;
+    generationPendingRef.current = true;
     const ownerId = user.id;
     try {
       setGeneratingIdea(true); setIdeaError(null);
@@ -877,17 +879,19 @@ function FullIdeaPage({ user, session }) {
         return { id: snapshot.id, title: extractTitle({ business_idea: idea }), summary: extractSummary({ business_idea: idea }), url: `/idea/${snapshot.id}` };
       }});
     } catch (error) { if (routeIdentityRef.current.id === id && routeIdentityRef.current.userId === ownerId) setIdeaError(generationMessage(error)); }
-    finally { setGeneratingIdea(false); }
+    finally { generationPendingRef.current = false; setGeneratingIdea(false); }
   };
   const retryReportSave = async () => {
-    if (!unsavedGeneration || generatingIdea || contextSaving || unsavedGeneration.ownerId !== user?.id) return;
+    if (!unsavedGeneration || generatingIdea || generatingPRD || contextSaving || generationPendingRef.current || unsavedGeneration.ownerId !== user?.id) return;
+    generationPendingRef.current = true;
     setGeneratingIdea(true); setIdeaError(null);
     try { const { snapshot, text, ownerId } = unsavedGeneration; await saveGeneratedReport(snapshot, text, ownerId); applyGeneratedReport(snapshot, text, ownerId); }
     catch (error) { setIdeaError(generationMessage(error)); }
-    finally { setGeneratingIdea(false); }
+    finally { generationPendingRef.current = false; setGeneratingIdea(false); }
   };
   const handleCreatePRD = async () => {
-    if (!canDevelopNote || generatingPRD || contextSaving) return;
+    if (!canDevelopNote || generatingPRD || generatingIdea || contextSaving || generationPendingRef.current) return;
+    generationPendingRef.current = true;
     const ownerId = user.id;
     try {
       setGeneratingPRD(true); setPrdError(null);
@@ -902,14 +906,15 @@ function FullIdeaPage({ user, session }) {
       await saveGeneratedSpec(snapshot, text, ownerId);
       if (routeIdentityRef.current.id === snapshot.id && routeIdentityRef.current.userId === ownerId) { setPrdContent(text); setUnsavedSpec(null); setActiveTab('prd'); }
     } catch (error) { if (routeIdentityRef.current.id === id && routeIdentityRef.current.userId === ownerId) setPrdError(generationMessage(error)); }
-    finally { setGeneratingPRD(false); }
+    finally { generationPendingRef.current = false; setGeneratingPRD(false); }
   };
   const retrySpecSave = async () => {
-    if (!unsavedSpec || generatingPRD || contextSaving || unsavedSpec.ownerId !== user?.id) return;
+    if (!unsavedSpec || generatingPRD || generatingIdea || contextSaving || generationPendingRef.current || unsavedSpec.ownerId !== user?.id) return;
+    generationPendingRef.current = true;
     setGeneratingPRD(true); setPrdError(null);
     try { const { snapshot, text, ownerId } = unsavedSpec; await saveGeneratedSpec(snapshot, text, ownerId); if (routeIdentityRef.current.id === snapshot.id && routeIdentityRef.current.userId === ownerId) { setPrdContent(text); setUnsavedSpec(null); setActiveTab('prd'); } }
     catch (error) { setPrdError(generationMessage(error)); }
-    finally { setGeneratingPRD(false); }
+    finally { generationPendingRef.current = false; setGeneratingPRD(false); }
   };
 
   const savedFact = value => typeof value === 'string' ? value.trim() : typeof value === 'number' && Number.isFinite(value) ? String(value) : '';
@@ -977,7 +982,7 @@ function FullIdeaPage({ user, session }) {
               {(note?.transcript || note?.transcription || note?.business_idea) && (
                 <button
                   onClick={handleGenerateIdea}
-                  disabled={!canDevelopNote || generatingIdea || contextSaving}
+                  disabled={!canDevelopNote || generatingIdea || generatingPRD || contextSaving}
                   className="inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-bold border border-white/20 bg-white/10 hover:bg-white/20 text-white transition shadow-sm cursor-pointer disabled:opacity-50"
                   title={note?.business_idea ? 'Regenerate idea' : 'Generate idea'}
                 >
@@ -1182,7 +1187,7 @@ function FullIdeaPage({ user, session }) {
                 <ReactMarkdown remarkPlugins={[remarkGfm]} components={readingMarkdownComponents}>{note.business_idea}</ReactMarkdown>
               </div>
             ) : (
-              <div className="idea-reading-unavailable" role="status"><h2>No report saved for this note</h2><p>A report hasn’t been created here.</p>{note?.transcript && <button onClick={() => setActiveTab('transcript')}>Read original note</button>}{note?.transcript && <button onClick={handleGenerateIdea} disabled={!canDevelopNote || generatingIdea || contextSaving}>Develop idea</button>}</div>
+              <div className="idea-reading-unavailable" role="status"><h2>No report saved for this note</h2><p>A report hasn’t been created here.</p>{note?.transcript && <button onClick={() => setActiveTab('transcript')}>Read original note</button>}{note?.transcript && <button onClick={handleGenerateIdea} disabled={!canDevelopNote || generatingIdea || generatingPRD || contextSaving}>Develop idea</button>}</div>
             )}
           </div>
 

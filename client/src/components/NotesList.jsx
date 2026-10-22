@@ -49,6 +49,7 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
   }, [loadingNotes, notes, view, search]);
   const rememberOpen = event => saveLibraryContext(user?.id, { view, search, focus: event.currentTarget.id, disclosures: [...document.querySelectorAll('.original-note details[open][id]')].map(item => item.id) });
   const [loadingIdea, setLoadingIdea] = useState({});
+  const generationPendingRef = useRef(false);
   const [pending, setPending] = useState(null);
   const pendingRef = useRef(false);
   const [feedback, setFeedback] = useState(null);
@@ -163,7 +164,8 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
   };
 
   const handleGenerateIdea = async note => {
-    if (!ownsNote(note) || loadingIdea[note.id]) return;
+    if (!ownsNote(note) || loadingIdea[note.id] || generationPendingRef.current) return;
+    generationPendingRef.current = true;
     setLoadingIdea(previous => ({ ...previous, [note.id]: true }));
     setFeedback(null);
     try {
@@ -189,6 +191,7 @@ export default function NotesList({ notes = [], setNotes, loadingNotes = false, 
     } catch (error) {
       setFeedback({ type: 'error', text: generationMessage(error) });
     } finally {
+      generationPendingRef.current = false;
       setLoadingIdea(previous => ({ ...previous, [note.id]: false }));
     }
   };

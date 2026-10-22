@@ -58,12 +58,17 @@ export async function ideaSaveCapability(userId) {
 }
 const equal = value => value === null ? { is: 'NULL' } : { eq: value };
 export async function compareAndSetIdea(snapshot, changes, userId, includeReport = false) {
+  const nullableText = value => value === null || typeof value === 'string';
+  const fields = changes && typeof changes === 'object' && !Array.isArray(changes) ? Object.keys(changes) : [];
+  const field = fields[0];
+  if (!userId || typeof userId !== 'string' || !userId.trim() || !snapshot || Array.isArray(snapshot) || typeof snapshot.id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(snapshot.id) || snapshot.user_id !== userId || !nullableText(snapshot.transcript) || !nullableText(snapshot.business_idea) || fields.length !== 1 || !['transcript', 'business_idea', 'prd_content'].includes(field) || typeof changes[field] !== 'string' || typeof includeReport !== 'boolean' || (field !== 'transcript' && !includeReport) || (field === 'prd_content' && !nullableText(snapshot.prd_content))) {
+    throw new IdeaContextError('The intended save could not be confirmed safely. Your draft is kept.', 'invalid_snapshot');
+  }
   requireContextBudget(snapshot.transcript || '', 2 * 1024 * 1024, 'The saved original and additions');
   requireContextBudget(snapshot.business_idea || '', 2 * 1024 * 1024, 'The saved report');
   for (const value of Object.values(changes)) if (typeof value === 'string') requireContextBudget(value, 2 * 1024 * 1024, 'The new document');
   const capability = await ideaSaveCapability(userId);
   if (!capability.available) throw new IdeaContextError(capability.reason, 'unsupported');
-  if (snapshot.user_id !== userId || Object.keys(changes).some(key => !['transcript', 'business_idea', 'prd_content'].includes(key))) throw new IdeaContextError('The intended save could not be confirmed. Your draft is kept.', 'auth');
   const filter = { id: { eq: snapshot.id }, user_id: { eq: userId }, transcript: equal(snapshot.transcript) };
   if (includeReport) filter.business_idea = equal(snapshot.business_idea);
   if (Object.hasOwn(changes, 'prd_content')) {
@@ -72,7 +77,7 @@ export async function compareAndSetIdea(snapshot, changes, userId, includeReport
   }
   const data = await graphql(`mutation SaveIdea($set: ${capability.set}!, $filter: ${capability.filter}!) { saved: ${capability.mutation}(set: $set, filter: $filter, atMost: 1) { affectedCount records { id user_id transcript business_idea prd_content } } }`, { set: changes, filter }, userId);
   const result = data.saved;
-  const row = result?.records?.length === 1 ? result.records[0] : null;
+  const row = Array.isArray(result?.records) && result.records.length === 1 ? result.records[0] : null;
   if (result?.affectedCount !== 1 || row?.id !== snapshot.id || row.user_id !== userId || row.transcript !== (Object.hasOwn(changes, 'transcript') ? changes.transcript : snapshot.transcript) || (Object.hasOwn(changes, 'business_idea') && row.business_idea !== changes.business_idea) || (Object.hasOwn(changes, 'prd_content') && row.prd_content !== changes.prd_content)) throw new IdeaContextError('The change could not be confirmed. Saved details may have changed. Your draft and current report are kept.', 'conflict');
   return row;
 }
