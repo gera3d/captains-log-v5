@@ -312,3 +312,18 @@ body:has(.original-dashboard) .dashboard-account>button:last-child { border-left
 .persona-dialog [id='personaName'],.persona-dialog textarea { font-size:16px; }
 body:has(.original-dashboard) .dashboard-account button[aria-expanded] { min-height:44px; }
 body:has(.original-dashboard) .dashboard-account button[aria-expanded]>span.mr-1 { display:inline; }
+/* The existing detail actions reflow on phones instead of clipping the brand. */
+@media(max-width:700px) {
+ .idea-detail-header-row { height:auto; min-height:80px; flex-wrap:wrap; gap:10px; padding:12px 0; }
+ .idea-detail-header-brand { width:100%; justify-content:space-between; gap:12px; }
+ .idea-detail-header-brand>* { margin-left:0!important; }
+ .idea-detail-header-brand>a:first-child { flex:none; }
+ .idea-detail-header-brand img { width:100px; height:auto; }
+ .idea-detail-header-brand>a:last-child { min-height:44px; white-space:nowrap; }
+ .idea-detail-header-actions { width:100%; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
+ .idea-detail-header-actions>* { margin-left:0!important; }
+ .idea-detail-header-actions>span { white-space:nowrap; }
+ .idea-detail-header-actions>button,.idea-detail-header-actions>.relative>button { min-height:44px; white-space:nowrap; }
+ .idea-detail-header-actions>.relative { flex:none; }
+ .idea-detail-header-actions>.relative>button { min-width:44px; }
+}

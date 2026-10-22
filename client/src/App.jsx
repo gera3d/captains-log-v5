@@ -996,8 +996,8 @@ function FullIdeaPage({ user, session }) {
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.8)_0%,_rgba(255,255,255,0)_60%)]"></div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <div className="flex items-center space-x-3 sm:space-x-4">
+          <div className="idea-detail-header-row flex justify-between items-center h-20">
+            <div className="idea-detail-header-brand flex items-center space-x-3 sm:space-x-4">
               <Link to="/" className="flex items-center group transition">
                 <img 
                   src="/goodideas.png" 
@@ -1018,7 +1018,7 @@ function FullIdeaPage({ user, session }) {
             </div>
 
             {/* Right side actions in global header */}
-            <div className="flex items-center space-x-2 sm:space-x-3">
+            <div className="idea-detail-header-actions flex items-center space-x-2 sm:space-x-3">
               {(note?.audio_url || (Number.isFinite(note?.duration) && note.duration > 0)) ? (
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-100 bg-white/10 border border-white/20 px-2.5 py-1 rounded-full">
                   🎙️ Voice Memo
