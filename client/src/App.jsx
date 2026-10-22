@@ -1156,12 +1156,13 @@ function FullIdeaPage({ user, session }) {
           <div className={`space-y-6 ${activeTab === 'cockpit' ? 'block' : 'hidden'}`}>
             {note ? (
               <>
-                {(savedVitals.some(([label]) => label !== 'Primary audience') || categoryName !== '' || savedFact(reportSummary?.tam) !== '') && <dl className="idea-reading-facts">{[...savedVitals.filter(([label]) => label !== 'Primary audience'), ['Market position', categoryName], ['TAM', savedFact(reportSummary?.tam)]].filter(([, value]) => value !== '').map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
+                {savedVitals.some(([label]) => label !== 'Primary audience') && <dl className="idea-reading-facts">{savedVitals.filter(([label]) => label !== 'Primary audience').map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
                 <VentureBentoCockpit
                   summary={reportSummary}
                   onOpenLaunchKit={() => setActiveTab('launch_kit')}
                   onOpenPRD={() => setActiveTab('prd')}
                 />
+                {(categoryName !== '' || savedFact(reportSummary?.tam) !== '') && <dl className="idea-reading-facts" aria-label="Saved market context">{[['Market position', categoryName], ['TAM', savedFact(reportSummary?.tam)]].filter(([, value]) => value !== '').map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
 
                 {reportSummary?.domainBlueprint && (
                   <DomainBlueprintShowcase blueprint={reportSummary.domainBlueprint} />
