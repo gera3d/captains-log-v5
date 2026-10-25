@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import AuthModal from "./AuthModal";
 import { isBetaMode } from "../runtimeConfig";
@@ -32,6 +32,9 @@ const questions = [
 export default function LandingPage() {
   const [authMode, setAuthMode] = useState(null);
   const [showWaitlist, setShowWaitlist] = useState(false);
+  const [videoCompleted, setVideoCompleted] = useState(false);
+  const overviewRef = useRef(null);
+  const watchVideo = () => overviewRef.current?.play();
   const requestAccess = () => {
     if (isBetaMode) {
       setAuthMode(null);
@@ -67,7 +70,7 @@ export default function LandingPage() {
               >
                 Sign in
               </button>
-              <button className="home-nav-create" onClick={requestAccess}>
+              <button className={videoCompleted ? "home-nav-create" : "home-nav-create home-nav-secondary"} onClick={requestAccess}>
                 {isBetaMode ? "Join the waiting list" : "Create an account"}
               </button>
             </div>
@@ -89,15 +92,17 @@ export default function LandingPage() {
                 it into a spec and a build brief you can use in your coding tool.
               </p>
               <div className="home-intro-actions">
-                <button className="home-primary" onClick={requestAccess}>
-                  {isBetaMode ? "Join the waiting list" : "Create an account"}
+                <button className={videoCompleted ? "home-primary" : "home-primary home-watch-intro"} onClick={videoCompleted ? requestAccess : watchVideo}>
+                  {videoCompleted ? (isBetaMode ? "Join the waiting list" : "Create an account") : "Watch the 29-second video"}
                 </button>
-                <a className="home-secondary" href="#how-it-works">See how it works</a>
+                <button className="home-secondary home-secondary-button" onClick={videoCompleted ? watchVideo : requestAccess}>
+                  {videoCompleted ? "Replay video" : (isBetaMode ? "Join the waiting list" : "Create an account")}
+                </button>
               </div>
               {isBetaMode && <p className="beta-public-note"><GoodIdeaWord /> is in beta.</p>}
             </div>
           </section>
-          <HomepageVideo />
+          <HomepageVideo ref={overviewRef} onComplete={() => setVideoCompleted(true)} onRequestAccess={requestAccess} accessLabel={isBetaMode ? "Join the waiting list" : "Create an account"} />
           <CaptureStory />
           <CodingTools />
           <section
