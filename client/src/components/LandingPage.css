@@ -689,3 +689,19 @@
     transition: none !important;
   }
 }
+.home-video {
+  padding-bottom: clamp(32px, 5vw, 64px);
+}
+
+.home-video-player {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 20px;
+  background: #151515;
+}
+
+.home-video-mobile {
+  max-width: 390px;
+  margin-inline: auto;
+}

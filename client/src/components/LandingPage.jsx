@@ -7,6 +7,7 @@ import HomepageOutputs from "./HomepageOutputs";
 import CodingTools from "./CodingTools";
 import GoodIdeaWord from "./GoodIdeaWord";
 import CaptureStory from "./CaptureStory";
+import HomepageVideo from "./HomepageVideo";
 import "./LandingPage.css";
 
 const questions = [
@@ -96,6 +97,7 @@ export default function LandingPage() {
               {isBetaMode && <p className="beta-public-note"><GoodIdeaWord /> is in beta.</p>}
             </div>
           </section>
+          <HomepageVideo />
           <CaptureStory />
           <CodingTools />
           <section
